@@ -75,7 +75,7 @@ def salvar_dados(df):
         return False
 
 # ==============================================================================
-# 3. GERENCIAMENTO DE ESTADO E MODAIS (POP-UPS)
+# 3. GERENCIAMENTO DE ESTADO E UNIDADES
 # ==============================================================================
 UNIDADES_PADRAO = [
     "",
@@ -91,63 +91,8 @@ UNIDADES_PADRAO = [
 if "lista_unidades" not in st.session_state:
     st.session_state["lista_unidades"] = UNIDADES_PADRAO.copy()
 
-def limpar_formulario():
-    st.session_state["form_codigo"] = ""
-    st.session_state["form_descricao"] = ""
-    st.session_state["form_categoria"] = ""
-    st.session_state["form_unidade"] = ""
-    st.session_state["form_tarifa"] = 0.0
-    st.session_state["form_observacoes"] = ""
-
-if "form_codigo" not in st.session_state:
-    limpar_formulario()
-
-# --- Pop-up 1: Adicionar Unidade ---
-@st.dialog("➕ Adicionar Nova Unidade")
-def popup_adicionar_unidade():
-    st.write("Digite o nome da nova unidade para incluir na lista de seleção:")
-    nova_unidade = st.text_input("Nome da Unidade", placeholder="Ex: por container, por kg...")
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("💾 Salvar Unidade", use_container_width=True):
-            nome_limpo = nova_unidade.strip()
-            if nome_limpo:
-                if nome_limpo not in st.session_state["lista_unidades"]:
-                    st.session_state["lista_unidades"].append(nome_limpo)
-                    st.session_state["form_unidade"] = nome_limpo
-                    st.success(f"Unidade '{nome_limpo}' adicionada!")
-                    st.rerun()
-                else:
-                    st.warning("Esta unidade já existe na lista!")
-            else:
-                st.warning("Informe um nome para a unidade.")
-    with col2:
-        if st.button("Cancelar", use_container_width=True):
-            st.rerun()
-
-# --- Pop-up 2: Remover Unidade ---
-@st.dialog("➖ Remover Unidade da Lista")
-def popup_remover_unidade():
-    unidades_existentes = [u for u in st.session_state["lista_unidades"] if u != ""]
-    if not unidades_existentes:
-        st.info("Não há unidades para remover.")
-        return
-
-    unidade_selecionada = st.selectbox("Selecione a unidade que deseja excluir:", unidades_existentes)
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("🗑️ Confirmar Exclusão", use_container_width=True):
-            if unidade_selecionada in st.session_state["lista_unidades"]:
-                st.session_state["lista_unidades"].remove(unidade_selecionada)
-                if st.session_state.get("form_unidade") == unidade_selecionada:
-                    st.session_state["form_unidade"] = ""
-                st.success(f"Unidade '{unidade_selecionada}' removida!")
-                st.rerun()
-    with col2:
-        if st.button("Cancelar", use_container_width=True):
-            st.rerun()
+if "form_id" not in st.session_state:
+    st.session_state["form_id"] = 0
 
 # ==============================================================================
 # 4. INTERFACE DO APLICATIVO
@@ -162,39 +107,64 @@ with tabs[0]:
     
     df_servicos = carregar_dados()
 
+    # Chave dinâmica para reinicializar os campos com segurança quando salvo
+    fid = st.session_state["form_id"]
+
     with st.form("form_servico", clear_on_submit=False):
         col1, col2 = st.columns(2)
         
         with col1:
-            codigo = st.text_input("Código do Serviço *", key="form_codigo", placeholder="Ex: SERV-001")
+            codigo = st.text_input("Código do Serviço *", key=f"codigo_{fid}", placeholder="Ex: SERV-001")
             categoria = st.selectbox(
                 "Categoria *", 
                 ["", "Armazenagem", "Seguro", "Serviço", "Movimentação (Handling)", "Outros"],
-                key="form_categoria"
+                key=f"categoria_{fid}"
             )
-            tarifa = st.number_input("Tarifa (R$) *", min_value=0.0, format="%.2f", key="form_tarifa")
+            tarifa = st.number_input("Tarifa (R$) *", min_value=0.0, format="%.2f", key=f"tarifa_{fid}")
         
         with col2:
-            descricao = st.text_input("Descrição do Serviço *", key="form_descricao", placeholder="Ex: Armazenagem de carga paletizada")
+            descricao = st.text_input("Descrição do Serviço *", key=f"descricao_{fid}", placeholder="Ex: Armazenagem de carga paletizada")
             unidade = st.selectbox(
                 "Unidade *", 
                 st.session_state["lista_unidades"],
-                key="form_unidade"
+                key=f"unidade_{fid}"
             )
-            observacoes = st.text_area("Observações e Premissas (Opcional)", key="form_observacoes", placeholder="Ex: Faturamento mínimo mensal de 50 paletes.")
+            observacoes = st.text_area("Observações e Premissas (Opcional)", key=f"obs_{fid}", placeholder="Ex: Faturamento mínimo mensal de 50 paletes.")
         
         btn_salvar = st.form_submit_button("💾 Cadastrar / Salvar Serviço")
 
-    # Botões para abrir as janelas pop-up
-    col_b1, col_b2, _ = st.columns([1.5, 1.5, 7])
-    with col_b1:
-        if st.button("➕ Nova Unidade"):
-            popup_adicionar_unidade()
-    with col_b2:
-        if st.button("➖ Excluir Unidade"):
-            popup_remover_unidade()
+    # Gestão de Unidades
+    with st.expander("⚙️ Gerenciar Opções da Lista de Unidades (+ / -)"):
+        col_u1, col_u2 = st.columns(2)
+        
+        with col_u1:
+            st.markdown("**➕ Adicionar Nova Unidade**")
+            nova_unidade_input = st.text_input("Nome da Unidade", placeholder="Ex: por container", key="input_add_u")
+            if st.button("Confirmar Inclusão"):
+                nome_limpo = nova_unidade_input.strip()
+                if nome_limpo:
+                    if nome_limpo not in st.session_state["lista_unidades"]:
+                        st.session_state["lista_unidades"].append(nome_limpo)
+                        st.success(f"Unidade '{nome_limpo}' adicionada com sucesso!")
+                        st.rerun()
+                    else:
+                        st.warning("Esta unidade já consta na lista.")
+                else:
+                    st.warning("Digite um nome válido para a unidade.")
+                    
+        with col_u2:
+            st.markdown("**➖ Remover Unidade Existente**")
+            unidades_disponiveis = [u for u in st.session_state["lista_unidades"] if u != ""]
+            if unidades_disponiveis:
+                unidade_para_remover = st.selectbox("Selecione para excluir", unidades_disponiveis, key="select_rem_u")
+                if st.button("Confirmar Exclusão"):
+                    st.session_state["lista_unidades"].remove(unidade_para_remover)
+                    st.success(f"Unidade '{unidade_para_remover}' removida!")
+                    st.rerun()
+            else:
+                st.info("Não existem unidades personalizadas para remover.")
 
-    # Ação de Salvamento do Serviço
+    # Processamento do salvamento
     if btn_salvar:
         erros = []
         if not codigo.strip():
@@ -221,7 +191,8 @@ with tabs[0]:
             df_atualizado = pd.concat([df_servicos, nova_linha], ignore_index=True)
             if salvar_dados(df_atualizado):
                 st.success(f"Serviço '{codigo}' salvo com sucesso!")
-                limpar_formulario()
+                # Incrementa o ID para limpar os campos sem causar erro de widget
+                st.session_state["form_id"] += 1
                 st.rerun()
         else:
             campos_faltantes = ", ".join(erros)
