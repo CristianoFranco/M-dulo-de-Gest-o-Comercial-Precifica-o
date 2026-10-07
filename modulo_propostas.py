@@ -58,7 +58,7 @@ def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_blo
                     tarifa_float = float(row["Tarifa (R$)"])
                 
                 # Evita duplicidade no rascunho
-                ja_existe = any(str(i["Código"]) == str(item_selecionado) for i in st.session_state["rascunho_itens"])
+                ja_existe = any(str(i.get("Código", "")) == str(item_selecionado) for i in st.session_state["rascunho_itens"])
                 if not ja_existe:
                     st.session_state["rascunho_itens"].append({
                         "Excluir": False,
@@ -74,15 +74,28 @@ def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_blo
             else:
                 st.warning("Selecione um item antes de adicionar.")
 
-    # Exibição da tabela exata nativa
-    itens_do_bloco = [i for i in st.session_state["rascunho_itens"] if i["Categoria"] == titulo]
+    # Garante que todos os itens na sessão possuam a chave 'Excluir'
+    for item in st.session_state["rascunho_itens"]:
+        if "Excluir" not in item:
+            item["Excluir"] = False
+
+    # Exibição da tabela nativa
+    itens_do_bloco = [i for i in st.session_state["rascunho_itens"] if i.get("Categoria") == titulo]
     
     if itens_do_bloco:
         st.markdown("<h5 style='color: #FFFFFF; font-weight: bold; margin-top: 15px;'>📋 Itens Inseridos:</h5>", unsafe_allow_html=True)
         
-        df_bloco = pd.DataFrame(itens_do_bloco)[["Excluir", "Código", "Descrição", "Tarifa (R$)", "Unidade"]]
+        df_bloco = pd.DataFrame(itens_do_bloco)
         
-        # Tabela nativa interativa do Streamlit com caixa de seleção de exclusão na 1ª coluna
+        # Garante a presença e ordem exata das colunas
+        colunas_exibicao = ["Excluir", "Código", "Descrição", "Tarifa (R$)", "Unidade"]
+        for col in colunas_exibicao:
+            if col not in df_bloco.columns:
+                df_bloco[col] = False if col == "Excluir" else ""
+                
+        df_bloco = df_bloco[colunas_exibicao]
+        
+        # Tabela nativa interativa do Streamlit
         edited_df = st.data_editor(
             df_bloco,
             key=f"editor_{categoria_filtro}",
@@ -103,11 +116,11 @@ def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_blo
         )
         
         # Processa exclusões marcadas pelo usuário na tabela
-        itens_removidos = edited_df[edited_df["Excluir"] == True]["Código"].tolist()
+        itens_removidos = edited_df[edited_df["Excluir"] == True]["Código"].astype(str).tolist()
         if itens_removidos:
             st.session_state["rascunho_itens"] = [
                 i for i in st.session_state["rascunho_itens"]
-                if not (i["Categoria"] == titulo and i["Código"] in itens_removidos)
+                if not (i.get("Categoria") == titulo and str(i.get("Código")) in itens_removidos)
             ]
             st.rerun()
 
