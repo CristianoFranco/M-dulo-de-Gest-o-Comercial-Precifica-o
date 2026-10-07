@@ -3,7 +3,7 @@ import pandas as pd
 from datetime import datetime
 
 # ==============================================================================
-# FUNÇÕES AUXILIARES DA PROPOSTA
+# ESTADO DA PROPOSTA
 # ==============================================================================
 def obter_proximo_numero_proposta():
     agora = datetime.now()
@@ -17,28 +17,33 @@ def obter_proximo_numero_proposta():
     return f"{mes}/{seq:05d}/{ano}"
 
 def inicializar_estado_proposta():
-    if "itens_armazenagem" not in st.session_state:
-        st.session_state["itens_armazenagem"] = []
-    if "itens_seguro" not in st.session_state:
-        st.session_state["itens_seguro"] = []
-    if "itens_servicos" not in st.session_state:
-        st.session_state["itens_servicos"] = []
-    if "itens_outros" not in st.session_state:
-        st.session_state["itens_outros"] = []
+    if "rascunho_itens" not in st.session_state:
+        st.session_state["rascunho_itens"] = []
+
+def remover_item_proposta(codigo_para_remover):
+    st.session_state["rascunho_itens"] = [
+        item for item in st.session_state["rascunho_itens"] 
+        if item["Código"] != codigo_para_remover
+    ]
 
 # ==============================================================================
-# COMPONENTE DE BLOCO DA CATEGORIA
+# RENDERIZADOR DE BLOCO
 # ==============================================================================
-def renderizar_bloco_categoria(titulo, chave_sessao, df_categoria, icone_bloco):
+def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_bloco):
     st.markdown(f"#### {icone_bloco} {titulo}")
     
+    # Card com Fundo Claro para garantir legibilidade
     with st.container():
+        st.markdown("""
+            <div style="background-color: rgba(255,255,255,0.95); padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+        """, unsafe_allow_html=True)
+        
         if df_categoria.empty:
             st.info(f"Nenhum serviço cadastrado na categoria '{titulo}'.")
-            st.markdown("---")
+            st.markdown("</div>", unsafe_allow_html=True)
             return
 
-        # Lista de opções restrita à categoria
+        # Premissa 01: Apenas itens da respectiva categoria
         codigos_categoria = df_categoria["Código"].tolist()
         opcoes = [""] + codigos_categoria
         
@@ -49,7 +54,7 @@ def renderizar_bloco_categoria(titulo, chave_sessao, df_categoria, icone_bloco):
                 f"Selecionar {titulo}:",
                 options=opcoes,
                 format_func=lambda x: "" if x == "" else f"{x} - {df_categoria[df_categoria['Código'] == x]['Descrição'].values[0]}",
-                key=f"select_{chave_sessao}"
+                key=f"select_cat_{categoria_filtro}"
             )
             
         with col_qtd:
@@ -58,58 +63,52 @@ def renderizar_bloco_categoria(titulo, chave_sessao, df_categoria, icone_bloco):
                 min_value=1.0,
                 value=1.0,
                 step=1.0,
-                key=f"qtd_{chave_sessao}"
+                key=f"qtd_cat_{categoria_filtro}"
             )
             
         with col_btn:
             st.write("")
             st.write("")
-            if st.button("➕ Adicionar Item", key=f"btn_add_{chave_sessao}"):
+            if st.button("➕ Adicionar", key=f"btn_add_{categoria_filtro}"):
                 if item_selecionado != "":
                     row = df_categoria[df_categoria["Código"] == item_selecionado].iloc[0]
-                    tarifa_float = float(str(row["Tarifa (R$)"]).replace(",", "."))
+                    tarifa_raw = str(row["Tarifa (R$)"]).replace(".", "").replace(",", ".")
+                    try:
+                        tarifa_float = float(tarifa_raw)
+                    except ValueError:
+                        tarifa_float = float(row["Tarifa (R$)"])
                     
-                    # Evita duplicados no mesmo bloco
-                    ja_existe = any(i["Código"] == item_selecionado for i in st.session_state[chave_sessao])
+                    # Evita duplicidade no rascunho
+                    ja_existe = any(i["Código"] == item_selecionado for i in st.session_state["rascunho_itens"])
                     if not ja_existe:
-                        st.session_state[chave_sessao].append({
+                        st.session_state["rascunho_itens"].append({
                             "Código": str(row["Código"]),
                             "Descrição": str(row["Descrição"]),
                             "Unidade": str(row["Unidade"]),
                             "Tarifa (R$)": tarifa_float,
                             "Quantidade": quantidade,
-                            "Total (R$)": tarifa_float * quantidade
+                            "Total (R$)": tarifa_float * quantidade,
+                            "Categoria": titulo
                         })
                         st.rerun()
                     else:
-                        st.warning("Este item já foi adicionado a este bloco.")
+                        st.warning("Este item já foi adicionado ao rascunho.")
                 else:
                     st.warning("Selecione um item antes de adicionar.")
 
-        # Exibição dos Itens Adicionados em Tabela de Alto Contraste
-        if st.session_state[chave_sessao]:
+        # Premissas 02, 03 e 04: Exibição dos itens abaixo com a lixeira
+        itens_do_bloco = [i for i in st.session_state["rascunho_itens"] if i["Categoria"] == titulo]
+        
+        if itens_do_bloco:
             st.markdown("<br>", unsafe_allow_html=True)
-            st.markdown("**📋 Itens Inseridos na Proposta:**")
+            st.markdown("<h5 style='color: #0A2540;'>📋 Itens Inseridos:</h5>", unsafe_allow_html=True)
             
-            # Cabeçalho da Tabela
-            h_del, h_cod, h_desc, h_un, h_tar, h_qtd, h_tot = st.columns([0.8, 1.5, 3.5, 1.5, 1.5, 1.5, 1.5])
-            with h_del: st.markdown("**Ação**")
-            with h_cod: st.markdown("**Código**")
-            with h_desc: st.markdown("**Descrição**")
-            with h_un: st.markdown("**Unidade**")
-            with h_tar: st.markdown("**Tarifa (R$)**")
-            with h_qtd: st.markdown("**Qtd**")
-            with h_tot: st.markdown("**Total (R$)**")
-
-            st.markdown("<hr style='margin: 5px 0;'>", unsafe_allow_html=True)
-
-            # Linhas dos Itens
-            for idx, item in enumerate(st.session_state[chave_sessao]):
+            for item in itens_do_bloco:
                 c_del, c_cod, c_desc, c_un, c_tar, c_qtd, c_tot = st.columns([0.8, 1.5, 3.5, 1.5, 1.5, 1.5, 1.5])
                 
                 with c_del:
-                    if st.button("🗑️", key=f"del_{chave_sessao}_{idx}", help="Remover item"):
-                        st.session_state[chave_sessao].pop(idx)
+                    if st.button("🗑️", key=f"del_{item['Código']}", help="Remover item"):
+                        remover_item_proposta(item['Código'])
                         st.rerun()
                         
                 with c_cod:
@@ -123,12 +122,12 @@ def renderizar_bloco_categoria(titulo, chave_sessao, df_categoria, icone_bloco):
                 with c_qtd:
                     st.markdown(f"<span style='color: #0A2540;'>{item['Quantidade']}</span>", unsafe_allow_html=True)
                 with c_tot:
-                    st.markdown(f"<span style='color: #0052B4; font-weight: bold;'>R$ {(item['Tarifa (R$)'] * item['Quantidade']):,.2f}</span>", unsafe_allow_html=True)
+                    st.markdown(f"<span style='color: #0052B4; font-weight: bold;'>R$ {item['Total (R$)']:,.2f}</span>", unsafe_allow_html=True)
 
-    st.markdown("---")
+        st.markdown("</div>", unsafe_allow_html=True)
 
 # ==============================================================================
-# RENDERIZADOR PRINCIPAL DA ABA 2
+# RENDERIZADOR PRINCIPAL ABA 2
 # ==============================================================================
 def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_fn=None):
     inicializar_estado_proposta()
@@ -146,50 +145,38 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_fn=None):
     df_servicos = carregar_dados_fn(apenas_ativos=True)
 
     if df_servicos.empty:
-        st.warning("Nenhum serviço ativo encontrado no cadastro. Por favor, adicione serviços na Aba 1 antes de criar propostas.")
+        st.warning("Nenhum serviço ativo encontrado no cadastro.")
         return
 
-    # Normalização das Categorias
-    df_servicos["Categoria_Clean"] = df_servicos["Categoria"].astype(str).str.strip().str.upper()
+    # Trata variações de digitação na Categoria
+    df_servicos["Cat_Upper"] = df_servicos["Categoria"].astype(str).str.strip().str.upper()
 
-    # Filtragem por Categoria
-    df_armazenagem = df_servicos[df_servicos["Categoria_Clean"] == "ARMAZENAGEM"]
-    df_seguro = df_servicos[df_servicos["Categoria_Clean"] == "SEGURO"]
-    df_servicos_handling = df_servicos[df_servicos["Categoria_Clean"].isin(["SERVIÇO", "MOVIMENTAÇÃO (HANDLING)"])]
-    df_outros = df_servicos[~df_servicos["Categoria_Clean"].isin(["ARMAZENAGEM", "SEGURO", "SERVIÇO", "MOVIMENTAÇÃO (HANDLING)"])]
+    df_armazenagem = df_servicos[df_servicos["Cat_Upper"] == "ARMAZENAGEM"]
+    df_seguro = df_servicos[df_servicos["Cat_Upper"] == "SEGURO"]
+    df_servicos_handling = df_servicos[df_servicos["Cat_Upper"].isin(["SERVIÇO", "MOVIMENTAÇÃO (HANDLING)"])]
+    df_outros = df_servicos[~df_servicos["Cat_Upper"].isin(["ARMAZENAGEM", "SEGURO", "SERVIÇO", "MOVIMENTAÇÃO (HANDLING)"])]
 
-    # Blocos
-    renderizar_bloco_categoria("Armazenagem", "itens_armazenagem", df_armazenagem, "🏬")
-    renderizar_bloco_categoria("Seguro", "itens_seguro", df_seguro, "🛡️")
-    renderizar_bloco_categoria("Serviços e Movimentações", "itens_servicos", df_servicos_handling, "⚙️")
-    renderizar_bloco_categoria("Outros", "itens_outros", df_outros, "📦")
+    # 4 Blocos
+    renderizar_bloco_categoria("Armazenagem", "ARM", df_armazenagem, "🏬")
+    renderizar_bloco_categoria("Seguro", "SEG", df_seguro, "🛡️")
+    renderizar_bloco_categoria("Serviços e Movimentações", "SER", df_servicos_handling, "⚙️")
+    renderizar_bloco_categoria("Outros", "OUT", df_outros, "📦")
 
-    # Resumo
-    todos_itens = (
-        st.session_state["itens_armazenagem"] + 
-        st.session_state["itens_seguro"] + 
-        st.session_state["itens_servicos"] + 
-        st.session_state["itens_outros"]
-    )
-    
-    valor_total_proposta = sum(item["Tarifa (R$)"] * item["Quantidade"] for item in todos_itens)
+    # Resumo Geral e Total da Proposta
+    todos_itens = st.session_state["rascunho_itens"]
+    valor_total_proposta = sum(item["Total (R$)"] for item in todos_itens)
 
     col_res1, col_res2 = st.columns([2, 1])
-    
     with col_res1:
         st.markdown(f"### Valor Total Estimado: **R$ {valor_total_proposta:,.2f}**")
         
     with col_res2:
         if st.button("🔒 Fechar Rascunho e Salvar Proposta", use_container_width=True):
             if not todos_itens:
-                st.error("Não é possível fechar uma proposta vazia. Adicione pelo menos um item.")
+                st.error("Adicione pelo menos um item antes de fechar a proposta.")
             else:
                 st.session_state["sequencial_proposta"] += 1
-                st.session_state["itens_armazenagem"] = []
-                st.session_state["itens_seguro"] = []
-                st.session_state["itens_servicos"] = []
-                st.session_state["itens_outros"] = []
-                
-                st.success(f"Proposta {numero_proposta} salva com sucesso como Rascunho!")
+                st.session_state["rascunho_itens"] = []
+                st.success(f"Proposta {numero_proposta} gravada em rascunho com sucesso!")
                 st.balloons()
                 st.rerun()
