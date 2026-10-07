@@ -55,12 +55,23 @@ def carregar_dados(apenas_ativos=True):
         df = pd.DataFrame(data)
         colunas_esperadas = ["Código", "Descrição", "Tarifa (R$)", "Unidade", "Categoria", "Observações", "Status"]
         
-        if df.empty or not all(col in df.columns for col in colunas_esperadas):
+        if df.empty:
             df_vazio = pd.DataFrame(columns=colunas_esperadas)
             return df_vazio[colunas_esperadas[:-1]] if apenas_ativos else df_vazio
 
+        # Garante a existência da coluna Status
+        if "Status" not in df.columns:
+            df["Status"] = "Ativo"
+        
+        # Preenche status vazios como Ativo
+        df["Status"] = df["Status"].astype(str).str.strip()
+        df["Status"] = df["Status"].replace("", "Ativo")
+
+        # Converte a coluna Código inteira para string/texto sem decimais indesejados
+        df["Código"] = df["Código"].astype(str).str.strip()
+
         if apenas_ativos:
-            df_ativos = df[df["Status"].astype(str).str.strip().str.upper() == "ATIVO"].copy()
+            df_ativos = df[df["Status"].str.upper() != "INATIVO"].copy()
             return df_ativos[["Código", "Descrição", "Tarifa (R$)", "Unidade", "Categoria", "Observações"]]
         
         return df
@@ -74,7 +85,12 @@ def salvar_dados_completos(df_completo):
     try:
         worksheet = obter_aba_google_sheets()
         worksheet.clear()
-        dados_lista = [df_completo.columns.values.tolist()] + df_completo.astype(str).values.tolist()
+        
+        # Converte explicitamente a coluna Código em texto para gravação no Sheets
+        df_salvar = df_completo.copy()
+        df_salvar["Código"] = df_salvar["Código"].astype(str).str.strip()
+        
+        dados_lista = [df_salvar.columns.values.tolist()] + df_salvar.astype(str).values.tolist()
         worksheet.update(range_name='A1', values=dados_lista)
         st.cache_resource.clear()
         return True
@@ -175,20 +191,24 @@ with tabs[0]:
             else:
                 st.info("Não existem unidades personalizadas para remover.")
 
-    # Processamento de Cadastro
+    # Processamento de Cadastro e Validação Rígida
     if btn_salvar:
-        codigo_limpo = codigo.strip()
+        codigo_limpo = str(codigo).strip()
         df_base_completa = carregar_dados(apenas_ativos=False)
         
-        # Verificação de código duplicado
-        codigos_existentes = df_base_completa["Código"].astype(str).str.strip().str.upper().tolist() if not df_base_completa.empty else []
+        # Normalização rigorosa para comparar strings idênticas
+        if not df_base_completa.empty and "Código" in df_base_completa.columns:
+            codigos_existentes = [str(c).strip().upper() for c in df_base_completa["Código"].tolist() if str(c).strip() != ""]
+        else:
+            codigos_existentes = []
+
         codigo_duplicado = codigo_limpo.upper() in codigos_existentes
 
         erros = []
         if not codigo_limpo:
-            erros.append("Código do Serviço")
+            erros.append("Código do Serviço é obrigatório")
         elif codigo_duplicado:
-            erros.append(f"O Código '{codigo_limpo}' já existe no cadastro! Escolha um código único.")
+            erros.append(f"O Código '{codigo_limpo}' JÁ ESTÁ CADASTRADO! Escolha um código diferente")
         if not descricao.strip():
             erros.append("Descrição do Serviço")
         if not categoria:
@@ -217,7 +237,7 @@ with tabs[0]:
                 st.rerun()
         else:
             campos_faltantes = " | ".join(erros)
-            st.warning(f"Por favor, verifique os seguintes pontos: **{campos_faltantes}**")
+            st.error(f"⚠️ Atenção: {campos_faltantes}")
 
     # Tabela de Serviços
     st.markdown("---")
@@ -238,7 +258,8 @@ with tabs[0]:
             if st.button("🗑️ Excluir Serviço Selecionado"):
                 if servico_para_excluir:
                     df_base_completa = carregar_dados(apenas_ativos=False)
-                    df_base_completa.loc[df_base_completa["Código"].astype(str).str.strip() == servico_para_excluir.strip(), "Status"] = "Inativo"
+                    mask = df_base_completa["Código"].astype(str).str.strip() == str(servico_para_excluir).strip()
+                    df_base_completa.loc[mask, "Status"] = "Inativo"
                     if salvar_dados_completos(df_base_completa):
                         st.success(f"Serviço '{servico_para_excluir}' excluído com sucesso!")
                         st.rerun()
