@@ -56,12 +56,10 @@ def carregar_dados(apenas_ativos=True):
         colunas_esperadas = ["Código", "Descrição", "Tarifa (R$)", "Unidade", "Categoria", "Observações", "Status"]
         
         if df.empty or not all(col in df.columns for col in colunas_esperadas):
-            # Garante a estrutura correta caso a planilha esteja vazia ou incompleta
             df_vazio = pd.DataFrame(columns=colunas_esperadas)
             return df_vazio[colunas_esperadas[:-1]] if apenas_ativos else df_vazio
 
         if apenas_ativos:
-            # Filtra apenas os registros com Status 'Ativo'
             df_ativos = df[df["Status"].astype(str).str.strip().str.upper() == "ATIVO"].copy()
             return df_ativos[["Código", "Descrição", "Tarifa (R$)", "Unidade", "Categoria", "Observações"]]
         
@@ -179,9 +177,18 @@ with tabs[0]:
 
     # Processamento de Cadastro
     if btn_salvar:
+        codigo_limpo = codigo.strip()
+        df_base_completa = carregar_dados(apenas_ativos=False)
+        
+        # Verificação de código duplicado
+        codigos_existentes = df_base_completa["Código"].astype(str).str.strip().str.upper().tolist() if not df_base_completa.empty else []
+        codigo_duplicado = codigo_limpo.upper() in codigos_existentes
+
         erros = []
-        if not codigo.strip():
+        if not codigo_limpo:
             erros.append("Código do Serviço")
+        elif codigo_duplicado:
+            erros.append(f"O Código '{codigo_limpo}' já existe no cadastro! Escolha um código único.")
         if not descricao.strip():
             erros.append("Descrição do Serviço")
         if not categoria:
@@ -192,10 +199,8 @@ with tabs[0]:
             erros.append("Tarifa (R$) deve ser maior que 0.00")
 
         if not erros:
-            df_base_completa = carregar_dados(apenas_ativos=False)
-            
             nova_linha = pd.DataFrame([{
-                "Código": codigo.strip(),
+                "Código": codigo_limpo,
                 "Descrição": descricao.strip(),
                 "Tarifa (R$)": f"{tarifa:.2f}",
                 "Unidade": unidade,
@@ -207,22 +212,18 @@ with tabs[0]:
             df_atualizado = pd.concat([df_base_completa, nova_linha], ignore_index=True)
             
             if salvar_dados_completos(df_atualizado):
-                st.success(f"Serviço '{codigo}' salvo com sucesso!")
+                st.success(f"Serviço '{codigo_limpo}' salvo com sucesso!")
                 st.session_state["form_id"] += 1
                 st.rerun()
         else:
             campos_faltantes = " | ".join(erros)
-            st.warning(f"Por favor, preencha corretamente os seguintes campos obrigatórios: **{campos_faltantes}**")
+            st.warning(f"Por favor, verifique os seguintes pontos: **{campos_faltantes}**")
 
     # Tabela de Serviços
     st.markdown("---")
     st.subheader("🔍 Base de Serviços Cadastrados")
     
     df_servicos_ativos = carregar_dados(apenas_ativos=True)
-    
-    col_t1, col_t2 = st.columns([3, 1])
-    with col_t1:
-        st.caption("Abaixo estão listados apenas os serviços ativos. Para excluir um serviço, selecione-o na lista ao lado.")
     
     # Exclusão via seleção direta
     if not df_servicos_ativos.empty:
@@ -237,8 +238,7 @@ with tabs[0]:
             if st.button("🗑️ Excluir Serviço Selecionado"):
                 if servico_para_excluir:
                     df_base_completa = carregar_dados(apenas_ativos=False)
-                    # Altera o status para Inativo (Exclusão Lógica)
-                    df_base_completa.loc[df_base_completa["Código"] == servico_para_excluir, "Status"] = "Inativo"
+                    df_base_completa.loc[df_base_completa["Código"].astype(str).str.strip() == servico_para_excluir.strip(), "Status"] = "Inativo"
                     if salvar_dados_completos(df_base_completa):
                         st.success(f"Serviço '{servico_para_excluir}' excluído com sucesso!")
                         st.rerun()
@@ -246,7 +246,6 @@ with tabs[0]:
                     st.warning("Selecione um serviço para excluir.")
 
     st.markdown("---")
-    # Tabela Visualizadora
     st.dataframe(df_servicos_ativos, use_container_width=True)
 
 with tabs[1]:
