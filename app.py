@@ -39,9 +39,7 @@ def obter_aba_google_sheets():
         "https://www.googleapis.com/auth/drive"
     ]
     if "gcp_service_account" in st.secrets:
-        # Converte o AttrDict do Streamlit em dicionário Python normal
         creds_dict = dict(st.secrets["gcp_service_account"])
-        # Corrige as quebras de linha da chave privada PEM
         if "private_key" in creds_dict:
             creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
         
@@ -50,8 +48,9 @@ def obter_aba_google_sheets():
         creds = Credentials.from_service_account_file("credentials.json", scopes=scope)
     
     client = gspread.authorize(creds)
+    # Abre diretamente pelo ID da planilha
     return client.open_by_key(SPREADSHEET_ID).sheet1
-
+    
 def carregar_dados():
     try:
         worksheet = obter_aba_google_sheets()
