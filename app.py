@@ -77,6 +77,18 @@ def salvar_dados(df):
         st.error(f"Erro ao salvar no Google Sheets: {e}")
         return False
 
+def limpar_formulario():
+    st.session_state["form_codigo"] = ""
+    st.session_state["form_descricao"] = ""
+    st.session_state["form_categoria"] = ""
+    st.session_state["form_unidade"] = ""
+    st.session_state["form_tarifa"] = 0.0
+    st.session_state["form_observacoes"] = ""
+
+# Inicializa o estado dos campos caso não existam
+if "form_codigo" not in st.session_state:
+    limpar_formulario()
+
 # ==============================================================================
 # 3. INTERFACE DO APLICATIVO
 # ==============================================================================
@@ -90,30 +102,31 @@ with tabs[0]:
     
     df_servicos = carregar_dados()
 
-    with st.form("form_servico", clear_on_submit=True):
+    # Form sem clear_on_submit para preservar o que foi digitado em caso de erro
+    with st.form("form_servico", clear_on_submit=False):
         col1, col2 = st.columns(2)
         with col1:
-            codigo = st.text_input("Código do Serviço *", placeholder="Ex: SERV-001")
+            codigo = st.text_input("Código do Serviço *", key="form_codigo", placeholder="Ex: SERV-001")
             categoria = st.selectbox(
                 "Categoria *", 
                 ["", "Armazenagem", "Seguro", "Serviço", "Movimentação (Handling)", "Outros"],
-                index=0
+                key="form_categoria"
             )
-            tarifa = st.number_input("Tarifa (R$) *", min_value=0.0, format="%.2f")
+            tarifa = st.number_input("Tarifa (R$) *", min_value=0.0, format="%.2f", key="form_tarifa")
         
         with col2:
-            descricao = st.text_input("Descrição do Serviço *", placeholder="Ex: Armazenagem de carga paletizada")
+            descricao = st.text_input("Descrição do Serviço *", key="form_descricao", placeholder="Ex: Armazenagem de carga paletizada")
             unidade = st.selectbox(
                 "Unidade *", 
                 ["", "Por caixa", "por unidade", "por pallet", "por hora/homem", "por etiqueta", "por volume", "por mês"],
-                index=0
+                key="form_unidade"
             )
-            observacoes = st.text_area("Observações e Premissas (Opcional)", placeholder="Ex: Faturamento mínimo mensal de 50 paletes.")
+            observacoes = st.text_area("Observações e Premissas (Opcional)", key="form_observacoes", placeholder="Ex: Faturamento mínimo mensal de 50 paletes.")
         
         btn_salvar = st.form_submit_button("💾 Cadastrar / Salvar Serviço")
 
     if btn_salvar:
-        # Validação estrita de todos os campos obrigatórios
+        # Validação estrita dos campos obrigatórios
         erros = []
         if not codigo.strip():
             erros.append("Código do Serviço")
@@ -139,6 +152,7 @@ with tabs[0]:
             df_atualizado = pd.concat([df_servicos, nova_linha], ignore_index=True)
             if salvar_dados(df_atualizado):
                 st.success(f"Serviço '{codigo}' salvo com sucesso!")
+                limpar_formulario()
                 st.rerun()
         else:
             campos_faltantes = ", ".join(erros)
