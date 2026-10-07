@@ -77,7 +77,7 @@ def aplicar_estilo_personalizado():
 aplicar_estilo_personalizado()
 
 # ==============================================================================
-# 2. CONEXÃO COM GOOGLE SHEETS COM CACHE DE PROTEÇÃO DA API
+# 2. CONEXÃO COM GOOGLE SHEETS
 # ==============================================================================
 SPREADSHEET_ID = "1wbhgMnqQuyOxwCef4pJh3vDnafBBU2AZk-uSt1NnPWc"
 
@@ -94,14 +94,13 @@ def obter_aba_google_sheets():
     client = gspread.authorize(creds)
     return client.open_by_url(f"https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}").sheet1
 
-# Cache de leitura por 60 segundos para EVITAR ERRO 429 DE QUOTA
 @st.cache_data(ttl=60)
 def carregar_dados_cached():
     try:
         worksheet = obter_aba_google_sheets()
         data = worksheet.get_all_records()
         return pd.DataFrame(data)
-    except Exception as e:
+    except Exception:
         return pd.DataFrame()
 
 def carregar_dados(apenas_ativos=True):
@@ -153,9 +152,12 @@ def formatar_tarifa(val):
         return str(val)
 
 # ==============================================================================
-# 3. CABEÇALHO & ABAS
+# 3. CABEÇALHO & ABAS (CORRIGIDO SEM A TAG </div> SOBRANDO)
 # ==============================================================================
 logo_b64 = get_base64_of_bin_file('logo.png')
+
+html_logo = f'<img src="data:image/png;base64,{logo_b64}" style="height: 60px;">' if logo_b64 else ''
+
 st.markdown(f"""
     <div class="header-container">
         <div>
@@ -163,7 +165,7 @@ st.markdown(f"""
             <p class="header-subtitle">Gestão Integrada de Serviços e Tabelas Tarifárias</p>
         </div>
         <div>
-            {'<img src="data:image/png;base64,' + logo_b64 + '" style="height: 60px;">' if logo_b64 else ''}
+            {html_logo}
         </div>
     </div>
 """, unsafe_allow_html=True)
