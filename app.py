@@ -77,6 +77,26 @@ def salvar_dados(df):
         st.error(f"Erro ao salvar no Google Sheets: {e}")
         return False
 
+# ==============================================================================
+# 3. GERENCIAMENTO DE ESTADO DO FORMULÁRIO E DAS UNIDADES
+# ==============================================================================
+UNIDADES_PADRAO = [
+    "",
+    "Por caixa",
+    "por unidade",
+    "por pallet",
+    "por hora/homem",
+    "por etiqueta",
+    "por volume",
+    "por mês"
+]
+
+if "lista_unidades" not in st.session_state:
+    st.session_state["lista_unidades"] = UNIDADES_PADRAO.copy()
+
+if "modo_unidade" not in st.session_state:
+    st.session_state["modo_unidade"] = None  # Pode ser 'adicionar' ou 'remover'
+
 def limpar_formulario():
     st.session_state["form_codigo"] = ""
     st.session_state["form_descricao"] = ""
@@ -85,12 +105,11 @@ def limpar_formulario():
     st.session_state["form_tarifa"] = 0.0
     st.session_state["form_observacoes"] = ""
 
-# Inicializa o estado dos campos caso não existam
 if "form_codigo" not in st.session_state:
     limpar_formulario()
 
 # ==============================================================================
-# 3. INTERFACE DO APLICATIVO
+# 4. INTERFACE DO APLICATIVO
 # ==============================================================================
 st.title("GLOBEX MULTIMODAL")
 st.caption("Módulo de Gestão Comercial & Precificação")
@@ -102,9 +121,10 @@ with tabs[0]:
     
     df_servicos = carregar_dados()
 
-    # Form sem clear_on_submit para preservar o que foi digitado em caso de erro
+    # Form sem clear_on_submit para preservar o que foi digitado
     with st.form("form_servico", clear_on_submit=False):
         col1, col2 = st.columns(2)
+        
         with col1:
             codigo = st.text_input("Código do Serviço *", key="form_codigo", placeholder="Ex: SERV-001")
             categoria = st.selectbox(
@@ -116,57 +136,37 @@ with tabs[0]:
         
         with col2:
             descricao = st.text_input("Descrição do Serviço *", key="form_descricao", placeholder="Ex: Armazenagem de carga paletizada")
+            
+            # Campo de Unidade com botões de gestão + / -
             unidade = st.selectbox(
                 "Unidade *", 
-                ["", "Por caixa", "por unidade", "por pallet", "por hora/homem", "por etiqueta", "por volume", "por mês"],
+                st.session_state["lista_unidades"],
                 key="form_unidade"
             )
+            
             observacoes = st.text_area("Observações e Premissas (Opcional)", key="form_observacoes", placeholder="Ex: Faturamento mínimo mensal de 50 paletes.")
         
         btn_salvar = st.form_submit_button("💾 Cadastrar / Salvar Serviço")
 
-    if btn_salvar:
-        # Validação estrita dos campos obrigatórios
-        erros = []
-        if not codigo.strip():
-            erros.append("Código do Serviço")
-        if not descricao.strip():
-            erros.append("Descrição do Serviço")
-        if not categoria:
-            erros.append("Categoria")
-        if not unidade:
-            erros.append("Unidade")
-        if tarifa <= 0:
-            erros.append("Tarifa (R$) deve ser maior que 0.00")
+    # Controles externos ao Form para Adicionar / Remover Unidades
+    col_btn1, col_btn2, _ = st.columns([1, 1, 6])
+    with col_btn1:
+        if st.button("➕ Adicionar Unidade"):
+            st.session_state["modo_unidade"] = "adicionar"
+    with col_btn2:
+        if st.button("➖ Remover Unidade"):
+            st.session_state["modo_unidade"] = "remover"
 
-        if not erros:
-            nova_linha = pd.DataFrame([{
-                "Código": codigo.strip(),
-                "Descrição": descricao.strip(),
-                "Tarifa (R$)": f"{tarifa:.2f}",
-                "Unidade": unidade,
-                "Categoria": categoria,
-                "Observações": observacoes.strip()
-            }])
-            
-            df_atualizado = pd.concat([df_servicos, nova_linha], ignore_index=True)
-            if salvar_dados(df_atualizado):
-                st.success(f"Serviço '{codigo}' salvo com sucesso!")
-                limpar_formulario()
-                st.rerun()
-        else:
-            campos_faltantes = ", ".join(erros)
-            st.warning(f"Por favor, preencha corretamente os seguintes campos obrigatórios: **{campos_faltantes}**")
-
-    st.markdown("---")
-    st.subheader("🔍 Base de Serviços Cadastrados")
-    
-    df_editavel = st.data_editor(df_servicos, num_rows="dynamic", use_container_width=True)
-    
-    if st.button("💾 Sincronizar Alterações da Tabela"):
-        if salvar_dados(df_editavel):
-            st.success("Tabela sincronizada com sucesso!")
-            st.rerun()
-
-with tabs[1]:
-    st.info("Módulo reservado para simulações e formação de propostas comerciais.")
+    # Ações dinâmicas para adicionar / remover unidades
+    if st.session_state["modo_unidade"] == "adicionar":
+        with st.container():
+            col_add1, col_add2, col_add3 = st.columns([3, 1, 1])
+            with col_add1:
+                nova_u = st.text_input("Nome da Nova Unidade:", key="input_nova_unidade")
+            with col_add2:
+                st.write("")
+                st.write("")
+                if st.button("Confirmar +"):
+                    if nova_u.strip() and nova_u.strip() not in st.session_state["lista_unidades"]:
+                        st.session_state["lista_unidades"].append(nova_u.strip())
+                        st
