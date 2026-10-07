@@ -4,6 +4,7 @@ import gspread
 import base64
 import os
 from google.oauth2.service_account import Credentials
+
 from modulo_cadastro import renderizar_aba_cadastro
 from modulo_propostas import renderizar_aba_propostas
 
@@ -15,6 +16,23 @@ st.set_page_config(
     page_icon="📦",
     layout="wide"
 )
+
+UNIDADES_PADRAO = [
+    "",
+    "Por caixa",
+    "por unidade",
+    "por pallet",
+    "por hora/homem",
+    "por etiqueta",
+    "por volume",
+    "por mês"
+]
+
+if "lista_unidades" not in st.session_state:
+    st.session_state["lista_unidades"] = UNIDADES_PADRAO.copy()
+
+if "form_id" not in st.session_state:
+    st.session_state["form_id"] = 0
 
 def get_base64_of_bin_file(bin_file):
     if os.path.exists(bin_file):
@@ -152,11 +170,9 @@ def formatar_tarifa(val):
         return str(val)
 
 # ==============================================================================
-# 3. CABEÇALHO & ABAS (CORRIGIDO SEM A TAG </div> SOBRANDO)
+# 3. CABEÇALHO & ABAS
 # ==============================================================================
 logo_b64 = get_base64_of_bin_file('logo.png')
-
-html_logo = f'<img src="data:image/png;base64,{logo_b64}" style="height: 60px;">' if logo_b64 else ''
 
 st.markdown(f"""
     <div class="header-container">
@@ -165,7 +181,7 @@ st.markdown(f"""
             <p class="header-subtitle">Gestão Integrada de Serviços e Tabelas Tarifárias</p>
         </div>
         <div>
-            {html_logo}
+            {f'<img src="data:image/png;base64,{logo_b64}" style="height: 60px;">' if logo_b64 else ''}
         </div>
     </div>
 """, unsafe_allow_html=True)
