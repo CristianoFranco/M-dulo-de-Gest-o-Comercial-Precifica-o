@@ -93,26 +93,47 @@ with tabs[0]:
     with st.form("form_servico", clear_on_submit=True):
         col1, col2 = st.columns(2)
         with col1:
-            codigo = st.text_input("Código do Serviço", placeholder="Ex: SERV-001")
-            categoria = st.selectbox("Categoria", ["Armazenagem", "Seguro", "Serviço", "Movimentação (Handling)", "Outros"])
-            tarifa = st.number_input("Tarifa (R$)", min_value=0.0, format="%.2f")
+            codigo = st.text_input("Código do Serviço *", placeholder="Ex: SERV-001")
+            categoria = st.selectbox(
+                "Categoria *", 
+                ["", "Armazenagem", "Seguro", "Serviço", "Movimentação (Handling)", "Outros"],
+                index=0
+            )
+            tarifa = st.number_input("Tarifa (R$) *", min_value=0.0, format="%.2f")
         
         with col2:
-            descricao = st.text_input("Descrição do Serviço", placeholder="Ex: Armazenagem de carga paletizada")
-            unidade = st.selectbox("Unidade", ["Por caixa", "por unidade", "por pallet", "por hora/homem", "por etiqueta", "por volume", "por mês"])
-            observacoes = st.text_area("Observações e Premissas", placeholder="Ex: Faturamento mínimo mensal de 50 paletes.")
+            descricao = st.text_input("Descrição do Serviço *", placeholder="Ex: Armazenagem de carga paletizada")
+            unidade = st.selectbox(
+                "Unidade *", 
+                ["", "Por caixa", "por unidade", "por pallet", "por hora/homem", "por etiqueta", "por volume", "por mês"],
+                index=0
+            )
+            observacoes = st.text_area("Observações e Premissas (Opcional)", placeholder="Ex: Faturamento mínimo mensal de 50 paletes.")
         
         btn_salvar = st.form_submit_button("💾 Cadastrar / Salvar Serviço")
 
     if btn_salvar:
-        if codigo and descricao:
+        # Validação estrita de todos os campos obrigatórios
+        erros = []
+        if not codigo.strip():
+            erros.append("Código do Serviço")
+        if not descricao.strip():
+            erros.append("Descrição do Serviço")
+        if not categoria:
+            erros.append("Categoria")
+        if not unidade:
+            erros.append("Unidade")
+        if tarifa <= 0:
+            erros.append("Tarifa (R$) deve ser maior que 0.00")
+
+        if not erros:
             nova_linha = pd.DataFrame([{
-                "Código": codigo,
-                "Descrição": descricao,
+                "Código": codigo.strip(),
+                "Descrição": descricao.strip(),
                 "Tarifa (R$)": f"{tarifa:.2f}",
                 "Unidade": unidade,
                 "Categoria": categoria,
-                "Observações": observacoes
+                "Observações": observacoes.strip()
             }])
             
             df_atualizado = pd.concat([df_servicos, nova_linha], ignore_index=True)
@@ -120,7 +141,8 @@ with tabs[0]:
                 st.success(f"Serviço '{codigo}' salvo com sucesso!")
                 st.rerun()
         else:
-            st.warning("O Código e a Descrição são obrigatórios!")
+            campos_faltantes = ", ".join(erros)
+            st.warning(f"Por favor, preencha corretamente os seguintes campos obrigatórios: **{campos_faltantes}**")
 
     st.markdown("---")
     st.subheader("🔍 Base de Serviços Cadastrados")
