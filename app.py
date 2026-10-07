@@ -61,9 +61,9 @@ def carregar_dados():
             return pd.DataFrame(columns=["Código", "Descrição", "Tarifa (R$)", "Unidade", "Categoria", "Observações"])
         return df
     except Exception as e:
-        st.error(f"Erro ao carregar dados do Google Sheets: {e}")
+        st.error(f"Erro ao carregar dados do Google Sheets: {type(e).__name__} - {str(e)}")
         return pd.DataFrame(columns=["Código", "Descrição", "Tarifa (R$)", "Unidade", "Categoria", "Observações"])
-
+        
 def salvar_dados(df):
     try:
         worksheet = obter_aba_google_sheets()
