@@ -31,7 +31,7 @@ st.markdown("""
 # 2. CONEXÃO COM O GOOGLE SHEETS
 # ==============================================================================
 # ID da sua planilha no Google Drive
-SPREADSHEET_ID = "SEU_ID_DA_PLANILHA_AQUI"
+SPREADSHEET_ID = "1wbhgMnqQuyOxwCef4pJh3vDnafBBU2AZk-uSt1NnPWc"
 
 @st.cache_resource
 def conectar_google_sheets():
