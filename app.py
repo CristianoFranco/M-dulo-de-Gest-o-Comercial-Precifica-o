@@ -244,4 +244,4 @@ with tabs[0]:
     renderizar_aba_cadastro(carregar_dados, salvar_dados_completos, normalizar_codigo, formatar_tarifa)
 
 with tabs[1]:
-    st.info("Módulo reservado para simulações e formação de propostas comerciais.")
+    renderizar_aba_propostas(carregar_dados, salvar_dados_completos)
