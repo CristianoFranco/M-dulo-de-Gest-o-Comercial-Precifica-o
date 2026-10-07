@@ -12,7 +12,6 @@ st.set_page_config(
     layout="wide"
 )
 
-# CSS Customizado nas cores da Globex Multimodal
 st.markdown("""
 <style>
     .main { background-color: #EBF1F5; }
@@ -30,12 +29,11 @@ st.markdown("""
 # ==============================================================================
 # 2. CONEXÃO COM O GOOGLE SHEETS
 # ==============================================================================
-# ID da sua planilha no Google Drive
+# SUBSTiTUA ABAIXO PELO ID DA SUA PLANILHA REAL
 SPREADSHEET_ID = "1wbhgMnqQuyOxwCef4pJh3vDnafBBU2AZk-uSt1NnPWc"
 
 @st.cache_resource
-def conectar_google_sheets():
-    # Tenta conectar usando os Secrets do Streamlit ou credenciais locais
+def obter_aba_google_sheets():
     scope = [
         "https://www.googleapis.com/auth/spreadsheets",
         "https://www.googleapis.com/auth/drive"
@@ -43,34 +41,36 @@ def conectar_google_sheets():
     if "gcp_service_account" in st.secrets:
         creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scope)
     else:
-        # Se estiver testando localmente sem secrets configurados
         creds = Credentials.from_service_account_file("credentials.json", scopes=scope)
     
     client = gspread.authorize(creds)
     return client.open_by_key(SPREADSHEET_ID).sheet1
 
-try:
-    worksheet = conectar_google_sheets()
-except Exception as e:
-    worksheet = None
-
 def carregar_dados():
-    if worksheet is None:
-        return pd.DataFrame(columns=["Código", "Descrição", "Tarifa (R$)", "Unidade", "Categoria", "Observações"])
     try:
+        worksheet = obter_aba_google_sheets()
         data = worksheet.get_all_records()
         df = pd.DataFrame(data)
         if df.empty:
-            df = pd.DataFrame(columns=["Código", "Descrição", "Tarifa (R$)", "Unidade", "Categoria", "Observações"])
+            return pd.DataFrame(columns=["Código", "Descrição", "Tarifa (R$)", "Unidade", "Categoria", "Observações"])
         return df
-    except Exception:
+    except Exception as e:
+        st.error(f"Erro ao carregar dados do Google Sheets: {e}")
         return pd.DataFrame(columns=["Código", "Descrição", "Tarifa (R$)", "Unidade", "Categoria", "Observações"])
 
 def salvar_dados(df):
-    if worksheet is not None:
+    try:
+        worksheet = obter_aba_google_sheets()
         worksheet.clear()
-        dados = [df.columns.values.tolist()] + df.astype(str).values.tolist()
-        worksheet.update(dados)
+        # Converte o DataFrame em lista de listas incluindo o cabeçalho
+        dados_lista = [df.columns.values.tolist()] + df.astype(str).values.tolist()
+        worksheet.update(range_name='A1', values=dados_lista)
+        # Limpa o cache para que o Streamlit recarregue os dados atualizados
+        st.cache_resource.clear()
+        return True
+    except Exception as e:
+        st.error(f"Erro ao salvar no Google Sheets: {e}")
+        return False
 
 # ==============================================================================
 # 3. INTERFACE DO APLICATIVO
@@ -83,6 +83,7 @@ tabs = st.tabs(["📋 Cadastro de Serviços", "🛠️ Propostas e Precificaçã
 with tabs[0]:
     st.subheader("Cadastro e Gestão de Serviços")
     
+    # Carrega a base atual da planilha
     df_servicos = carregar_dados()
 
     with st.form("form_servico", clear_on_submit=True):
@@ -111,9 +112,9 @@ with tabs[0]:
             }])
             
             df_atualizado = pd.concat([df_servicos, nova_linha], ignore_index=True)
-            salvar_dados(df_atualizado)
-            st.success(f"Serviço '{codigo}' salvo com sucesso no Google Drive!")
-            st.rerun()
+            if salvar_dados(df_atualizado):
+                st.success(f"Serviço '{codigo}' salvo com sucesso!")
+                st.rerun()
         else:
             st.warning("O Código e a Descrição são obrigatórios!")
 
@@ -124,8 +125,9 @@ with tabs[0]:
     df_editavel = st.data_editor(df_servicos, num_rows="dynamic", use_container_width=True)
     
     if st.button("💾 Sincronizar Alterações da Tabela"):
-        salvar_dados(df_editavel)
-        st.success("Tabela sincronizada com sucesso no Google Sheets!")
+        if salvar_dados(df_editavel):
+            st.success("Tabela sincronizada com sucesso!")
+            st.rerun()
 
 with tabs[1]:
     st.info("Módulo reservado para simulações e formação de propostas comerciais.")
