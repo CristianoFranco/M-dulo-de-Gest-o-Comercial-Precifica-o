@@ -48,6 +48,22 @@ def obter_aba_google_sheets():
     url = f"https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}"
     return client.open_by_url(url).sheet1
 
+def formatar_tarifa(val):
+    """
+    Formata valores de tarifa para exibir até 5 casas decimais (mínimo de 2 casas decimais).
+    Ex: 14.5 -> '14.50', 14.50123 -> '14.50123'
+    """
+    try:
+        f = float(val)
+        s = f"{f:.5f}".rstrip('0')
+        if s.endswith('.'):
+            s += '00'
+        elif len(s.split('.')[1]) < 2:
+            s += '0'
+        return s
+    except (ValueError, TypeError):
+        return str(val)
+
 def carregar_dados(apenas_ativos=True):
     try:
         worksheet = obter_aba_google_sheets()
@@ -115,10 +131,6 @@ if "form_id" not in st.session_state:
     st.session_state["form_id"] = 0
 
 def normalizar_codigo(codigo_str):
-    """
-    Remove zeros à esquerda caso o código seja exclusivamente numérico.
-    Exemplo: '0005' -> '5', '05' -> '5', 'SERV-001' -> 'SERV-001'
-    """
     limpo = str(codigo_str).strip().upper()
     if limpo.isdigit():
         return str(int(limpo))
@@ -149,9 +161,9 @@ with tabs[0]:
             )
             tarifa = st.number_input(
                 "Tarifa (R$) *", 
-                min_value=0.00, 
-                step=0.01, 
-                format="%.2f", 
+                min_value=0.00000, 
+                step=0.00001, 
+                format="%.5f", 
                 key=f"tarifa_{fid}"
             )
         
@@ -204,7 +216,6 @@ with tabs[0]:
         
         df_base_completa = carregar_dados(apenas_ativos=False)
         
-        # Comparação normalizada de todos os códigos existentes
         if not df_base_completa.empty and "Código" in df_base_completa.columns:
             codigos_existentes_norm = [
                 normalizar_codigo(c) for c in df_base_completa["Código"].tolist() if str(c).strip() != ""
@@ -226,13 +237,15 @@ with tabs[0]:
         if not unidade:
             erros.append("Unidade")
         if tarifa <= 0:
-            erros.append("Tarifa (R$) deve ser maior que 0.00")
+            erros.append("Tarifa (R$) deve ser maior que 0.00000")
 
         if not erros:
+            tarifa_formatada = formatar_tarifa(tarifa)
+            
             nova_linha = pd.DataFrame([{
                 "Código": codigo_limpo,
                 "Descrição": descricao.strip(),
-                "Tarifa (R$)": f"{tarifa:.2f}",
+                "Tarifa (R$)": tarifa_formatada,
                 "Unidade": unidade,
                 "Categoria": categoria,
                 "Observações": observacoes.strip(),
