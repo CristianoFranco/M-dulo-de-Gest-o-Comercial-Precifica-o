@@ -32,99 +32,95 @@ def remover_item_proposta(codigo_para_remover):
 def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_bloco):
     st.markdown(f"#### {icone_bloco} {titulo}")
     
-    with st.container():
-        if df_categoria.empty:
-            st.info(f"Nenhum serviço cadastrado na categoria '{titulo}'.")
-            st.markdown("---")
-            return
+    if df_categoria.empty:
+        st.info(f"Nenhum serviço cadastrado na categoria '{titulo}'.")
+        st.markdown("---")
+        return
 
-        # Seleção de itens cadastrados na categoria
-        codigos_categoria = df_categoria["Código"].tolist()
-        opcoes = [""] + codigos_categoria
+    # Seleção de itens cadastrados na categoria
+    codigos_categoria = df_categoria["Código"].tolist()
+    opcoes = [""] + codigos_categoria
+    
+    col_sel, col_btn = st.columns([6, 2])
+    
+    with col_sel:
+        item_selecionado = st.selectbox(
+            f"Selecionar {titulo}:",
+            options=opcoes,
+            format_func=lambda x: "" if x == "" else f"{x} - {df_categoria[df_categoria['Código'] == x]['Descrição'].values[0]}",
+            key=f"select_cat_{categoria_filtro}"
+        )
         
-        col_sel, col_btn = st.columns([6, 2])
-        
-        with col_sel:
-            item_selecionado = st.selectbox(
-                f"Selecionar {titulo}:",
-                options=opcoes,
-                format_func=lambda x: "" if x == "" else f"{x} - {df_categoria[df_categoria['Código'] == x]['Descrição'].values[0]}",
-                key=f"select_cat_{categoria_filtro}"
-            )
-            
-        with col_btn:
-            st.write("")
-            st.write("")
-            if st.button("➕ Adicionar", key=f"btn_add_{categoria_filtro}"):
-                if item_selecionado != "":
-                    row = df_categoria[df_categoria["Código"] == item_selecionado].iloc[0]
-                    tarifa_raw = str(row["Tarifa (R$)"]).replace(".", "").replace(",", ".")
-                    try:
-                        tarifa_float = float(tarifa_raw)
-                    except ValueError:
-                        tarifa_float = float(row["Tarifa (R$)"])
-                    
-                    # Evita duplicados no rascunho
-                    ja_existe = any(str(i["Código"]) == str(item_selecionado) for i in st.session_state["rascunho_itens"])
-                    if not ja_existe:
-                        st.session_state["rascunho_itens"].append({
-                            "Código": str(row["Código"]),
-                            "Descrição": str(row["Descrição"]),
-                            "Unidade": str(row["Unidade"]),
-                            "Tarifa (R$)": tarifa_float,
-                            "Categoria": titulo
-                        })
-                        st.rerun()
-                    else:
-                        st.warning("Este item já foi adicionado ao rascunho.")
-                else:
-                    st.warning("Selecione um item antes de adicionar.")
-
-        # Exibição dos itens inseridos com o botão "❌" à frente de cada item
-        itens_do_bloco = [i for i in st.session_state["rascunho_itens"] if i["Categoria"] == titulo]
-        
-        if itens_do_bloco:
-            st.markdown(
-                "<h5 style='color: #FFFFFF; font-weight: bold; text-shadow: 1px 1px 2px #000; margin-top: 15px;'>📋 Itens Inseridos:</h5>", 
-                unsafe_allow_html=True
-            )
-            
-            # Container visual claro para os itens inseridos
-            st.markdown("""
-                <div style="background-color: rgba(255, 255, 255, 0.95); padding: 15px; border-radius: 8px; margin-bottom: 10px;">
-            """, unsafe_allow_html=True)
-            
-            # Cabeçalho da Tabela
-            h_del, h_cod, h_desc, h_un, h_tar = st.columns([1, 2, 5, 2, 2])
-            with h_del: st.markdown("<b style='color: #0A2540;'>Excluir</b>", unsafe_allow_html=True)
-            with h_cod: st.markdown("<b style='color: #0A2540;'>Código</b>", unsafe_allow_html=True)
-            with h_desc: st.markdown("<b style='color: #0A2540;'>Descrição</b>", unsafe_allow_html=True)
-            with h_un: st.markdown("<b style='color: #0A2540;'>Unidade</b>", unsafe_allow_html=True)
-            with h_tar: st.markdown("<b style='color: #0A2540;'>Tarifa (R$)</b>", unsafe_allow_html=True)
-
-            st.markdown("<hr style='margin: 8px 0; border-color: #DDD;'>", unsafe_allow_html=True)
-
-            # Linhas com o botão '❌' à frente de cada item
-            for idx, item in enumerate(itens_do_bloco):
-                c_del, c_cod, c_desc, c_un, c_tar = st.columns([1, 2, 5, 2, 2])
+    with col_btn:
+        st.write("")
+        st.write("")
+        if st.button("➕ Adicionar", key=f"btn_add_{categoria_filtro}"):
+            if item_selecionado != "":
+                row = df_categoria[df_categoria["Código"] == item_selecionado].iloc[0]
+                tarifa_raw = str(row["Tarifa (R$)"]).replace(".", "").replace(",", ".")
+                try:
+                    tarifa_float = float(tarifa_raw)
+                except ValueError:
+                    tarifa_float = float(row["Tarifa (R$)"])
                 
-                with c_del:
-                    if st.button("❌", key=f"btn_x_{categoria_filtro}_{item['Código']}", help="Remover este item"):
-                        remover_item_proposta(item['Código'])
-                        st.rerun()
-                        
-                with c_cod:
-                    st.markdown(f"<span style='color: #0A2540; font-weight: bold;'>{item['Código']}</span>", unsafe_allow_html=True)
-                with c_desc:
-                    st.markdown(f"<span style='color: #0A2540;'>{item['Descrição']}</span>", unsafe_allow_html=True)
-                with c_un:
-                    st.markdown(f"<span style='color: #0A2540;'>{item['Unidade']}</span>", unsafe_allow_html=True)
-                with c_tar:
-                    st.markdown(f"<span style='color: #0052B4; font-weight: bold;'>R$ {item['Tarifa (R$)']:.5f}".rstrip('0').rstrip('.') + "</span>", unsafe_allow_html=True)
+                # Evita duplicados no rascunho
+                ja_existe = any(str(i["Código"]) == str(item_selecionado) for i in st.session_state["rascunho_itens"])
+                if not ja_existe:
+                    st.session_state["rascunho_itens"].append({
+                        "Código": str(row["Código"]),
+                        "Descrição": str(row["Descrição"]),
+                        "Unidade": str(row["Unidade"]),
+                        "Tarifa (R$)": tarifa_float,
+                        "Categoria": titulo
+                    })
+                    st.rerun()
+                else:
+                    st.warning("Este item já foi adicionado ao rascunho.")
+            else:
+                st.warning("Selecione um item antes de adicionar.")
 
-            st.markdown("</div>", unsafe_allow_html=True)
+    # Exibição dos itens inseridos com o botão '❌' à frente de cada item
+    itens_do_bloco = [i for i in st.session_state["rascunho_itens"] if i["Categoria"] == titulo]
+    
+    if itens_do_bloco:
+        st.markdown(
+            "##### 📋 Itens Inseridos:"
+        )
+        
+        # Cabeçalho da Tabela
+        h_del, h_cod, h_desc, h_un, h_tar = st.columns([1, 2, 5, 2, 2])
+        with h_del:
+            st.markdown("**Excluir**")
+        with h_cod:
+            st.markdown("**Código**")
+        with h_desc:
+            st.markdown("**Descrição**")
+        with h_un:
+            st.markdown("**Unidade**")
+        with h_tar:
+            st.markdown("**Tarifa (R$)**")
 
         st.markdown("---")
+
+        # Linhas com o botão '❌' à frente de cada item
+        for item in itens_do_bloco:
+            c_del, c_cod, c_desc, c_un, c_tar = st.columns([1, 2, 5, 2, 2])
+            
+            with c_del:
+                if st.button("❌", key=f"btn_x_{categoria_filtro}_{item['Código']}", help="Remover este item"):
+                    remover_item_proposta(item['Código'])
+                    st.rerun()
+                    
+            with c_cod:
+                st.write(item['Código'])
+            with c_desc:
+                st.write(item['Descrição'])
+            with c_un:
+                st.write(item['Unidade'])
+            with c_tar:
+                st.write(f"R$ {item['Tarifa (R$)']:.5f}".rstrip('0').rstrip('.'))
+
+    st.markdown("---")
 
 # ==============================================================================
 # RENDERIZADOR PRINCIPAL ABA 2
@@ -171,4 +167,10 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_fn=None):
     with col_res2:
         if st.button("🔒 Fechar Rascunho e Salvar Proposta", use_container_width=True):
             if not todos_itens:
-                st.error("Adicione pelo menos um item antes de fe
+                st.error("Adicione pelo menos um item antes de fechar a proposta.")
+            else:
+                st.session_state["sequencial_proposta"] += 1
+                st.session_state["rascunho_itens"] = []
+                st.success(f"Proposta {numero_proposta} gravada em rascunho com sucesso!")
+                st.balloons()
+                st.rerun()
