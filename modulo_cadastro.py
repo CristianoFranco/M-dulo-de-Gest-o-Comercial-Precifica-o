@@ -1,12 +1,30 @@
 import streamlit as st
 import pandas as pd
 
+UNIDADES_PADRAO = [
+    "",
+    "Por caixa",
+    "por unidade",
+    "por pallet",
+    "por hora/homem",
+    "por etiqueta",
+    "por volume",
+    "por mês"
+]
+
 def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codigo_fn, formatar_tarifa_fn):
+    # Garantia contra KeyError: Inicializa a lista de unidades se não existir
+    if "lista_unidades" not in st.session_state:
+        st.session_state["lista_unidades"] = UNIDADES_PADRAO.copy()
+        
+    if "form_id" not in st.session_state:
+        st.session_state["form_id"] = 0
+
     st.markdown("### 📝 Cadastro e Gestão de Serviços")
     
     fid = st.session_state.get("form_id", 0)
 
-    # Formulário de Inclusão de Serviço
+    # Formulário de Cadastro
     with st.form("form_servico", clear_on_submit=False):
         col1, col2 = st.columns(2)
         
@@ -69,7 +87,7 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codig
             else:
                 st.info("Não existem unidades personalizadas para remover.")
 
-    # Processamento e Validação ao Salvar
+    # Processamento de Cadastro
     if btn_salvar:
         codigo_limpo = str(codigo).strip()
         codigo_norm = normalizar_codigo_fn(codigo_limpo)
@@ -122,13 +140,12 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codig
             campos_faltantes = " | ".join(erros)
             st.error(f"⚠️ Atenção: {campos_faltantes}")
 
-    # Tabela da Base Cadastrada
+    # Tabela de Serviços
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("### 🔍 Base de Serviços Cadastrados")
     
     df_servicos_ativos = carregar_dados_fn(apenas_ativos=True)
     
-    # Opção de Exclusão Direta
     if not df_servicos_ativos.empty:
         servicos_lista = df_servicos_ativos["Código"].tolist()
         
