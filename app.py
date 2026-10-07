@@ -29,8 +29,8 @@ st.markdown("""
 # ==============================================================================
 # 2. CONEXÃO COM O GOOGLE SHEETS
 # ==============================================================================
-# SUBSTiTUA ABAIXO PELO ID DA SUA PLANILHA REAL
-SPREADSHEET_ID = "1wbhgMnqQuyOxwCef4pJh3vDnafBBU2AZk-uSt1NnPWc"
+# Cole abaixo o ID real da sua planilha do Google Sheets
+SPREADSHEET_ID = "1jmomu411ITDmWwnA3OL2cbqYCYNCQqD-Z4ExNM1fe2g"
 
 @st.cache_resource
 def obter_aba_google_sheets():
@@ -39,7 +39,13 @@ def obter_aba_google_sheets():
         "https://www.googleapis.com/auth/drive"
     ]
     if "gcp_service_account" in st.secrets:
-        creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scope)
+        # Converte o AttrDict do Streamlit em dicionário Python normal
+        creds_dict = dict(st.secrets["gcp_service_account"])
+        # Corrige as quebras de linha da chave privada PEM
+        if "private_key" in creds_dict:
+            creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
+        
+        creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
     else:
         creds = Credentials.from_service_account_file("credentials.json", scopes=scope)
     
@@ -62,10 +68,8 @@ def salvar_dados(df):
     try:
         worksheet = obter_aba_google_sheets()
         worksheet.clear()
-        # Converte o DataFrame em lista de listas incluindo o cabeçalho
         dados_lista = [df.columns.values.tolist()] + df.astype(str).values.tolist()
         worksheet.update(range_name='A1', values=dados_lista)
-        # Limpa o cache para que o Streamlit recarregue os dados atualizados
         st.cache_resource.clear()
         return True
     except Exception as e:
@@ -83,7 +87,6 @@ tabs = st.tabs(["📋 Cadastro de Serviços", "🛠️ Propostas e Precificaçã
 with tabs[0]:
     st.subheader("Cadastro e Gestão de Serviços")
     
-    # Carrega a base atual da planilha
     df_servicos = carregar_dados()
 
     with st.form("form_servico", clear_on_submit=True):
@@ -121,7 +124,6 @@ with tabs[0]:
     st.markdown("---")
     st.subheader("🔍 Base de Serviços Cadastrados")
     
-    # Exibição e edição direta dos dados
     df_editavel = st.data_editor(df_servicos, num_rows="dynamic", use_container_width=True)
     
     if st.button("💾 Sincronizar Alterações da Tabela"):
