@@ -2,6 +2,9 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 
+# ==============================================================================
+# FUNÇÕES AUXILIARES DA PROPOSTA
+# ==============================================================================
 def obter_proximo_numero_proposta():
     agora = datetime.now()
     mes = agora.strftime("%m")
@@ -23,6 +26,9 @@ def remover_item_proposta(codigo_para_remover):
         if str(item["Código"]) != str(codigo_para_remover)
     ]
 
+# ==============================================================================
+# RENDERIZADOR DE BLOCO POR CATEGORIA
+# ==============================================================================
 def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_bloco):
     st.markdown(f"#### {icone_bloco} {titulo}")
     
@@ -32,10 +38,11 @@ def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_blo
             st.markdown("---")
             return
 
+        # Seleção permitida apenas para itens da respetiva categoria
         codigos_categoria = df_categoria["Código"].tolist()
         opcoes = [""] + codigos_categoria
         
-        col_sel, col_qtd, col_btn = st.columns([4, 2, 2])
+        col_sel, col_btn = st.columns([6, 2])
         
         with col_sel:
             item_selecionado = st.selectbox(
@@ -43,15 +50,6 @@ def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_blo
                 options=opcoes,
                 format_func=lambda x: "" if x == "" else f"{x} - {df_categoria[df_categoria['Código'] == x]['Descrição'].values[0]}",
                 key=f"select_cat_{categoria_filtro}"
-            )
-            
-        with col_qtd:
-            quantidade = st.number_input(
-                "Quantidade:",
-                min_value=1.0,
-                value=1.0,
-                step=1.0,
-                key=f"qtd_cat_{categoria_filtro}"
             )
             
         with col_btn:
@@ -66,6 +64,7 @@ def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_blo
                     except ValueError:
                         tarifa_float = float(row["Tarifa (R$)"])
                     
+                    # Evita itens duplicados
                     ja_existe = any(str(i["Código"]) == str(item_selecionado) for i in st.session_state["rascunho_itens"])
                     if not ja_existe:
                         st.session_state["rascunho_itens"].append({
@@ -73,8 +72,6 @@ def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_blo
                             "Descrição": str(row["Descrição"]),
                             "Unidade": str(row["Unidade"]),
                             "Tarifa (R$)": tarifa_float,
-                            "Quantidade": quantidade,
-                            "Total (R$)": tarifa_float * quantidade,
                             "Categoria": titulo
                         })
                         st.rerun()
@@ -83,17 +80,21 @@ def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_blo
                 else:
                     st.warning("Selecione um item antes de adicionar.")
 
-        # Exibição dos itens inseridos na Categoria
+        # Exibição dos itens inseridos
         itens_do_bloco = [i for i in st.session_state["rascunho_itens"] if i["Categoria"] == titulo]
         
         if itens_do_bloco:
-            st.markdown("##### 📋 Itens Inseridos:")
-            df_exibicao = pd.DataFrame(itens_do_bloco)[["Código", "Descrição", "Unidade", "Tarifa (R$)", "Quantidade", "Total (R$)"]]
+            st.markdown(
+                "<h5 style='color: #FFFFFF; font-weight: bold; text-shadow: 1px 1px 2px #000; margin-top: 15px;'>📋 Itens Inseridos:</h5>", 
+                unsafe_allow_html=True
+            )
             
-            # Exibição limpa em tabela nativa com fundo legível
-            st.dataframe(df_exibicao, use_container_width=True)
+            df_exibicao = pd.DataFrame(itens_do_bloco)[["Código", "Descrição", "Unidade", "Tarifa (R$)"]]
             
-            # Seleção direta para exclusão com lixeira
+            # Exibição sem a coluna de índice (hide_index=True)
+            st.dataframe(df_exibicao, use_container_width=True, hide_index=True)
+            
+            # Remoção por item selecionado
             col_excl, col_btn_excl = st.columns([3, 1])
             with col_excl:
                 item_para_remover = st.selectbox(
@@ -111,6 +112,9 @@ def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_blo
 
         st.markdown("---")
 
+# ==============================================================================
+# RENDERIZADOR PRINCIPAL ABA 2
+# ==============================================================================
 def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_fn=None):
     inicializar_estado_proposta()
     numero_proposta = obter_proximo_numero_proposta()
@@ -137,19 +141,18 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_fn=None):
     df_servicos_handling = df_servicos[df_servicos["Cat_Upper"].isin(["SERVIÇO", "MOVIMENTAÇÃO (HANDLING)"])]
     df_outros = df_servicos[~df_servicos["Cat_Upper"].isin(["ARMAZENAGEM", "SEGURO", "SERVIÇO", "MOVIMENTAÇÃO (HANDLING)"])]
 
-    # 4 Blocos
+    # 4 Blocos principais
     renderizar_bloco_categoria("Armazenagem", "ARM", df_armazenagem, "🏬")
     renderizar_bloco_categoria("Seguro", "SEG", df_seguro, "🛡️")
     renderizar_bloco_categoria("Serviços e Movimentações", "SER", df_servicos_handling, "⚙️")
     renderizar_bloco_categoria("Outros", "OUT", df_outros, "📦")
 
-    # Resumo do Rascunho
+    # Resumo da Proposta
     todos_itens = st.session_state["rascunho_itens"]
-    valor_total_proposta = sum(item["Total (R$)"] for item in todos_itens)
 
     col_res1, col_res2 = st.columns([2, 1])
     with col_res1:
-        st.markdown(f"### Valor Total Estimado: **R$ {valor_total_proposta:,.2f}**")
+        st.markdown(f"### Total de Itens no Rascunho: **{len(todos_itens)}**")
         
     with col_res2:
         if st.button("🔒 Fechar Rascunho e Salvar Proposta", use_container_width=True):
