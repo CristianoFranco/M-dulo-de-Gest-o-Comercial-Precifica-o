@@ -20,12 +20,6 @@ def inicializar_estado_proposta():
     if "rascunho_itens" not in st.session_state:
         st.session_state["rascunho_itens"] = []
 
-def remover_item_proposta(codigo_para_remover):
-    st.session_state["rascunho_itens"] = [
-        item for item in st.session_state["rascunho_itens"] 
-        if str(item["Código"]) != str(codigo_para_remover)
-    ]
-
 # ==============================================================================
 # RENDERIZADOR DE BLOCO POR CATEGORIA
 # ==============================================================================
@@ -37,7 +31,7 @@ def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_blo
         st.markdown("---")
         return
 
-    # Seleção de itens da categoria
+    # Seleção restrita apenas aos itens da respectiva categoria
     codigos_categoria = df_categoria["Código"].tolist()
     opcoes = [""] + codigos_categoria
     
@@ -63,14 +57,15 @@ def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_blo
                 except ValueError:
                     tarifa_float = float(row["Tarifa (R$)"])
                 
-                # Evita itens duplicados
+                # Evita duplicidade no rascunho
                 ja_existe = any(str(i["Código"]) == str(item_selecionado) for i in st.session_state["rascunho_itens"])
                 if not ja_existe:
                     st.session_state["rascunho_itens"].append({
+                        "Excluir": False,
                         "Código": str(row["Código"]),
                         "Descrição": str(row["Descrição"]),
-                        "Unidade": str(row["Unidade"]),
                         "Tarifa (R$)": tarifa_float,
+                        "Unidade": str(row["Unidade"]),
                         "Categoria": titulo
                     })
                     st.rerun()
@@ -79,47 +74,42 @@ def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_blo
             else:
                 st.warning("Selecione um item antes de adicionar.")
 
-    # Exibição dos itens inseridos dentro de um Cartão Branco de Alto Contraste
+    # Exibição da tabela exata nativa
     itens_do_bloco = [i for i in st.session_state["rascunho_itens"] if i["Categoria"] == titulo]
     
     if itens_do_bloco:
-        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown("<h5 style='color: #FFFFFF; font-weight: bold; margin-top: 15px;'>📋 Itens Inseridos:</h5>", unsafe_allow_html=True)
         
-        # Bloco visual branco
-        st.markdown("""
-            <div style="background-color: #FFFFFF; padding: 18px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); margin-bottom: 15px;">
-                <h5 style="color: #0A2540; font-weight: 800; margin-top: 0; margin-bottom: 15px;">📋 Itens Inseridos:</h5>
-        """, unsafe_allow_html=True)
+        df_bloco = pd.DataFrame(itens_do_bloco)[["Excluir", "Código", "Descrição", "Tarifa (R$)", "Unidade"]]
         
-        # Cabeçalho da Tabela
-        h_del, h_cod, h_desc, h_un, h_tar = st.columns([1, 2, 5, 2, 2])
-        with h_del: st.markdown("<b style='color: #0A2540;'>Excluir</b>", unsafe_allow_html=True)
-        with h_cod: st.markdown("<b style='color: #0A2540;'>Código</b>", unsafe_allow_html=True)
-        with h_desc: st.markdown("<b style='color: #0A2540;'>Descrição</b>", unsafe_allow_html=True)
-        with h_un: st.markdown("<b style='color: #0A2540;'>Unidade</b>", unsafe_allow_html=True)
-        with h_tar: st.markdown("<b style='color: #0A2540;'>Tarifa (R$)</b>", unsafe_allow_html=True)
-
-        st.markdown("<hr style='margin: 8px 0 15px 0; border: 0; border-top: 1px solid #CBD5E1;'>", unsafe_allow_html=True)
-
-        # Linhas dos itens
-        for item in itens_do_bloco:
-            c_del, c_cod, c_desc, c_un, c_tar = st.columns([1, 2, 5, 2, 2])
-            
-            with c_del:
-                if st.button("❌", key=f"btn_x_{categoria_filtro}_{item['Código']}", help="Remover este item"):
-                    remover_item_proposta(item['Código'])
-                    st.rerun()
-                    
-            with c_cod:
-                st.markdown(f"<span style='color: #0A2540; font-weight: bold;'>{item['Código']}</span>", unsafe_allow_html=True)
-            with c_desc:
-                st.markdown(f"<span style='color: #334155;'>{item['Descrição']}</span>", unsafe_allow_html=True)
-            with c_un:
-                st.markdown(f"<span style='color: #334155;'>{item['Unidade']}</span>", unsafe_allow_html=True)
-            with c_tar:
-                st.markdown(f"<span style='color: #0052B4; font-weight: bold;'>R$ {item['Tarifa (R$)']:.5f}".rstrip('0').rstrip('.') + "</span>", unsafe_allow_html=True)
-
-        st.markdown("</div>", unsafe_allow_html=True)
+        # Tabela nativa interativa do Streamlit com caixa de seleção de exclusão na 1ª coluna
+        edited_df = st.data_editor(
+            df_bloco,
+            key=f"editor_{categoria_filtro}",
+            hide_index=True,
+            use_container_width=True,
+            column_config={
+                "Excluir": st.column_config.CheckboxColumn(
+                    "Excluir?",
+                    help="Marque para remover este item",
+                    default=False,
+                ),
+                "Tarifa (R$)": st.column_config.NumberColumn(
+                    "Tarifa (R$)",
+                    format="R$ %.5f"
+                )
+            },
+            disabled=["Código", "Descrição", "Tarifa (R$)", "Unidade"]
+        )
+        
+        # Processa exclusões marcadas pelo usuário na tabela
+        itens_removidos = edited_df[edited_df["Excluir"] == True]["Código"].tolist()
+        if itens_removidos:
+            st.session_state["rascunho_itens"] = [
+                i for i in st.session_state["rascunho_itens"]
+                if not (i["Categoria"] == titulo and i["Código"] in itens_removidos)
+            ]
+            st.rerun()
 
     st.markdown("---")
 
