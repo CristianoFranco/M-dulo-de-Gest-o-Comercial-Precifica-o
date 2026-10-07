@@ -1,10 +1,113 @@
 import streamlit as st
 import pandas as pd
 import gspread
+import base64
+import os
 from google.oauth2.service_account import Credentials
 
 # ==============================================================================
-# 1. CONFIGURAÇÃO DA PÁGINA E ESTILO
+# 1. FUNÇÕES AUXILIARES DE IMAGEM & CSS PERSONALIZADO
+# ==============================================================================
+def get_base64_of_bin_file(bin_file):
+    if os.path.exists(bin_file):
+        with open(bin_file, 'rb') as f:
+            data = f.read()
+        return base64.b64encode(data).decode()
+    return ""
+
+def aplicar_estilo_personalizado():
+    bg_b64 = get_base64_of_bin_file('background.jpg')
+    logo_b64 = get_base64_of_bin_file('logo.png')
+    
+    bg_css = f"""
+        background: linear-gradient(rgba(10, 25, 40, 0.75), rgba(10, 25, 40, 0.75)), 
+                    url("data:image/jpg;base64,{bg_b64}") no-repeat center center fixed;
+        background-size: cover;
+    """ if bg_b64 else "background-color: #0A2540;"
+
+    st.markdown(f"""
+    <style>
+        /* Fundo da Aplicação */
+        .stApp {{
+            {bg_css}
+        }}
+
+        /* Estilização do Topo e Cabeçalho */
+        .header-container {{
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 25px;
+        }}
+        .header-title {{
+            color: #0A2540;
+            font-size: 24px;
+            font-weight: 800;
+            margin: 0;
+        }}
+        .header-subtitle {{
+            color: #555;
+            font-size: 14px;
+            margin: 0;
+        }}
+
+        /* Estilização dos Formulários e Cartões */
+        div[data-testid="stForm"], div.stExpander, div[data-testid="stDataFrame"] {{
+            background: rgba(255, 255, 255, 0.95) !important;
+            border-radius: 12px !important;
+            padding: 20px !important;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2) !important;
+            border: 1px solid rgba(255, 255, 255, 0.3) !important;
+        }}
+
+        /* Estilo dos Rótulos (Labels) de Entrada */
+        label, .stMarkdown label, .stMarkdown p {{
+            color: #0A2540 !important;
+            font-weight: 700 !important;
+        }}
+
+        /* Títulos de Seções */
+        h1, h2, h3, h4 {{
+            color: #FFFFFF !important;
+            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
+        }}
+
+        /* Estilo das Abas (Tabs) */
+        button[data-baseweb="tab"] {{
+            background-color: rgba(255, 255, 255, 0.85) !important;
+            color: #0A2540 !important;
+            border-radius: 8px 8px 0 0 !important;
+            font-weight: bold !important;
+            padding: 10px 20px !important;
+        }}
+        button[aria-selected="true"] {{
+            background-color: #0052B4 !important;
+            color: #FFFFFF !important;
+        }}
+
+        /* Botões Principais */
+        .stButton>button, div[data-testid="stForm"] button {{
+            background: linear-gradient(135deg, #0052B4 0%, #003B82 100%) !important;
+            color: #FFFFFF !important;
+            font-weight: bold !important;
+            border-radius: 8px !important;
+            border: none !important;
+            padding: 10px 24px !important;
+            transition: all 0.3s ease !important;
+        }}
+        .stButton>button:hover {{
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 82, 180, 0.4);
+        }}
+    </style>
+    """, unsafe_allow_html=True)
+
+# ==============================================================================
+# 2. CONFIGURAÇÃO DA PÁGINA
 # ==============================================================================
 st.set_page_config(
     page_title="Globex Multimodal - Módulo Comercial",
@@ -12,22 +115,10 @@ st.set_page_config(
     layout="wide"
 )
 
-st.markdown("""
-<style>
-    .main { background-color: #EBF1F5; }
-    h1 { color: #0A2540; font-weight: 800; }
-    .stButton>button {
-        background: linear-gradient(135deg, #0052B4 0%, #003B82 100%);
-        color: white;
-        font-weight: bold;
-        border-radius: 8px;
-        border: none;
-    }
-</style>
-""", unsafe_allow_html=True)
+aplicar_estilo_personalizado()
 
 # ==============================================================================
-# 2. CONEXÃO COM O GOOGLE SHEETS
+# 3. CONEXÃO COM O GOOGLE SHEETS
 # ==============================================================================
 SPREADSHEET_ID = "1wbhgMnqQuyOxwCef4pJh3vDnafBBU2AZk-uSt1NnPWc"
 
@@ -49,10 +140,6 @@ def obter_aba_google_sheets():
     return client.open_by_url(url).sheet1
 
 def formatar_tarifa(val):
-    """
-    Formata valores de tarifa para exibir até 5 casas decimais (mínimo de 2 casas decimais).
-    Ex: 14.5 -> '14.50', 14.50123 -> '14.50123'
-    """
     try:
         f = float(val)
         s = f"{f:.5f}".rstrip('0')
@@ -64,233 +151,4 @@ def formatar_tarifa(val):
     except (ValueError, TypeError):
         return str(val)
 
-def carregar_dados(apenas_ativos=True):
-    try:
-        worksheet = obter_aba_google_sheets()
-        data = worksheet.get_all_records()
-        df = pd.DataFrame(data)
-        colunas_esperadas = ["Código", "Descrição", "Tarifa (R$)", "Unidade", "Categoria", "Observações", "Status"]
-        
-        if df.empty:
-            df_vazio = pd.DataFrame(columns=colunas_esperadas)
-            return df_vazio[colunas_esperadas[:-1]] if apenas_ativos else df_vazio
-
-        if "Status" not in df.columns:
-            df["Status"] = "Ativo"
-        
-        df["Status"] = df["Status"].astype(str).str.strip()
-        df["Status"] = df["Status"].replace("", "Ativo")
-
-        df["Código"] = df["Código"].astype(str).str.strip()
-
-        if apenas_ativos:
-            df_ativos = df[df["Status"].str.upper() != "INATIVO"].copy()
-            return df_ativos[["Código", "Descrição", "Tarifa (R$)", "Unidade", "Categoria", "Observações"]]
-        
-        return df
-    except Exception as e:
-        import traceback
-        st.error(f"Erro ao carregar dados do Google Sheets: {type(e).__name__} - {str(e)}")
-        st.caption(f"Detalhes técnicos: {traceback.format_exc()}")
-        return pd.DataFrame(columns=["Código", "Descrição", "Tarifa (R$)", "Unidade", "Categoria", "Observações"])
-
-def salvar_dados_completos(df_completo):
-    try:
-        worksheet = obter_aba_google_sheets()
-        worksheet.clear()
-        
-        df_salvar = df_completo.copy()
-        df_salvar["Código"] = df_salvar["Código"].astype(str).str.strip()
-        
-        dados_lista = [df_salvar.columns.values.tolist()] + df_salvar.astype(str).values.tolist()
-        worksheet.update(range_name='A1', values=dados_lista)
-        st.cache_resource.clear()
-        return True
-    except Exception as e:
-        st.error(f"Erro ao salvar no Google Sheets: {e}")
-        return False
-
-# ==============================================================================
-# 3. GERENCIAMENTO DE ESTADO, UNIDADES E FUNÇÃO DE NORMALIZAÇÃO
-# ==============================================================================
-UNIDADES_PADRAO = [
-    "",
-    "Por caixa",
-    "por unidade",
-    "por pallet",
-    "por hora/homem",
-    "por etiqueta",
-    "por volume",
-    "por mês"
-]
-
-if "lista_unidades" not in st.session_state:
-    st.session_state["lista_unidades"] = UNIDADES_PADRAO.copy()
-
-if "form_id" not in st.session_state:
-    st.session_state["form_id"] = 0
-
-def normalizar_codigo(codigo_str):
-    limpo = str(codigo_str).strip().upper()
-    if limpo.isdigit():
-        return str(int(limpo))
-    return limpo
-
-# ==============================================================================
-# 4. INTERFACE DO APLICATIVO
-# ==============================================================================
-st.title("GLOBEX MULTIMODAL")
-st.caption("Módulo de Gestão Comercial & Precificação")
-
-tabs = st.tabs(["📋 Cadastro de Serviços", "🛠️ Propostas e Precificação"])
-
-with tabs[0]:
-    st.subheader("Cadastro e Gestão de Serviços")
-    
-    fid = st.session_state["form_id"]
-
-    with st.form("form_servico", clear_on_submit=False):
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            codigo = st.text_input("Código do Serviço *", key=f"codigo_{fid}", placeholder="Ex: SERV-001")
-            categoria = st.selectbox(
-                "Categoria *", 
-                ["", "Armazenagem", "Seguro", "Serviço", "Movimentação (Handling)", "Outros"],
-                key=f"categoria_{fid}"
-            )
-            tarifa = st.number_input(
-                "Tarifa (R$) *", 
-                min_value=0.00000, 
-                step=0.00001, 
-                format="%.5f", 
-                key=f"tarifa_{fid}"
-            )
-        
-        with col2:
-            descricao = st.text_input("Descrição do Serviço *", key=f"descricao_{fid}", placeholder="Ex: Armazenagem de carga paletizada")
-            unidade = st.selectbox(
-                "Unidade *", 
-                st.session_state["lista_unidades"],
-                key=f"unidade_{fid}"
-            )
-            observacoes = st.text_area("Observações e Premissas (Opcional)", key=f"obs_{fid}", placeholder="Ex: Faturamento mínimo mensal de 50 paletes.")
-        
-        btn_salvar = st.form_submit_button("💾 Cadastrar / Salvar Serviço")
-
-    # Gestão de Unidades (+ / -)
-    with st.expander("⚙️ Gerenciar Opções da Lista de Unidades (+ / -)"):
-        col_u1, col_u2 = st.columns(2)
-        
-        with col_u1:
-            st.markdown("**➕ Adicionar Nova Unidade**")
-            nova_unidade_input = st.text_input("Nome da Unidade", placeholder="Ex: por container", key="input_add_u")
-            if st.button("Confirmar Inclusão"):
-                nome_limpo = nova_unidade_input.strip()
-                if nome_limpo:
-                    if nome_limpo not in st.session_state["lista_unidades"]:
-                        st.session_state["lista_unidades"].append(nome_limpo)
-                        st.success(f"Unidade '{nome_limpo}' adicionada com sucesso!")
-                        st.rerun()
-                    else:
-                        st.warning("Esta unidade já consta na lista.")
-                else:
-                    st.warning("Digite um nome válido para a unidade.")
-                    
-        with col_u2:
-            st.markdown("**➖ Remover Unidade Existente**")
-            unidades_disponiveis = [u for u in st.session_state["lista_unidades"] if u != ""]
-            if unidades_disponiveis:
-                unidade_para_remover = st.selectbox("Selecione para excluir", unidades_disponiveis, key="select_rem_u")
-                if st.button("Confirmar Exclusão"):
-                    st.session_state["lista_unidades"].remove(unidade_para_remover)
-                    st.success(f"Unidade '{unidade_para_remover}' removida!")
-                    st.rerun()
-            else:
-                st.info("Não existem unidades personalizadas para remover.")
-
-    # Processamento de Cadastro e Validação Rígida
-    if btn_salvar:
-        codigo_limpo = str(codigo).strip()
-        codigo_norm = normalizar_codigo(codigo_limpo)
-        
-        df_base_completa = carregar_dados(apenas_ativos=False)
-        
-        if not df_base_completa.empty and "Código" in df_base_completa.columns:
-            codigos_existentes_norm = [
-                normalizar_codigo(c) for c in df_base_completa["Código"].tolist() if str(c).strip() != ""
-            ]
-        else:
-            codigos_existentes_norm = []
-
-        codigo_duplicado = codigo_norm in codigos_existentes_norm
-
-        erros = []
-        if not codigo_limpo:
-            erros.append("Código do Serviço é obrigatório")
-        elif codigo_duplicado:
-            erros.append(f"O Código '{codigo_limpo}' equivale a um código JÁ CADASTRADO! Escolha um código diferente.")
-        if not descricao.strip():
-            erros.append("Descrição do Serviço")
-        if not categoria:
-            erros.append("Categoria")
-        if not unidade:
-            erros.append("Unidade")
-        if tarifa <= 0:
-            erros.append("Tarifa (R$) deve ser maior que 0.00000")
-
-        if not erros:
-            tarifa_formatada = formatar_tarifa(tarifa)
-            
-            nova_linha = pd.DataFrame([{
-                "Código": codigo_limpo,
-                "Descrição": descricao.strip(),
-                "Tarifa (R$)": tarifa_formatada,
-                "Unidade": unidade,
-                "Categoria": categoria,
-                "Observações": observacoes.strip(),
-                "Status": "Ativo"
-            }])
-            
-            df_atualizado = pd.concat([df_base_completa, nova_linha], ignore_index=True)
-            
-            if salvar_dados_completos(df_atualizado):
-                st.success(f"Serviço '{codigo_limpo}' salvo com sucesso!")
-                st.session_state["form_id"] += 1
-                st.rerun()
-        else:
-            campos_faltantes = " | ".join(erros)
-            st.error(f"⚠️ Atenção: {campos_faltantes}")
-
-    # Tabela de Serviços
-    st.markdown("---")
-    st.subheader("🔍 Base de Serviços Cadastrados")
-    
-    df_servicos_ativos = carregar_dados(apenas_ativos=True)
-    
-    # Exclusão via seleção direta
-    if not df_servicos_ativos.empty:
-        servicos_lista = df_servicos_ativos["Código"].tolist()
-        
-        col_del1, col_del2 = st.columns([3, 1])
-        with col_del1:
-            servico_para_excluir = st.selectbox("Selecione um serviço para EXCLUIR:", [""] + servicos_lista)
-        with col_del2:
-            st.write("")
-            st.write("")
-            if st.button("🗑️ Excluir Serviço Selecionado"):
-                if servico_para_excluir:
-                    df_base_completa = carregar_dados(apenas_ativos=False)
-                    mask = df_base_completa["Código"].astype(str).str.strip() == str(servico_para_excluir).strip()
-                    df_base_completa.loc[mask, "Status"] = "Inativo"
-                    if salvar_dados_completos(df_base_completa):
-                        st.success(f"Serviço '{servico_para_excluir}' excluído com sucesso!")
-                        st.rerun()
-                else:
-                    st.warning("Selecione um serviço para excluir.")
-
-    st.markdown("---")
-    st.dataframe(df_servicos_ativos, use_container_width=True)
-
-with tabs[1]:
-    st.info("Módulo reservado para simulações e formação de propostas comerciais.")
+def carregar_dados(apenas_
