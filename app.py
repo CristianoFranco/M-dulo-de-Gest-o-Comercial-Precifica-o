@@ -4,7 +4,10 @@ import gspread
 import base64
 import os
 from google.oauth2.service_account import Credentials
+
+# Importação dos módulos das abas
 from modulo_cadastro import renderizar_aba_cadastro
+from modulo_propostas import renderizar_aba_propostas
 
 # ==============================================================================
 # 1. FUNÇÕES AUXILIARES DE IMAGEM & CSS PERSONALIZADO
@@ -94,7 +97,7 @@ def aplicar_estilo_personalizado():
     """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 2. CONFIGURAÇÃO DA PÁGINA E ESTILOS
+# 2. CONFIGURAÇÃO DA PÁGINA
 # ==============================================================================
 st.set_page_config(
     page_title="Globex Multimodal - Módulo Comercial",
