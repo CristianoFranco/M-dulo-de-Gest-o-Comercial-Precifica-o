@@ -38,7 +38,7 @@ def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_blo
             st.markdown("---")
             return
 
-        # Seleção permitida apenas para itens da respetiva categoria
+        # Seleção de itens cadastrados na categoria
         codigos_categoria = df_categoria["Código"].tolist()
         opcoes = [""] + codigos_categoria
         
@@ -64,7 +64,7 @@ def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_blo
                     except ValueError:
                         tarifa_float = float(row["Tarifa (R$)"])
                     
-                    # Evita itens duplicados
+                    # Evita duplicados no rascunho
                     ja_existe = any(str(i["Código"]) == str(item_selecionado) for i in st.session_state["rascunho_itens"])
                     if not ja_existe:
                         st.session_state["rascunho_itens"].append({
@@ -80,7 +80,7 @@ def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_blo
                 else:
                     st.warning("Selecione um item antes de adicionar.")
 
-        # Exibição dos itens inseridos
+        # Exibição dos itens inseridos com o botão "❌" à frente de cada item
         itens_do_bloco = [i for i in st.session_state["rascunho_itens"] if i["Categoria"] == titulo]
         
         if itens_do_bloco:
@@ -89,26 +89,40 @@ def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_blo
                 unsafe_allow_html=True
             )
             
-            df_exibicao = pd.DataFrame(itens_do_bloco)[["Código", "Descrição", "Unidade", "Tarifa (R$)"]]
+            # Container visual claro para os itens inseridos
+            st.markdown("""
+                <div style="background-color: rgba(255, 255, 255, 0.95); padding: 15px; border-radius: 8px; margin-bottom: 10px;">
+            """, unsafe_allow_html=True)
             
-            # Exibição sem a coluna de índice (hide_index=True)
-            st.dataframe(df_exibicao, use_container_width=True, hide_index=True)
-            
-            # Remoção por item selecionado
-            col_excl, col_btn_excl = st.columns([3, 1])
-            with col_excl:
-                item_para_remover = st.selectbox(
-                    f"Selecione um item de {titulo} para remover:",
-                    [""] + [i["Código"] for i in itens_do_bloco],
-                    key=f"rem_select_{categoria_filtro}"
-                )
-            with col_btn_excl:
-                st.write("")
-                st.write("")
-                if st.button("🗑️ Remover Item", key=f"btn_rem_{categoria_filtro}"):
-                    if item_para_remover != "":
-                        remover_item_proposta(item_para_remover)
+            # Cabeçalho da Tabela
+            h_del, h_cod, h_desc, h_un, h_tar = st.columns([1, 2, 5, 2, 2])
+            with h_del: st.markdown("<b style='color: #0A2540;'>Excluir</b>", unsafe_allow_html=True)
+            with h_cod: st.markdown("<b style='color: #0A2540;'>Código</b>", unsafe_allow_html=True)
+            with h_desc: st.markdown("<b style='color: #0A2540;'>Descrição</b>", unsafe_allow_html=True)
+            with h_un: st.markdown("<b style='color: #0A2540;'>Unidade</b>", unsafe_allow_html=True)
+            with h_tar: st.markdown("<b style='color: #0A2540;'>Tarifa (R$)</b>", unsafe_allow_html=True)
+
+            st.markdown("<hr style='margin: 8px 0; border-color: #DDD;'>", unsafe_allow_html=True)
+
+            # Linhas com o botão '❌' à frente de cada item
+            for idx, item in enumerate(itens_do_bloco):
+                c_del, c_cod, c_desc, c_un, c_tar = st.columns([1, 2, 5, 2, 2])
+                
+                with c_del:
+                    if st.button("❌", key=f"btn_x_{categoria_filtro}_{item['Código']}", help="Remover este item"):
+                        remover_item_proposta(item['Código'])
                         st.rerun()
+                        
+                with c_cod:
+                    st.markdown(f"<span style='color: #0A2540; font-weight: bold;'>{item['Código']}</span>", unsafe_allow_html=True)
+                with c_desc:
+                    st.markdown(f"<span style='color: #0A2540;'>{item['Descrição']}</span>", unsafe_allow_html=True)
+                with c_un:
+                    st.markdown(f"<span style='color: #0A2540;'>{item['Unidade']}</span>", unsafe_allow_html=True)
+                with c_tar:
+                    st.markdown(f"<span style='color: #0052B4; font-weight: bold;'>R$ {item['Tarifa (R$)']:.5f}".rstrip('0').rstrip('.') + "</span>", unsafe_allow_html=True)
+
+            st.markdown("</div>", unsafe_allow_html=True)
 
         st.markdown("---")
 
@@ -141,13 +155,13 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_fn=None):
     df_servicos_handling = df_servicos[df_servicos["Cat_Upper"].isin(["SERVIÇO", "MOVIMENTAÇÃO (HANDLING)"])]
     df_outros = df_servicos[~df_servicos["Cat_Upper"].isin(["ARMAZENAGEM", "SEGURO", "SERVIÇO", "MOVIMENTAÇÃO (HANDLING)"])]
 
-    # 4 Blocos principais
+    # 4 Blocos
     renderizar_bloco_categoria("Armazenagem", "ARM", df_armazenagem, "🏬")
     renderizar_bloco_categoria("Seguro", "SEG", df_seguro, "🛡️")
     renderizar_bloco_categoria("Serviços e Movimentações", "SER", df_servicos_handling, "⚙️")
     renderizar_bloco_categoria("Outros", "OUT", df_outros, "📦")
 
-    # Resumo da Proposta
+    # Resumo Geral
     todos_itens = st.session_state["rascunho_itens"]
 
     col_res1, col_res2 = st.columns([2, 1])
@@ -157,10 +171,4 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_fn=None):
     with col_res2:
         if st.button("🔒 Fechar Rascunho e Salvar Proposta", use_container_width=True):
             if not todos_itens:
-                st.error("Adicione pelo menos um item antes de fechar a proposta.")
-            else:
-                st.session_state["sequencial_proposta"] += 1
-                st.session_state["rascunho_itens"] = []
-                st.success(f"Proposta {numero_proposta} gravada em rascunho com sucesso!")
-                st.balloons()
-                st.rerun()
+                st.error("Adicione pelo menos um item antes de fe
