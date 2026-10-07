@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import gspread
+import re
 from google.oauth2.service_account import Credentials
 
 # ==============================================================================
@@ -31,7 +32,7 @@ st.markdown("""
 # ==============================================================================
 SPREADSHEET_ID = "1wbhgMnqQuyOxwCef4pJh3vDnafBBU2AZk-uSt1NnPWc"
 
-@st.cache_resource
+@st.cache_resource(ttl=0)
 def obter_aba_google_sheets():
     scope = ["https://www.googleapis.com/auth/spreadsheets"]
     
@@ -53,9 +54,10 @@ def carregar_dados():
         worksheet = obter_aba_google_sheets()
         data = worksheet.get_all_records()
         df = pd.DataFrame(data)
-        if df.empty:
-            return pd.DataFrame(columns=["Código", "Descrição", "Tarifa (R$)", "Unidade", "Categoria", "Observações"])
-        return df
+        colunas_esperadas = ["Código", "Descrição", "Tarifa (R$)", "Unidade", "Categoria", "Observações"]
+        if df.empty or not all(col in df.columns for col in colunas_esperadas):
+            return pd.DataFrame(columns=colunas_esperadas)
+        return df[colunas_esperadas]
     except Exception as e:
         import traceback
         st.error(f"Erro ao carregar dados do Google Sheets: {type(e).__name__} - {str(e)}")
@@ -94,6 +96,20 @@ if "lista_unidades" not in st.session_state:
 if "form_id" not in st.session_state:
     st.session_state["form_id"] = 0
 
+def converter_para_float(valor_texto):
+    """Converte entrada do usuário em float de moeda válido."""
+    if not valor_texto:
+        return 0.0
+    texto_limpo = re.sub(r'[^\d,. ]', '', str(valor_texto)).strip()
+    if not texto_limpo:
+        return 0.0
+    # Substitui vírgula por ponto para conversão Python
+    texto_limpo = texto_limpo.replace('.', '').replace(',', '.') if ',' in texto_limpo else texto_limpo
+    try:
+        return float(texto_limpo)
+    except ValueError:
+        return -1.0
+
 # ==============================================================================
 # 4. INTERFACE DO APLICATIVO
 # ==============================================================================
@@ -107,7 +123,6 @@ with tabs[0]:
     
     df_servicos = carregar_dados()
 
-    # Chave dinâmica para reinicializar os campos com segurança quando salvo
     fid = st.session_state["form_id"]
 
     with st.form("form_servico", clear_on_submit=False):
@@ -120,7 +135,7 @@ with tabs[0]:
                 ["", "Armazenagem", "Seguro", "Serviço", "Movimentação (Handling)", "Outros"],
                 key=f"categoria_{fid}"
             )
-            tarifa = st.number_input("Tarifa (R$) *", min_value=0.0, format="%.2f", key=f"tarifa_{fid}")
+            tarifa_input = st.text_input("Tarifa (R$) *", key=f"tarifa_{fid}", placeholder="Ex: 15,50")
         
         with col2:
             descricao = st.text_input("Descrição do Serviço *", key=f"descricao_{fid}", placeholder="Ex: Armazenagem de carga paletizada")
@@ -133,7 +148,7 @@ with tabs[0]:
         
         btn_salvar = st.form_submit_button("💾 Cadastrar / Salvar Serviço")
 
-    # Gestão de Unidades
+    # Gestão de Unidades (+ / -)
     with st.expander("⚙️ Gerenciar Opções da Lista de Unidades (+ / -)"):
         col_u1, col_u2 = st.columns(2)
         
@@ -164,9 +179,11 @@ with tabs[0]:
             else:
                 st.info("Não existem unidades personalizadas para remover.")
 
-    # Processamento do salvamento
+    # Processamento e validação ao salvar
     if btn_salvar:
         erros = []
+        val_tarifa = converter_para_float(tarifa_input)
+
         if not codigo.strip():
             erros.append("Código do Serviço")
         if not descricao.strip():
@@ -175,37 +192,44 @@ with tabs[0]:
             erros.append("Categoria")
         if not unidade:
             erros.append("Unidade")
-        if tarifa <= 0:
-            erros.append("Tarifa (R$) deve ser maior que 0.00")
+        if val_tarifa <= 0:
+            erros.append("Tarifa (R$) válida e maior que 0.00 (digite apenas números e vírgula/ponto)")
 
         if not erros:
             nova_linha = pd.DataFrame([{
                 "Código": codigo.strip(),
                 "Descrição": descricao.strip(),
-                "Tarifa (R$)": f"{tarifa:.2f}",
+                "Tarifa (R$)": f"{val_tarifa:.2f}",
                 "Unidade": unidade,
                 "Categoria": categoria,
                 "Observações": observacoes.strip()
             }])
             
-            df_atualizado = pd.concat([df_servicos, nova_linha], ignore_index=True)
+            # Recarrega antes de concatenar para evitar resgatar itens excluídos
+            df_base_fresca = carregar_dados()
+            df_atualizado = pd.concat([df_base_fresca, nova_linha], ignore_index=True)
+            
             if salvar_dados(df_atualizado):
                 st.success(f"Serviço '{codigo}' salvo com sucesso!")
-                # Incrementa o ID para limpar os campos sem causar erro de widget
                 st.session_state["form_id"] += 1
                 st.rerun()
         else:
-            campos_faltantes = ", ".join(erros)
-            st.warning(f"Por favor, preencha corretamente os seguintes campos obrigatórios: **{campos_faltantes}**")
+            campos_faltantes = " | ".join(erros)
+            st.warning(f"Por favor, verifique os seguintes campos obrigatórios: **{campos_faltantes}**")
 
     st.markdown("---")
     st.subheader("🔍 Base de Serviços Cadastrados")
     
-    df_editavel = st.data_editor(df_servicos, num_rows="dynamic", use_container_width=True)
+    df_editavel = st.data_editor(
+        df_servicos, 
+        num_rows="dynamic", 
+        use_container_width=True,
+        key="tabela_servicos_editor"
+    )
     
-    if st.button("💾 Sincronizar Alterações da Tabela"):
+    if st.button("💾 Sincronizar Alterações / Exclusões da Tabela"):
         if salvar_dados(df_editavel):
-            st.success("Tabela sincronizada com sucesso!")
+            st.success("Alterações e exclusões salvas no Google Sheets com sucesso!")
             st.rerun()
 
 with tabs[1]:
