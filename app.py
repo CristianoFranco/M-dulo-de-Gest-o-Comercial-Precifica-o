@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import gspread
-import re
 from google.oauth2.service_account import Credentials
 
 # ==============================================================================
@@ -96,20 +95,6 @@ if "lista_unidades" not in st.session_state:
 if "form_id" not in st.session_state:
     st.session_state["form_id"] = 0
 
-def converter_para_float(valor_texto):
-    """Converte entrada do usuário em float de moeda válido."""
-    if not valor_texto:
-        return 0.0
-    texto_limpo = re.sub(r'[^\d,. ]', '', str(valor_texto)).strip()
-    if not texto_limpo:
-        return 0.0
-    # Substitui vírgula por ponto para conversão Python
-    texto_limpo = texto_limpo.replace('.', '').replace(',', '.') if ',' in texto_limpo else texto_limpo
-    try:
-        return float(texto_limpo)
-    except ValueError:
-        return -1.0
-
 # ==============================================================================
 # 4. INTERFACE DO APLICATIVO
 # ==============================================================================
@@ -121,8 +106,6 @@ tabs = st.tabs(["📋 Cadastro de Serviços", "🛠️ Propostas e Precificaçã
 with tabs[0]:
     st.subheader("Cadastro e Gestão de Serviços")
     
-    df_servicos = carregar_dados()
-
     fid = st.session_state["form_id"]
 
     with st.form("form_servico", clear_on_submit=False):
@@ -135,7 +118,14 @@ with tabs[0]:
                 ["", "Armazenagem", "Seguro", "Serviço", "Movimentação (Handling)", "Outros"],
                 key=f"categoria_{fid}"
             )
-            tarifa_input = st.text_input("Tarifa (R$) *", key=f"tarifa_{fid}", placeholder="Ex: 15,50")
+            # Campo numérico estrito para valores em moeda (duas casas decimais)
+            tarifa = st.number_input(
+                "Tarifa (R$) *", 
+                min_value=0.00, 
+                step=0.01, 
+                format="%.2f", 
+                key=f"tarifa_{fid}"
+            )
         
         with col2:
             descricao = st.text_input("Descrição do Serviço *", key=f"descricao_{fid}", placeholder="Ex: Armazenagem de carga paletizada")
@@ -179,10 +169,22 @@ with tabs[0]:
             else:
                 st.info("Não existem unidades personalizadas para remover.")
 
-    # Processamento e validação ao salvar
+    # Tabela editável
+    st.markdown("---")
+    st.subheader("🔍 Base de Serviços Cadastrados")
+    
+    df_servicos = carregar_dados()
+    
+    df_editavel = st.data_editor(
+        df_servicos, 
+        num_rows="dynamic", 
+        use_container_width=True,
+        key="tabela_servicos_editor"
+    )
+
+    # Processamento e validação ao salvar novo serviço
     if btn_salvar:
         erros = []
-        val_tarifa = converter_para_float(tarifa_input)
 
         if not codigo.strip():
             erros.append("Código do Serviço")
@@ -192,22 +194,21 @@ with tabs[0]:
             erros.append("Categoria")
         if not unidade:
             erros.append("Unidade")
-        if val_tarifa <= 0:
-            erros.append("Tarifa (R$) válida e maior que 0.00 (digite apenas números e vírgula/ponto)")
+        if tarifa <= 0:
+            erros.append("Tarifa (R$) deve ser maior que 0.00")
 
         if not erros:
             nova_linha = pd.DataFrame([{
                 "Código": codigo.strip(),
                 "Descrição": descricao.strip(),
-                "Tarifa (R$)": f"{val_tarifa:.2f}",
+                "Tarifa (R$)": f"{tarifa:.2f}",
                 "Unidade": unidade,
                 "Categoria": categoria,
                 "Observações": observacoes.strip()
             }])
             
-            # Recarrega antes de concatenar para evitar resgatar itens excluídos
-            df_base_fresca = carregar_dados()
-            df_atualizado = pd.concat([df_base_fresca, nova_linha], ignore_index=True)
+            # Concatena a nova linha com os dados da tabela em tela (respeitando exclusões feitas na tabela)
+            df_atualizado = pd.concat([df_editavel, nova_linha], ignore_index=True)
             
             if salvar_dados(df_atualizado):
                 st.success(f"Serviço '{codigo}' salvo com sucesso!")
@@ -215,18 +216,8 @@ with tabs[0]:
                 st.rerun()
         else:
             campos_faltantes = " | ".join(erros)
-            st.warning(f"Por favor, verifique os seguintes campos obrigatórios: **{campos_faltantes}**")
+            st.warning(f"Por favor, preencha corretamente os seguintes campos obrigatórios: **{campos_faltantes}**")
 
-    st.markdown("---")
-    st.subheader("🔍 Base de Serviços Cadastrados")
-    
-    df_editavel = st.data_editor(
-        df_servicos, 
-        num_rows="dynamic", 
-        use_container_width=True,
-        key="tabela_servicos_editor"
-    )
-    
     if st.button("💾 Sincronizar Alterações / Exclusões da Tabela"):
         if salvar_dados(df_editavel):
             st.success("Alterações e exclusões salvas no Google Sheets com sucesso!")
