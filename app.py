@@ -29,15 +29,13 @@ st.markdown("""
 # ==============================================================================
 # 2. CONEXÃO COM O GOOGLE SHEETS
 # ==============================================================================
-# Cole abaixo o ID real da sua planilha do Google Sheets
 SPREADSHEET_ID = "1jmomu411ITDmWwnA3OL2cbqYCYNCQqD-Z4ExNM1fe2g"
 
 @st.cache_resource
 def obter_aba_google_sheets():
-    scope = [
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/drive"
-    ]
+    # Apenas escopo do Google Sheets para evitar bloqueios do Google Drive
+    scope = ["https://www.googleapis.com/auth/spreadsheets"]
+    
     if "gcp_service_account" in st.secrets:
         creds_dict = dict(st.secrets["gcp_service_account"])
         if "private_key" in creds_dict:
@@ -48,9 +46,11 @@ def obter_aba_google_sheets():
         creds = Credentials.from_service_account_file("credentials.json", scopes=scope)
     
     client = gspread.authorize(creds)
-    # Abre diretamente pelo ID da planilha
-    return client.open_by_key(SPREADSHEET_ID).sheet1
     
+    # Conexão direta pela URL para ignorar checagens de metadados do Drive
+    url = f"https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}"
+    return client.open_by_url(url).sheet1
+
 def carregar_dados():
     try:
         worksheet = obter_aba_google_sheets()
@@ -60,9 +60,11 @@ def carregar_dados():
             return pd.DataFrame(columns=["Código", "Descrição", "Tarifa (R$)", "Unidade", "Categoria", "Observações"])
         return df
     except Exception as e:
+        import traceback
         st.error(f"Erro ao carregar dados do Google Sheets: {type(e).__name__} - {str(e)}")
+        st.caption(f"Detalhes técnicos: {traceback.format_exc()}")
         return pd.DataFrame(columns=["Código", "Descrição", "Tarifa (R$)", "Unidade", "Categoria", "Observações"])
-        
+
 def salvar_dados(df):
     try:
         worksheet = obter_aba_google_sheets()
