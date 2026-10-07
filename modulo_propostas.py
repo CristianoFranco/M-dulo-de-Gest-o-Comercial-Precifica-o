@@ -37,7 +37,7 @@ def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_blo
         st.markdown("---")
         return
 
-    # Seleção de itens cadastrados na categoria
+    # Seleção de itens da categoria
     codigos_categoria = df_categoria["Código"].tolist()
     opcoes = [""] + codigos_categoria
     
@@ -63,7 +63,7 @@ def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_blo
                 except ValueError:
                     tarifa_float = float(row["Tarifa (R$)"])
                 
-                # Evita duplicados no rascunho
+                # Evita itens duplicados
                 ja_existe = any(str(i["Código"]) == str(item_selecionado) for i in st.session_state["rascunho_itens"])
                 if not ja_existe:
                     st.session_state["rascunho_itens"].append({
@@ -79,30 +79,29 @@ def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_blo
             else:
                 st.warning("Selecione um item antes de adicionar.")
 
-    # Exibição dos itens inseridos com o botão '❌' à frente de cada item
+    # Exibição dos itens inseridos dentro de um Cartão Branco de Alto Contraste
     itens_do_bloco = [i for i in st.session_state["rascunho_itens"] if i["Categoria"] == titulo]
     
     if itens_do_bloco:
-        st.markdown(
-            "##### 📋 Itens Inseridos:"
-        )
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        # Bloco visual branco
+        st.markdown("""
+            <div style="background-color: #FFFFFF; padding: 18px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); margin-bottom: 15px;">
+                <h5 style="color: #0A2540; font-weight: 800; margin-top: 0; margin-bottom: 15px;">📋 Itens Inseridos:</h5>
+        """, unsafe_allow_html=True)
         
         # Cabeçalho da Tabela
         h_del, h_cod, h_desc, h_un, h_tar = st.columns([1, 2, 5, 2, 2])
-        with h_del:
-            st.markdown("**Excluir**")
-        with h_cod:
-            st.markdown("**Código**")
-        with h_desc:
-            st.markdown("**Descrição**")
-        with h_un:
-            st.markdown("**Unidade**")
-        with h_tar:
-            st.markdown("**Tarifa (R$)**")
+        with h_del: st.markdown("<b style='color: #0A2540;'>Excluir</b>", unsafe_allow_html=True)
+        with h_cod: st.markdown("<b style='color: #0A2540;'>Código</b>", unsafe_allow_html=True)
+        with h_desc: st.markdown("<b style='color: #0A2540;'>Descrição</b>", unsafe_allow_html=True)
+        with h_un: st.markdown("<b style='color: #0A2540;'>Unidade</b>", unsafe_allow_html=True)
+        with h_tar: st.markdown("<b style='color: #0A2540;'>Tarifa (R$)</b>", unsafe_allow_html=True)
 
-        st.markdown("---")
+        st.markdown("<hr style='margin: 8px 0 15px 0; border: 0; border-top: 1px solid #CBD5E1;'>", unsafe_allow_html=True)
 
-        # Linhas com o botão '❌' à frente de cada item
+        # Linhas dos itens
         for item in itens_do_bloco:
             c_del, c_cod, c_desc, c_un, c_tar = st.columns([1, 2, 5, 2, 2])
             
@@ -112,13 +111,15 @@ def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_blo
                     st.rerun()
                     
             with c_cod:
-                st.write(item['Código'])
+                st.markdown(f"<span style='color: #0A2540; font-weight: bold;'>{item['Código']}</span>", unsafe_allow_html=True)
             with c_desc:
-                st.write(item['Descrição'])
+                st.markdown(f"<span style='color: #334155;'>{item['Descrição']}</span>", unsafe_allow_html=True)
             with c_un:
-                st.write(item['Unidade'])
+                st.markdown(f"<span style='color: #334155;'>{item['Unidade']}</span>", unsafe_allow_html=True)
             with c_tar:
-                st.write(f"R$ {item['Tarifa (R$)']:.5f}".rstrip('0').rstrip('.'))
+                st.markdown(f"<span style='color: #0052B4; font-weight: bold;'>R$ {item['Tarifa (R$)']:.5f}".rstrip('0').rstrip('.') + "</span>", unsafe_allow_html=True)
+
+        st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown("---")
 
