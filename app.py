@@ -59,15 +59,12 @@ def carregar_dados(apenas_ativos=True):
             df_vazio = pd.DataFrame(columns=colunas_esperadas)
             return df_vazio[colunas_esperadas[:-1]] if apenas_ativos else df_vazio
 
-        # Garante a existência da coluna Status
         if "Status" not in df.columns:
             df["Status"] = "Ativo"
         
-        # Preenche status vazios como Ativo
         df["Status"] = df["Status"].astype(str).str.strip()
         df["Status"] = df["Status"].replace("", "Ativo")
 
-        # Converte a coluna Código inteira para string/texto sem decimais indesejados
         df["Código"] = df["Código"].astype(str).str.strip()
 
         if apenas_ativos:
@@ -86,7 +83,6 @@ def salvar_dados_completos(df_completo):
         worksheet = obter_aba_google_sheets()
         worksheet.clear()
         
-        # Converte explicitamente a coluna Código em texto para gravação no Sheets
         df_salvar = df_completo.copy()
         df_salvar["Código"] = df_salvar["Código"].astype(str).str.strip()
         
@@ -99,7 +95,7 @@ def salvar_dados_completos(df_completo):
         return False
 
 # ==============================================================================
-# 3. GERENCIAMENTO DE ESTADO E UNIDADES
+# 3. GERENCIAMENTO DE ESTADO, UNIDADES E FUNÇÃO DE NORMALIZAÇÃO
 # ==============================================================================
 UNIDADES_PADRAO = [
     "",
@@ -117,6 +113,16 @@ if "lista_unidades" not in st.session_state:
 
 if "form_id" not in st.session_state:
     st.session_state["form_id"] = 0
+
+def normalizar_codigo(codigo_str):
+    """
+    Remove zeros à esquerda caso o código seja exclusivamente numérico.
+    Exemplo: '0005' -> '5', '05' -> '5', 'SERV-001' -> 'SERV-001'
+    """
+    limpo = str(codigo_str).strip().upper()
+    if limpo.isdigit():
+        return str(int(limpo))
+    return limpo
 
 # ==============================================================================
 # 4. INTERFACE DO APLICATIVO
@@ -194,21 +200,25 @@ with tabs[0]:
     # Processamento de Cadastro e Validação Rígida
     if btn_salvar:
         codigo_limpo = str(codigo).strip()
+        codigo_norm = normalizar_codigo(codigo_limpo)
+        
         df_base_completa = carregar_dados(apenas_ativos=False)
         
-        # Normalização rigorosa para comparar strings idênticas
+        # Comparação normalizada de todos os códigos existentes
         if not df_base_completa.empty and "Código" in df_base_completa.columns:
-            codigos_existentes = [str(c).strip().upper() for c in df_base_completa["Código"].tolist() if str(c).strip() != ""]
+            codigos_existentes_norm = [
+                normalizar_codigo(c) for c in df_base_completa["Código"].tolist() if str(c).strip() != ""
+            ]
         else:
-            codigos_existentes = []
+            codigos_existentes_norm = []
 
-        codigo_duplicado = codigo_limpo.upper() in codigos_existentes
+        codigo_duplicado = codigo_norm in codigos_existentes_norm
 
         erros = []
         if not codigo_limpo:
             erros.append("Código do Serviço é obrigatório")
         elif codigo_duplicado:
-            erros.append(f"O Código '{codigo_limpo}' JÁ ESTÁ CADASTRADO! Escolha um código diferente")
+            erros.append(f"O Código '{codigo_limpo}' equivale a um código JÁ CADASTRADO! Escolha um código diferente.")
         if not descricao.strip():
             erros.append("Descrição do Serviço")
         if not categoria:
