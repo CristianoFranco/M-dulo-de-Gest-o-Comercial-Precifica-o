@@ -48,26 +48,35 @@ def obter_aba_google_sheets():
     url = f"https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}"
     return client.open_by_url(url).sheet1
 
-def carregar_dados():
+def carregar_dados(apenas_ativos=True):
     try:
         worksheet = obter_aba_google_sheets()
         data = worksheet.get_all_records()
         df = pd.DataFrame(data)
-        colunas_esperadas = ["Código", "Descrição", "Tarifa (R$)", "Unidade", "Categoria", "Observações"]
+        colunas_esperadas = ["Código", "Descrição", "Tarifa (R$)", "Unidade", "Categoria", "Observações", "Status"]
+        
         if df.empty or not all(col in df.columns for col in colunas_esperadas):
-            return pd.DataFrame(columns=colunas_esperadas)
-        return df[colunas_esperadas]
+            # Garante a estrutura correta caso a planilha esteja vazia ou incompleta
+            df_vazio = pd.DataFrame(columns=colunas_esperadas)
+            return df_vazio[colunas_esperadas[:-1]] if apenas_ativos else df_vazio
+
+        if apenas_ativos:
+            # Filtra apenas os registros com Status 'Ativo'
+            df_ativos = df[df["Status"].astype(str).str.strip().str.upper() == "ATIVO"].copy()
+            return df_ativos[["Código", "Descrição", "Tarifa (R$)", "Unidade", "Categoria", "Observações"]]
+        
+        return df
     except Exception as e:
         import traceback
         st.error(f"Erro ao carregar dados do Google Sheets: {type(e).__name__} - {str(e)}")
         st.caption(f"Detalhes técnicos: {traceback.format_exc()}")
         return pd.DataFrame(columns=["Código", "Descrição", "Tarifa (R$)", "Unidade", "Categoria", "Observações"])
 
-def salvar_dados(df):
+def salvar_dados_completos(df_completo):
     try:
         worksheet = obter_aba_google_sheets()
         worksheet.clear()
-        dados_lista = [df.columns.values.tolist()] + df.astype(str).values.tolist()
+        dados_lista = [df_completo.columns.values.tolist()] + df_completo.astype(str).values.tolist()
         worksheet.update(range_name='A1', values=dados_lista)
         st.cache_resource.clear()
         return True
@@ -118,7 +127,6 @@ with tabs[0]:
                 ["", "Armazenagem", "Seguro", "Serviço", "Movimentação (Handling)", "Outros"],
                 key=f"categoria_{fid}"
             )
-            # Campo numérico estrito para valores em moeda (duas casas decimais)
             tarifa = st.number_input(
                 "Tarifa (R$) *", 
                 min_value=0.00, 
@@ -169,23 +177,9 @@ with tabs[0]:
             else:
                 st.info("Não existem unidades personalizadas para remover.")
 
-    # Tabela editável
-    st.markdown("---")
-    st.subheader("🔍 Base de Serviços Cadastrados")
-    
-    df_servicos = carregar_dados()
-    
-    df_editavel = st.data_editor(
-        df_servicos, 
-        num_rows="dynamic", 
-        use_container_width=True,
-        key="tabela_servicos_editor"
-    )
-
-    # Processamento e validação ao salvar novo serviço
+    # Processamento de Cadastro
     if btn_salvar:
         erros = []
-
         if not codigo.strip():
             erros.append("Código do Serviço")
         if not descricao.strip():
@@ -198,19 +192,21 @@ with tabs[0]:
             erros.append("Tarifa (R$) deve ser maior que 0.00")
 
         if not erros:
+            df_base_completa = carregar_dados(apenas_ativos=False)
+            
             nova_linha = pd.DataFrame([{
                 "Código": codigo.strip(),
                 "Descrição": descricao.strip(),
                 "Tarifa (R$)": f"{tarifa:.2f}",
                 "Unidade": unidade,
                 "Categoria": categoria,
-                "Observações": observacoes.strip()
+                "Observações": observacoes.strip(),
+                "Status": "Ativo"
             }])
             
-            # Concatena a nova linha com os dados da tabela em tela (respeitando exclusões feitas na tabela)
-            df_atualizado = pd.concat([df_editavel, nova_linha], ignore_index=True)
+            df_atualizado = pd.concat([df_base_completa, nova_linha], ignore_index=True)
             
-            if salvar_dados(df_atualizado):
+            if salvar_dados_completos(df_atualizado):
                 st.success(f"Serviço '{codigo}' salvo com sucesso!")
                 st.session_state["form_id"] += 1
                 st.rerun()
@@ -218,10 +214,40 @@ with tabs[0]:
             campos_faltantes = " | ".join(erros)
             st.warning(f"Por favor, preencha corretamente os seguintes campos obrigatórios: **{campos_faltantes}**")
 
-    if st.button("💾 Sincronizar Alterações / Exclusões da Tabela"):
-        if salvar_dados(df_editavel):
-            st.success("Alterações e exclusões salvas no Google Sheets com sucesso!")
-            st.rerun()
+    # Tabela de Serviços
+    st.markdown("---")
+    st.subheader("🔍 Base de Serviços Cadastrados")
+    
+    df_servicos_ativos = carregar_dados(apenas_ativos=True)
+    
+    col_t1, col_t2 = st.columns([3, 1])
+    with col_t1:
+        st.caption("Abaixo estão listados apenas os serviços ativos. Para excluir um serviço, selecione-o na lista ao lado.")
+    
+    # Exclusão via seleção direta
+    if not df_servicos_ativos.empty:
+        servicos_lista = df_servicos_ativos["Código"].tolist()
+        
+        col_del1, col_del2 = st.columns([3, 1])
+        with col_del1:
+            servico_para_excluir = st.selectbox("Selecione um serviço para EXCLUIR:", [""] + servicos_lista)
+        with col_del2:
+            st.write("")
+            st.write("")
+            if st.button("🗑️ Excluir Serviço Selecionado"):
+                if servico_para_excluir:
+                    df_base_completa = carregar_dados(apenas_ativos=False)
+                    # Altera o status para Inativo (Exclusão Lógica)
+                    df_base_completa.loc[df_base_completa["Código"] == servico_para_excluir, "Status"] = "Inativo"
+                    if salvar_dados_completos(df_base_completa):
+                        st.success(f"Serviço '{servico_para_excluir}' excluído com sucesso!")
+                        st.rerun()
+                else:
+                    st.warning("Selecione um serviço para excluir.")
+
+    st.markdown("---")
+    # Tabela Visualizadora
+    st.dataframe(df_servicos_ativos, use_container_width=True)
 
 with tabs[1]:
     st.info("Módulo reservado para simulações e formação de propostas comerciais.")
