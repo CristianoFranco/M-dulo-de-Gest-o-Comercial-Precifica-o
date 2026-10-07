@@ -29,7 +29,7 @@ st.markdown("""
 # ==============================================================================
 # 2. CONEXÃO COM O GOOGLE SHEETS
 # ==============================================================================
-SPREADSHEET_ID = "1jmomu411ITDmWwnA3OL2cbqYCYNCQqD-Z4ExNM1fe2g"
+SPREADSHEET_ID = "1wbhgMnqQuyOxwCef4pJh3vDnafBBU2AZk-uSt1NnPWc"
 
 @st.cache_resource
 def obter_aba_google_sheets():
