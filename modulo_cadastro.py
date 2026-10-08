@@ -12,7 +12,70 @@ UNIDADES_PADRAO = [
     "por mês"
 ]
 
+# ==============================================================================
+# ESTILIZAÇÃO CSS EXCLUSIVA PARA VISIBILIDADE DOS BOTÕES INCLUIR / EXCLUIR
+# ==============================================================================
+def aplicar_estilos_botoes():
+    st.markdown("""
+        <style>
+            /* Botão 'Confirmar Inclusão' (Azul de Alto Contraste com Texto Branco) */
+            div[data-testid="stExpander"] div.stButton > button {
+                background-color: #0052B4 !important;
+                color: #FFFFFF !important;
+                font-weight: bold !important;
+                border: 1px solid #60A5FA !important;
+                opacity: 1 !important;
+            }
+            div[data-testid="stExpander"] div.stButton > button p {
+                color: #FFFFFF !important;
+                font-weight: bold !important;
+            }
+            div[data-testid="stExpander"] div.stButton > button:hover {
+                background-color: #003B82 !important;
+                border-color: #93C5FD !important;
+            }
+
+            /* Botão 'Confirmar Exclusão' de Unidade (Vermelho de Alto Contraste) */
+            div[data-testid="stExpander"] .btn-excluir-unidade-container div.stButton > button {
+                background-color: #D32F2F !important;
+                color: #FFFFFF !important;
+                font-weight: bold !important;
+                border: 1px solid #EF4444 !important;
+                opacity: 1 !important;
+            }
+            div[data-testid="stExpander"] .btn-excluir-unidade-container div.stButton > button p {
+                color: #FFFFFF !important;
+                font-weight: bold !important;
+            }
+            div[data-testid="stExpander"] .btn-excluir-unidade-container div.stButton > button:hover {
+                background-color: #991B1B !important;
+                border-color: #F87171 !important;
+            }
+
+            /* Botão 'Excluir Serviço Selecionado' (Vermelho Destacado) */
+            .btn-excluir-servico-container div.stButton > button {
+                background-color: #D32F2F !important;
+                color: #FFFFFF !important;
+                font-weight: bold !important;
+                border: 1px solid #EF4444 !important;
+                opacity: 1 !important;
+            }
+            .btn-excluir-servico-container div.stButton > button p {
+                color: #FFFFFF !important;
+                font-weight: bold !important;
+            }
+            .btn-excluir-servico-container div.stButton > button:hover {
+                background-color: #991B1B !important;
+                border-color: #F87171 !important;
+            }
+        </style>
+    """, unsafe_allow_html=True)
+
+
 def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codigo_fn, formatar_tarifa_fn):
+    # Aplica os estilos ajustados para visibilidade dos botões
+    aplicar_estilos_botoes()
+
     # Garantia contra KeyError: Inicializa a lista de unidades se não existir
     if "lista_unidades" not in st.session_state:
         st.session_state["lista_unidades"] = UNIDADES_PADRAO.copy()
@@ -80,10 +143,12 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codig
             unidades_disponiveis = [u for u in st.session_state["lista_unidades"] if u != ""]
             if unidades_disponiveis:
                 unidade_para_remover = st.selectbox("Selecione para excluir", unidades_disponiveis, key="select_rem_u")
+                st.markdown('<div class="btn-excluir-unidade-container">', unsafe_allow_html=True)
                 if st.button("Confirmar Exclusão"):
                     st.session_state["lista_unidades"].remove(unidade_para_remover)
                     st.success(f"Unidade '{unidade_para_remover}' removida!")
                     st.rerun()
+                st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.info("Não existem unidades personalizadas para remover.")
 
@@ -155,6 +220,7 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codig
         with col_del2:
             st.write("")
             st.write("")
+            st.markdown('<div class="btn-excluir-servico-container">', unsafe_allow_html=True)
             if st.button("🗑️ Excluir Serviço Selecionado"):
                 if servico_para_excluir:
                     df_base_completa = carregar_dados_fn(apenas_ativos=False)
@@ -165,6 +231,7 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codig
                         st.rerun()
                 else:
                     st.warning("Selecione um serviço para excluir.")
+            st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
     st.dataframe(df_servicos_ativos, use_container_width=True)
