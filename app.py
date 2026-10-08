@@ -75,56 +75,26 @@ def aplicar_estilo_personalizado():
         label, .stMarkdown label, .stMarkdown p {{ color: #0A2540 !important; font-weight: 700 !important; }}
         h1, h2, h3, h4 {{ color: #FFFFFF !important; text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8); }}
 
-        /* ============================================================================== */
-        /* ABAS FORMATADAS COMO BOTÕES / BLOCOS DISCRETOS                                */
-        /* ============================================================================== */
-        div[data-testid="stTabs"] [data-baseweb="tab-list"] {{
-            gap: 12px !important;
-            border-bottom: none !important;
-        }}
-
-        /* Estilo Base para os Botões/Blocos das Abas */
-        div[data-testid="stTabs"] button[data-baseweb="tab"] {{
-            background-color: rgba(255, 255, 255, 0.12) !important;
-            border: 1px solid rgba(255, 255, 255, 0.25) !important;
+        /* Estilo dos Botões das Abas (Discreto e Legível) */
+        button[data-baseweb="tab"] {{
+            background-color: rgba(255, 255, 255, 0.15) !important;
             border-radius: 8px !important;
             padding: 10px 20px !important;
-            transition: all 0.2s ease-in-out !important;
+            margin-right: 8px !important;
+            border: 1px solid rgba(255, 255, 255, 0.3) !important;
         }}
-
-        /* Texto da Aba Inativa: Branco limpo, discreto e perfeitamente legível */
-        div[data-testid="stTabs"] button[data-baseweb="tab"] *, 
-        div[data-testid="stTabs"] button[data-baseweb="tab"] p, 
-        div[data-testid="stTabs"] button[data-baseweb="tab"] span {{
-            color: #E2E8F0 !important;
-            -webkit-text-fill-color: #E2E8F0 !important;
-            font-weight: 600 !important;
-            font-size: 15px !important;
-            opacity: 1 !important;
-        }}
-
-        /* Hover no Botão Inativo */
-        div[data-testid="stTabs"] button[data-baseweb="tab"]:hover {{
-            background-color: rgba(255, 255, 255, 0.22) !important;
-            border-color: rgba(255, 255, 255, 0.4) !important;
-        }}
-
-        /* Aba Ativa (Selecionada): Destaque Azul com Borda e Fundo Sólido */
-        div[data-testid="stTabs"] button[aria-selected="true"] {{
-            background-color: #0052B4 !important;
-            border-color: #3B82F6 !important;
-            box-shadow: 0 4px 12px rgba(0, 82, 180, 0.4) !important;
-        }}
-
-        div[data-testid="stTabs"] button[aria-selected="true"] *, 
-        div[data-testid="stTabs"] button[aria-selected="true"] p, 
-        div[data-testid="stTabs"] button[aria-selected="true"] span {{
+        
+        button[data-baseweb="tab"] p {{
             color: #FFFFFF !important;
-            -webkit-text-fill-color: #FFFFFF !important;
-            font-weight: 800 !important;
+            font-weight: bold !important;
+            font-size: 15px !important;
         }}
 
-        /* Botões Globais */
+        button[aria-selected="true"] {{
+            background-color: #0052B4 !important;
+            border-color: #0052B4 !important;
+        }}
+
         .stButton>button {{
             background: linear-gradient(135deg, #0052B4 0%, #003B82 100%) !important;
             color: #FFFFFF !important;
@@ -210,4 +180,39 @@ def formatar_tarifa(val):
         elif len(s.split('.')[1]) < 2: s += '0'
         return s
     except (ValueError, TypeError):
-        return
+        return str(val)
+
+# ==============================================================================
+# 3. CABEÇALHO & ABAS
+# ==============================================================================
+logo_b64 = get_base64_of_bin_file('logo.png')
+
+if logo_b64:
+    st.markdown(f"""
+        <div class="header-container">
+            <div>
+                <h1 class="header-title">Módulo Comercial & Precificação</h1>
+                <p class="header-subtitle">Gestão Integrada de Serviços e Tabelas Tarifárias</p>
+            </div>
+            <div>
+                <img src="data:image/png;base64,{logo_b64}" style="height: 60px;">
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+else:
+    st.markdown("""
+        <div class="header-container">
+            <div>
+                <h1 class="header-title">Módulo Comercial & Precificação</h1>
+                <p class="header-subtitle">Gestão Integrada de Serviços e Tabelas Tarifárias</p>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+
+tabs = st.tabs(["📋 Cadastro de Serviços", "🛠️ Propostas e Precificação"])
+
+with tabs[0]:
+    renderizar_aba_cadastro(carregar_dados, salvar_dados_completos, normalizar_codigo, formatar_tarifa)
+
+with tabs[1]:
+    renderizar_aba_propostas(carregar_dados, salvar_dados_completos)
