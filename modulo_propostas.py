@@ -6,7 +6,6 @@ from datetime import datetime
 # FUNÇÕES AUXILIARES DA PROPOSTA
 # ==============================================================================
 def obter_proximo_numero_proposta():
-    # Se estiver editando uma proposta existente, mantém o mesmo código
     if st.session_state.get("proposta_id_em_edicao"):
         return st.session_state["proposta_id_em_edicao"]
 
@@ -24,26 +23,28 @@ def inicializar_estado_proposta():
     if "rascunho_itens" not in st.session_state:
         st.session_state["rascunho_itens"] = []
 
-def remover_item_proposta(codigo_para_remover):
-    st.session_state["rascunho_itens"] = [
-        item for item in st.session_state["rascunho_itens"] 
-        if str(item.get("Código", "")) != str(codigo_para_remover)
-    ]
+def remover_item_proposta_por_indice(index_para_remover):
+    if 0 <= index_para_remover < len(st.session_state["rascunho_itens"]):
+        item_removido = st.session_state["rascunho_itens"].pop(index_para_remover)
+        # Limpa eventuais chaves associadas a este item no session_state
+        for k in list(st.session_state.keys()):
+            if k.endswith(f"_{item_removido.get('Código', '')}_{index_para_remover}"):
+                del st.session_state[k]
 
 def aplicar_reajuste_percentual_global(percentual):
     fator = 1.0 + (float(percentual) / 100.0)
     
-    for item in st.session_state["rascunho_itens"]:
+    for idx, item in enumerate(st.session_state["rascunho_itens"]):
         val_atual = float(item["Tarifa (R$)"])
         nova_tarifa = round(val_atual * fator, 5)
         item["Tarifa (R$)"] = nova_tarifa
         
         cat_code = item.get("Cat_Code", "GEN")
-        input_key = f"input_tarifa_{cat_code}_{item['Código']}"
+        input_key = f"input_tarifa_{cat_code}_{item['Código']}_{idx}"
         st.session_state[input_key] = nova_tarifa
 
 # ==============================================================================
-# RENDERIZADOR DE BLOCO POR CATEGORIA
+# RENDERIZADOR DE BLOCO POR CATEGORIA (COM CHAVES GARANTIDAMENTE ÚNICAS)
 # ==============================================================================
 def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_bloco):
     st.markdown(f"#### {icone_bloco} {titulo}")
@@ -97,9 +98,13 @@ def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_blo
             else:
                 st.warning("Selecione um item antes de adicionar.")
 
-    itens_do_bloco = [i for i in st.session_state["rascunho_itens"] if i.get("Categoria") == titulo]
+    # Filtra os itens pertencentes a esta categoria pela chave Cat_Code ou pelo Titulo da Categoria
+    itens_do_bloco_com_idx = [
+        (idx, item) for idx, item in enumerate(st.session_state["rascunho_itens"])
+        if item.get("Cat_Code") == categoria_filtro or item.get("Categoria") == titulo
+    ]
     
-    if itens_do_bloco:
+    if itens_do_bloco_com_idx:
         st.markdown("<h5 style='color: #FFFFFF; font-weight: bold; margin-top: 15px;'>📋 Itens Inseridos:</h5>", unsafe_allow_html=True)
         
         h_del, h_cod, h_desc, h_tar, h_un, h_obs = st.columns([0.5, 1.2, 3.2, 2.2, 1.8, 2.2])
@@ -112,12 +117,12 @@ def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_blo
 
         st.markdown("<hr style='margin: 4px 0 10px 0; border-color: rgba(255,255,255,0.3);'>", unsafe_allow_html=True)
 
-        for item in itens_do_bloco:
+        for idx, item in itens_do_bloco_com_idx:
             c_del, c_cod, c_desc, c_tar, c_un, c_obs = st.columns([0.5, 1.2, 3.2, 2.2, 1.8, 2.2])
             
             with c_del:
-                if st.button("❌", key=f"btn_x_{categoria_filtro}_{item['Código']}", help="Remover item"):
-                    remover_item_proposta(item['Código'])
+                if st.button("❌", key=f"btn_x_{categoria_filtro}_{item['Código']}_{idx}", help="Remover item"):
+                    remover_item_proposta_por_indice(idx)
                     st.rerun()
                     
             with c_cod:
@@ -125,13 +130,13 @@ def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_blo
             with c_desc:
                 st.markdown(f"<span style='color: #FFFFFF;'>{item['Descrição']}</span>", unsafe_allow_html=True)
             with c_tar:
-                input_key = f"input_tarifa_{categoria_filtro}_{item['Código']}"
+                input_key = f"input_tarifa_{categoria_filtro}_{item['Código']}_{idx}"
                 
                 if input_key not in st.session_state:
                     st.session_state[input_key] = float(item["Tarifa (R$)"])
                     
                 nova_tarifa = st.number_input(
-                    label=f"Tarifa_{item['Código']}",
+                    label=f"Tarifa_{item['Código']}_{idx}",
                     label_visibility="collapsed",
                     min_value=0.0,
                     step=0.01,
@@ -265,6 +270,19 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_fn=None, *args, **k
     df_seguro = df_servicos[df_servicos["Cat_Upper"] == "SEGURO"]
     df_servicos_handling = df_servicos[df_servicos["Cat_Upper"].isin(["SERVIÇO", "MOVIMENTAÇÃO (HANDLING)"])]
     df_outros = df_servicos[~df_servicos["Cat_Upper"].isin(["ARMAZENAGEM", "SEGURO", "SERVIÇO", "MOVIMENTAÇÃO (HANDLING)"])]
+
+    # Mapeia dinamicamente os itens do rascunho sem Cat_Code para o bloco correto
+    for item in st.session_state["rascunho_itens"]:
+        if not item.get("Cat_Code") or item.get("Cat_Code") == "GEN":
+            cat_up = str(item.get("Categoria", "")).strip().upper()
+            if cat_up == "ARMAZENAGEM":
+                item["Cat_Code"] = "ARM"
+            elif cat_up == "SEGURO":
+                item["Cat_Code"] = "SEG"
+            elif cat_up in ["SERVIÇO", "MOVIMENTAÇÃO (HANDLING)", "SERVIÇOS E MOVIMENTAÇÕES"]:
+                item["Cat_Code"] = "SER"
+            else:
+                item["Cat_Code"] = "OUT"
 
     # 4 Blocos
     renderizar_bloco_categoria("Armazenagem", "ARM", df_armazenagem, "🏬")
