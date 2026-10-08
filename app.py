@@ -72,24 +72,33 @@ def aplicar_estilo_personalizado():
         label, .stMarkdown label, .stMarkdown p {{ color: #0A2540 !important; font-weight: 700 !important; }}
         h1, h2, h3, h4 {{ color: #FFFFFF !important; text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8); }}
         
-        /* CORREÇÃO DO CONTRASTE DAS ABAS */
+        /* CORREÇÃO DEFINITIVA DO CONTRASTE DAS ABAS */
         button[data-baseweb="tab"] {{
-            background-color: rgba(255, 255, 255, 0.85) !important;
-            border-radius: 8px 8px 0 0 !important;
+            background-color: transparent !important;
             padding: 10px 20px !important;
-            margin-right: 5px !important;
+            margin-right: 10px !important;
         }}
-        button[data-baseweb="tab"] p {{
-            color: #0A2540 !important;
-            font-weight: bold !important;
-            font-size: 15px !important;
-            opacity: 1 !important;
-        }}
-        button[aria-selected="true"] {{
-            background-color: #0052B4 !important;
-        }}
-        button[aria-selected="true"] p {{
+        
+        /* Texto das Abas Inativas: Branco Puro, Sem Transparência e Negrito */
+        button[data-baseweb="tab"] p, 
+        button[data-baseweb="tab"] span, 
+        button[data-baseweb="tab"] div {{
             color: #FFFFFF !important;
+            font-weight: 700 !important;
+            font-size: 16px !important;
+            opacity: 1 !important;
+            -webkit-text-fill-color: #FFFFFF !important;
+        }}
+        
+        /* Aba Ativa: Destaque Vermelho/Laranja Comercial com Linha Inferior */
+        button[aria-selected="true"] {{
+            border-bottom: 3px solid #FF4B4B !important;
+        }}
+        button[aria-selected="true"] p, 
+        button[aria-selected="true"] span, 
+        button[aria-selected="true"] div {{
+            color: #FF4B4B !important;
+            -webkit-text-fill-color: #FF4B4B !important;
         }}
 
         .stButton>button {{
@@ -180,7 +189,7 @@ def formatar_tarifa(val):
         return str(val)
 
 # ==============================================================================
-# 3. CABEÇALHO & ABAS (HTML CORRIGIDO)
+# 3. CABEÇALHO & ABAS
 # ==============================================================================
 logo_b64 = get_base64_of_bin_file('logo.png')
 
