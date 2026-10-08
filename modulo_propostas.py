@@ -150,43 +150,16 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_fn=None, *args, **k
     inicializar_estado_proposta()
     numero_proposta = obter_proximo_numero_proposta()
     
-    col_tit, col_num = st.columns([3, 1])
-    with col_tit:
-        st.markdown("## 📝 Proposta Rascunho")
-        st.caption("Monte a estrutura comercial selecionando os serviços e ajustando as tarifas.")
-    with col_num:
-        st.markdown(f"### Nº: `{numero_proposta}`")
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    # --------------------------------------------------------------------------
-    # CAMPOS COM RÓTULOS VISÍVEIS: CLIENTE E CNPJ
-    # --------------------------------------------------------------------------
-    col_cli, col_cnpj = st.columns([2.5, 1.5])
-    
-    with col_cli:
-        st.markdown("<label style='color: #FFFFFF !important; font-weight: bold; font-size: 15px;'>Cliente *</label>", unsafe_allow_html=True)
-        cliente_nome = st.text_input(
-            "Cliente *",
-            label_visibility="collapsed",
-            placeholder="Ex: Empresa ABC Ltda",
-            key="proposta_cliente_nome"
-        )
-        
-    with col_cnpj:
-        st.markdown("<label style='color: #FFFFFF !important; font-weight: bold; font-size: 15px;'>CNPJ</label>", unsafe_allow_html=True)
-        cnpj_val = st.text_input(
-            "CNPJ",
-            label_visibility="collapsed",
-            placeholder="Ex: 00.000.000/0001-00",
-            key="proposta_cliente_cnpj"
-        )
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    # ESTILIZAÇÃO CSS FORÇADA PARA BOTÕES
+    # ESTILIZAÇÃO CSS FORÇADA PARA RÓTULOS (LABELS) DE INPUTS FICAREM EM BRANCO
     st.markdown("""
         <style>
+            div[data-testid="stTextInput"] label,
+            div[data-testid="stTextInput"] label p {
+                color: #FFFFFF !important;
+                font-weight: bold !important;
+                font-size: 16px !important;
+                text-shadow: 1px 1px 2px rgba(0,0,0,0.8) !important;
+            }
             div[data-testid="stExpander"] .stButton > button {
                 background-color: #0052B4 !important;
                 color: #FFFFFF !important;
@@ -205,6 +178,36 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_fn=None, *args, **k
             }
         </style>
     """, unsafe_allow_html=True)
+
+    col_tit, col_num = st.columns([3, 1])
+    with col_tit:
+        st.markdown("## 📝 Proposta Rascunho")
+        st.caption("Monte a estrutura comercial selecionando os serviços e ajustando as tarifas.")
+    with col_num:
+        st.markdown(f"### Nº: `{numero_proposta}`")
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # --------------------------------------------------------------------------
+    # CAMPOS DE INPUT COM RÓTULOS NATIVOS ESTILIZADOS
+    # --------------------------------------------------------------------------
+    col_cli, col_cnpj = st.columns([2.5, 1.5])
+    
+    with col_cli:
+        cliente_nome = st.text_input(
+            "Cliente *",
+            placeholder="Ex: Empresa ABC Ltda",
+            key="proposta_cliente_nome"
+        )
+        
+    with col_cnpj:
+        cnpj_val = st.text_input(
+            "CNPJ",
+            placeholder="Ex: 00.000.000/0001-00",
+            key="proposta_cliente_cnpj"
+        )
+
+    st.markdown("<br>", unsafe_allow_html=True)
 
     try:
         df_servicos = carregar_dados_fn(apenas_ativos=True)
@@ -269,7 +272,7 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_fn=None, *args, **k
     with col_res2:
         if st.button("➡️ Finalizar Lançamento e Ir para Proposta Cliente", use_container_width=True):
             if not cliente_nome.strip():
-                st.error("⚠️ O campo 'Cliente' é obrigatório!")
+                st.error("⚠️ O campo 'Cliente *' é obrigatório!")
             elif not todos_itens:
                 st.error("Adicione pelo menos um item antes de avançar.")
             else:
