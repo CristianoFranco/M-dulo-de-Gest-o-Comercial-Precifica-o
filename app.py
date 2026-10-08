@@ -111,6 +111,11 @@ aplicar_estilo_personalizado()
 # ==============================================================================
 SPREADSHEET_ID = "1wbhgMnqQuyOxwCef4pJh3vDnafBBU2AZk-uSt1NnPWc"
 
+HEADER_PROPOSTAS_ESPERADO = [
+    "Proposta", "Data", "Cliente", "CNPJ", "Código", 
+    "Descrição", "Categoria", "Unidade", "Tarifa (R$)", "Observações"
+]
+
 @st.cache_resource(ttl=3600)
 def obter_planilha_google_sheets():
     scope = ["https://www.googleapis.com/auth/spreadsheets"]
@@ -131,11 +136,22 @@ def obter_aba_servicos():
 def obter_aba_propostas():
     sh = obter_planilha_google_sheets()
     try:
-        return sh.worksheet("Propostas_Salvas")
+        ws = sh.worksheet("Propostas_Salvas")
     except Exception:
         ws = sh.add_worksheet(title="Propostas_Salvas", rows=1000, cols=10)
-        ws.append_row(["Proposta", "Data", "Cliente", "CNPJ", "Código", "Descrição", "Categoria", "Unidade", "Tarifa (R$)", "Observações"])
+        ws.append_row(HEADER_PROPOSTAS_ESPERADO)
         return ws
+
+    # Valida se a primeira linha (cabeçalho) possui todas as colunas
+    valores = ws.get_all_values()
+    if not valores or valores[0] != HEADER_PROPOSTAS_ESPERADO:
+        if not valores:
+            ws.append_row(HEADER_PROPOSTAS_ESPERADO)
+        else:
+            # Reescreve a linha 1 garantindo o cabeçalho correto
+            ws.update(range_name='A1:J1', values=[HEADER_PROPOSTAS_ESPERADO])
+            
+    return ws
 
 @st.cache_data(ttl=60)
 def carregar_dados_cached():
@@ -187,25 +203,30 @@ def salvar_propostas_na_planilha(linhas_proposta):
     try:
         ws = obter_aba_propostas()
         
-        # Se for uma atualização de proposta existente, removemos as linhas antigas com o mesmo número
         num_prop = str(linhas_proposta[0].get("Proposta", "")).strip() if linhas_proposta else ""
         
-        dados_existentes = ws.get_all_records()
-        if dados_existentes and num_prop:
-            df_exist = pd.DataFrame(dados_existentes)
-            if "Proposta" in df_exist.columns:
-                # Se o código da proposta já existir na base, limpa a planilha e reescreve mantendo os outros
-                if num_prop in df_exist["Proposta"].astype(str).str.strip().values:
-                    df_filtrado = df_exist[df_exist["Proposta"].astype(str).str.strip() != num_prop]
-                    ws.clear()
-                    header = ["Proposta", "Data", "Cliente", "CNPJ", "Código", "Descrição", "Categoria", "Unidade", "Tarifa (R$)", "Observações"]
-                    ws.append_row(header)
-                    if not df_filtrado.empty:
-                        ws.append_rows(df_filtrado.astype(str).values.tolist())
+        # Lê a folha como matriz de valores puros (evita falha por nome de chave)
+        todos_valores = ws.get_all_values()
+        
+        if not todos_valores:
+            todos_valores = [HEADER_PROPOSTAS_ESPERADO]
+        
+        header_atual = todos_valores[0]
+        linhas_existentes = todos_valores[1:] if len(todos_valores) > 1 else []
+        
+        # Filtra e remove as linhas antigas da proposta caso ela já existisse
+        linhas_filtradas = []
+        if num_prop and linhas_existentes:
+            for lin in linhas_existentes:
+                if len(lin) > 0 and str(lin[0]).strip() != num_prop:
+                    linhas_filtradas.append(lin)
+        else:
+            linhas_filtradas = linhas_existentes
 
-        novas_linhas = []
+        # Monta a nova lista de linhas para inserção
+        novas_linhas_matriz = []
         for reg in linhas_proposta:
-            novas_linhas.append([
+            novas_linhas_matriz.append([
                 str(reg.get("Proposta", "")),
                 str(reg.get("Data", "")),
                 str(reg.get("Cliente", "")),
@@ -217,19 +238,28 @@ def salvar_propostas_na_planilha(linhas_proposta):
                 str(reg.get("Tarifa (R$)", "")),
                 str(reg.get("Observações", ""))
             ])
-        ws.append_rows(novas_linhas)
+
+        # Reescreve a folha de forma atômica
+        ws.clear()
+        conteudo_final = [HEADER_PROPOSTAS_ESPERADO] + linhas_filtradas + novas_linhas_matriz
+        ws.update(range_name='A1', values=conteudo_final)
+        
         return True
     except Exception as e:
-        st.error("Erro ao gravar proposta no Google Sheets: {}".format(e))
+        st.error(f"Erro ao gravar proposta no Google Sheets: {e}")
         return False
 
 def carregar_propostas_da_planilha():
     try:
         ws = obter_aba_propostas()
-        data = ws.get_all_records()
-        return pd.DataFrame(data)
+        valores = ws.get_all_values()
+        if not valores or len(valores) < 2:
+            return pd.DataFrame(columns=HEADER_PROPOSTAS_ESPERADO)
+        
+        df = pd.DataFrame(valores[1:], columns=valores[0])
+        return df
     except Exception:
-        return pd.DataFrame()
+        return pd.DataFrame(columns=HEADER_PROPOSTAS_ESPERADO)
 
 def normalizar_codigo(codigo_str):
     limpo = str(codigo_str).strip().upper()
