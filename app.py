@@ -34,6 +34,9 @@ if "lista_unidades" not in st.session_state:
 if "form_id" not in st.session_state:
     st.session_state["form_id"] = 0
 
+if "aba_ativa" not in st.session_state:
+    st.session_state["aba_ativa"] = "cadastro"
+
 def get_base64_of_bin_file(bin_file):
     if os.path.exists(bin_file):
         with open(bin_file, 'rb') as f:
@@ -75,32 +78,40 @@ def aplicar_estilo_personalizado():
         label, .stMarkdown label, .stMarkdown p {{ color: #0A2540 !important; font-weight: 700 !important; }}
         h1, h2, h3, h4 {{ color: #FFFFFF !important; text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8); }}
 
-        /* Estilo dos Botões das Abas (Discreto e Legível) */
-        button[data-baseweb="tab"] {{
-            background-color: rgba(255, 255, 255, 0.15) !important;
-            border-radius: 8px !important;
-            padding: 10px 20px !important;
-            margin-right: 8px !important;
-            border: 1px solid rgba(255, 255, 255, 0.3) !important;
-        }}
-        
-        button[data-baseweb="tab"] p {{
-            color: #FFFFFF !important;
-            font-weight: bold !important;
-            font-size: 15px !important;
-        }}
-
-        button[aria-selected="true"] {{
-            background-color: #0052B4 !important;
-            border-color: #0052B4 !important;
-        }}
-
+        /* ESTILO DOS BOTÕES GLOBAIS DE AÇÃO */
         .stButton>button {{
             background: linear-gradient(135deg, #0052B4 0%, #003B82 100%) !important;
             color: #FFFFFF !important;
             font-weight: bold !important;
             border-radius: 8px !important;
             border: none !important;
+        }}
+
+        /* ESTILO PERSONALIZADO PARA OS BOTÕES DE NAVEGAÇÃO DE ABAS */
+        div[data-testid="stColumn"] button[key^="nav_btn_"] {{
+            width: 100% !important;
+            padding: 12px 20px !important;
+            font-size: 15px !important;
+            border-radius: 8px !important;
+        }}
+
+        /* BOTÃO DA ABA INATIVA (DISCRETO E 100% VISÍVEL) */
+        div[data-testid="stColumn"] button[key^="nav_btn_inativo"] {{
+            background: rgba(255, 255, 255, 0.15) !important;
+            border: 1px solid rgba(255, 255, 255, 0.35) !important;
+            color: #FFFFFF !important;
+        }}
+        div[data-testid="stColumn"] button[key^="nav_btn_inativo"]:hover {{
+            background: rgba(255, 255, 255, 0.28) !important;
+            border-color: rgba(255, 255, 255, 0.6) !important;
+        }}
+
+        /* BOTÃO DA ABA ATIVA (DESTACADO) */
+        div[data-testid="stColumn"] button[key^="nav_btn_ativo"] {{
+            background: #0052B4 !important;
+            border: 1px solid #3B82F6 !important;
+            color: #FFFFFF !important;
+            box-shadow: 0 4px 12px rgba(0, 82, 180, 0.5) !important;
         }}
     </style>
     """, unsafe_allow_html=True)
@@ -183,7 +194,7 @@ def formatar_tarifa(val):
         return str(val)
 
 # ==============================================================================
-# 3. CABEÇALHO & ABAS
+# 3. CABEÇALHO & NAVEGAÇÃO DE ABAS
 # ==============================================================================
 logo_b64 = get_base64_of_bin_file('logo.png')
 
@@ -209,10 +220,25 @@ else:
         </div>
     """, unsafe_allow_html=True)
 
-tabs = st.tabs(["📋 Cadastro de Serviços", "🛠️ Propostas e Precificação"])
+# BARRA DE NAVEGAÇÃO ENTRE TELAS (BOTÕES DISCRETOS EM BLOCO)
+col_nav1, col_nav2, _ = st.columns([2.5, 2.5, 5])
 
-with tabs[0]:
+with col_nav1:
+    key_cad = "nav_btn_ativo_cad" if st.session_state["aba_ativa"] == "cadastro" else "nav_btn_inativo_cad"
+    if st.button("📋 Cadastro de Serviços", key=key_cad, use_container_width=True):
+        st.session_state["aba_ativa"] = "cadastro"
+        st.rerun()
+
+with col_nav2:
+    key_prop = "nav_btn_ativo_prop" if st.session_state["aba_ativa"] == "propostas" else "nav_btn_inativo_prop"
+    if st.button("🛠️ Propostas e Precificação", key=key_prop, use_container_width=True):
+        st.session_state["aba_ativa"] = "propostas"
+        st.rerun()
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+# RENDERIZAÇÃO DA TELA SELECIONADA
+if st.session_state["aba_ativa"] == "cadastro":
     renderizar_aba_cadastro(carregar_dados, salvar_dados_completos, normalizar_codigo, formatar_tarifa)
-
-with tabs[1]:
+else:
     renderizar_aba_propostas(carregar_dados, salvar_dados_completos)
