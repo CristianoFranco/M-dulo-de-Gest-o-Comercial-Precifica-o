@@ -78,40 +78,26 @@ def aplicar_estilo_personalizado():
         label, .stMarkdown label, .stMarkdown p {{ color: #0A2540 !important; font-weight: 700 !important; }}
         h1, h2, h3, h4 {{ color: #FFFFFF !important; text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8); }}
 
-        /* ESTILO DOS BOTÕES GLOBAIS DE AÇÃO */
-        .stButton>button {{
-            background: linear-gradient(135deg, #0052B4 0%, #003B82 100%) !important;
-            color: #FFFFFF !important;
-            font-weight: bold !important;
-            border-radius: 8px !important;
-            border: none !important;
-        }}
-
-        /* ESTILO PERSONALIZADO PARA OS BOTÕES DE NAVEGAÇÃO DE ABAS */
-        div[data-testid="stColumn"] button[key^="nav_btn_"] {{
-            width: 100% !important;
-            padding: 12px 20px !important;
-            font-size: 15px !important;
-            border-radius: 8px !important;
-        }}
-
-        /* BOTÃO DA ABA INATIVA (DISCRETO E 100% VISÍVEL) */
-        div[data-testid="stColumn"] button[key^="nav_btn_inativo"] {{
-            background: rgba(255, 255, 255, 0.15) !important;
-            border: 1px solid rgba(255, 255, 255, 0.35) !important;
-            color: #FFFFFF !important;
-        }}
-        div[data-testid="stColumn"] button[key^="nav_btn_inativo"]:hover {{
-            background: rgba(255, 255, 255, 0.28) !important;
-            border-color: rgba(255, 255, 255, 0.6) !important;
-        }}
-
-        /* BOTÃO DA ABA ATIVA (DESTACADO) */
-        div[data-testid="stColumn"] button[key^="nav_btn_ativo"] {{
+        /* ESTILIZAÇÃO DIFERENCIADA PARA OS BOTÕES DE NAVEGAÇÃO */
+        div[data-testid="stColumn"] button[kind="primary"] {{
             background: #0052B4 !important;
-            border: 1px solid #3B82F6 !important;
             color: #FFFFFF !important;
-            box-shadow: 0 4px 12px rgba(0, 82, 180, 0.5) !important;
+            font-weight: 800 !important;
+            border: 2px solid #60A5FA !important;
+            box-shadow: 0 4px 14px rgba(0, 82, 180, 0.6) !important;
+        }}
+
+        div[data-testid="stColumn"] button[kind="secondary"] {{
+            background: rgba(255, 255, 255, 0.1) !important;
+            color: #E2E8F0 !important;
+            font-weight: 600 !important;
+            border: 1px solid rgba(255, 255, 255, 0.25) !important;
+        }}
+        
+        div[data-testid="stColumn"] button[kind="secondary"]:hover {{
+            background: rgba(255, 255, 255, 0.2) !important;
+            color: #FFFFFF !important;
+            border-color: rgba(255, 255, 255, 0.5) !important;
         }}
     </style>
     """, unsafe_allow_html=True)
@@ -194,7 +180,7 @@ def formatar_tarifa(val):
         return str(val)
 
 # ==============================================================================
-# 3. CABEÇALHO & NAVEGAÇÃO DE ABAS
+# 3. CABEÇALHO & NAVEGAÇÃO
 # ==============================================================================
 logo_b64 = get_base64_of_bin_file('logo.png')
 
@@ -220,18 +206,28 @@ else:
         </div>
     """, unsafe_allow_html=True)
 
-# BARRA DE NAVEGAÇÃO ENTRE TELAS (BOTÕES DISCRETOS EM BLOCO)
+# BARRA DE NAVEGAÇÃO COM DESTAQUE VISUAL
 col_nav1, col_nav2, _ = st.columns([2.5, 2.5, 5])
 
+eh_cadastro = st.session_state["aba_ativa"] == "cadastro"
+
 with col_nav1:
-    key_cad = "nav_btn_ativo_cad" if st.session_state["aba_ativa"] == "cadastro" else "nav_btn_inativo_cad"
-    if st.button("📋 Cadastro de Serviços", key=key_cad, use_container_width=True):
+    if st.button(
+        "📋 Cadastro de Serviços",
+        key="btn_nav_cadastro",
+        type="primary" if eh_cadastro else "secondary",
+        use_container_width=True
+    ):
         st.session_state["aba_ativa"] = "cadastro"
         st.rerun()
 
 with col_nav2:
-    key_prop = "nav_btn_ativo_prop" if st.session_state["aba_ativa"] == "propostas" else "nav_btn_inativo_prop"
-    if st.button("🛠️ Propostas e Precificação", key=key_prop, use_container_width=True):
+    if st.button(
+        "🛠️ Propostas e Precificação",
+        key="btn_nav_propostas",
+        type="secondary" if eh_cadastro else "primary",
+        use_container_width=True
+    ):
         st.session_state["aba_ativa"] = "propostas"
         st.rerun()
 
