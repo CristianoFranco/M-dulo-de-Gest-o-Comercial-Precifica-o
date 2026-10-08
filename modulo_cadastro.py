@@ -2,36 +2,43 @@ import streamlit as st
 import pandas as pd
 
 # ==============================================================================
-# ESTILIZAÇÃO CSS DEDICADA PARA TELA 1
+# ESTILIZAÇÃO CSS EXCLUSIVA PARA OS BOTÕES (DENTRO E FORA DO EXPANDER)
 # ==============================================================================
-def aplicar_estilos_cadastro():
+def aplicar_estilos_botoes_cadastro():
     st.markdown("""
         <style>
-            /* Garante visibilidade e contraste dos botões dentro do expander */
-            div[data-testid="stExpander"] .stButton > button {
+            /* Botão de Inclusão / Ações do Expander (Azul com Texto Branco) */
+            div[data-testid="stExpander"] div.stButton > button {
                 background-color: #0052B4 !important;
                 color: #FFFFFF !important;
                 font-weight: bold !important;
                 border: 1px solid #60A5FA !important;
                 opacity: 1 !important;
-                border-radius: 6px !important;
             }
-            div[data-testid="stExpander"] .stButton > button:hover {
-                background-color: #003B82 !important;
-                color: #FFFFFF !important;
-            }
-            div[data-testid="stExpander"] .stButton > button p {
+            div[data-testid="stExpander"] div.stButton > button p {
                 color: #FFFFFF !important;
                 font-weight: bold !important;
             }
-
-            /* Estilo especial para o botão de exclusão */
-            .btn-excluir-red .stButton > button {
-                background-color: #D32F2F !important;
-                border-color: #B71C1C !important;
+            div[data-testid="stExpander"] div.stButton > button:hover {
+                background-color: #003B82 !important;
+                border-color: #93C5FD !important;
             }
-            .btn-excluir-red .stButton > button:hover {
-                background-color: #B71C1C !important;
+
+            /* Botão de Exclusão Especificamente (Vermelho com Texto Branco) */
+            div[data-testid="stExpander"] .btn-excluir-container div.stButton > button {
+                background-color: #D32F2F !important;
+                color: #FFFFFF !important;
+                font-weight: bold !important;
+                border: 1px solid #EF4444 !important;
+                opacity: 1 !important;
+            }
+            div[data-testid="stExpander"] .btn-excluir-container div.stButton > button p {
+                color: #FFFFFF !important;
+                font-weight: bold !important;
+            }
+            div[data-testid="stExpander"] .btn-excluir-container div.stButton > button:hover {
+                background-color: #991B1B !important;
+                border-color: #F87171 !important;
             }
         </style>
     """, unsafe_allow_html=True)
@@ -40,13 +47,12 @@ def aplicar_estilos_cadastro():
 # RENDERIZADOR PRINCIPAL ABA 1 - CADASTRO
 # ==============================================================================
 def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codigo_fn=None, formatar_tarifa_fn=None):
-    aplicar_estilos_cadastro()
+    aplicar_estilos_botoes_cadastro()
     
     st.markdown("## 📋 Cadastro de Serviços e Tarifas")
     st.caption("Gerencie o catálogo principal de serviços, unidades e valores base.")
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # Inicialização das Listas Dinâmicas de Opções no State
     if "lista_unidades" not in st.session_state:
         st.session_state["lista_unidades"] = ["por mês", "Por caixa", "por volume", "Por conteiner", "Por pallet", "Por hora"]
         
@@ -54,7 +60,7 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codig
         st.session_state["lista_categorias"] = ["Armazenagem", "Seguro", "Serviço", "Movimentação (Handling)", "Outros"]
 
     # --------------------------------------------------------------------------
-    # GERENCIAMENTO DE UNIDADES E CATEGORIAS (EXPANDER)
+    # EXPANDER: GERENCIAR UNIDADES (INCLUIR / EXCLUIR)
     # --------------------------------------------------------------------------
     with st.expander("⚙️ Gerenciar Opções da Lista de Unidades (+ / -)", expanded=False):
         col_add, col_rem = st.columns(2)
@@ -76,7 +82,9 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codig
         with col_rem:
             st.markdown("##### ➖ Remover Unidade Existente")
             unidade_excluir = st.selectbox("Selecione para excluir", options=[""] + st.session_state["lista_unidades"], key="select_excluir_unidade")
-            st.markdown('<div class="btn-excluir-red">', unsafe_allow_html=True)
+            
+            # Encapsulado para aplicação do CSS de exclusão em vermelho
+            st.markdown('<div class="btn-excluir-container">', unsafe_allow_html=True)
             if st.button("Confirmar Exclusão", key="btn_confirmar_exc_unidade"):
                 if unidade_excluir and unidade_excluir in st.session_state["lista_unidades"]:
                     st.session_state["lista_unidades"].remove(unidade_excluir)
@@ -87,7 +95,7 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codig
     st.markdown("<br>", unsafe_allow_html=True)
 
     # --------------------------------------------------------------------------
-    # FORMULÁRIO DE CADASTRO DE SERVIÇO
+    # FORMULÁRIO DE CADASTRO
     # --------------------------------------------------------------------------
     st.markdown("### ➕ Novo Cadastro de Serviço")
     
@@ -139,7 +147,7 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codig
     st.markdown("---")
 
     # --------------------------------------------------------------------------
-    # TABELA DE SERVIÇOS CADASTRADOS
+    # TABELA DE EXIBIÇÃO
     # --------------------------------------------------------------------------
     st.markdown("### 📑 Serviços Cadastrados")
     df_exibicao = carregar_dados_fn()
