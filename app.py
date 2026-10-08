@@ -71,17 +71,27 @@ def aplicar_estilo_personalizado():
         }}
         label, .stMarkdown label, .stMarkdown p {{ color: #0A2540 !important; font-weight: 700 !important; }}
         h1, h2, h3, h4 {{ color: #FFFFFF !important; text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8); }}
+        
+        /* CORREÇÃO DO CONTRASTE DAS ABAS */
         button[data-baseweb="tab"] {{
             background-color: rgba(255, 255, 255, 0.85) !important;
-            color: #0A2540 !important;
             border-radius: 8px 8px 0 0 !important;
-            font-weight: bold !important;
             padding: 10px 20px !important;
+            margin-right: 5px !important;
+        }}
+        button[data-baseweb="tab"] p {{
+            color: #0A2540 !important;
+            font-weight: bold !important;
+            font-size: 15px !important;
+            opacity: 1 !important;
         }}
         button[aria-selected="true"] {{
             background-color: #0052B4 !important;
+        }}
+        button[aria-selected="true"] p {{
             color: #FFFFFF !important;
         }}
+
         .stButton>button {{
             background: linear-gradient(135deg, #0052B4 0%, #003B82 100%) !important;
             color: #FFFFFF !important;
@@ -170,21 +180,31 @@ def formatar_tarifa(val):
         return str(val)
 
 # ==============================================================================
-# 3. CABEÇALHO & ABAS
+# 3. CABEÇALHO & ABAS (HTML CORRIGIDO)
 # ==============================================================================
 logo_b64 = get_base64_of_bin_file('logo.png')
 
-st.markdown(f"""
-    <div class="header-container">
-        <div>
-            <h1 class="header-title">Módulo Comercial & Precificação</h1>
-            <p class="header-subtitle">Gestão Integrada de Serviços e Tabelas Tarifárias</p>
+if logo_b64:
+    st.markdown(f"""
+        <div class="header-container">
+            <div>
+                <h1 class="header-title">Módulo Comercial & Precificação</h1>
+                <p class="header-subtitle">Gestão Integrada de Serviços e Tabelas Tarifárias</p>
+            </div>
+            <div>
+                <img src="data:image/png;base64,{logo_b64}" style="height: 60px;">
+            </div>
         </div>
-        <div>
-            {f'<img src="data:image/png;base64,{logo_b64}" style="height: 60px;">' if logo_b64 else ''}
+    """, unsafe_allow_html=True)
+else:
+    st.markdown("""
+        <div class="header-container">
+            <div>
+                <h1 class="header-title">Módulo Comercial & Precificação</h1>
+                <p class="header-subtitle">Gestão Integrada de Serviços e Tabelas Tarifárias</p>
+            </div>
         </div>
-    </div>
-""", unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
 
 tabs = st.tabs(["📋 Cadastro de Serviços", "🛠️ Propostas e Precificação"])
 
