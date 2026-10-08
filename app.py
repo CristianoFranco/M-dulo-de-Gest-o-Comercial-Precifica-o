@@ -51,6 +51,7 @@ def aplicar_estilo_personalizado():
     st.markdown(f"""
     <style>
         .stApp {{ {bg_css} }}
+        
         .header-container {{
             background: rgba(255, 255, 255, 0.95);
             padding: 20px 30px;
@@ -63,44 +64,56 @@ def aplicar_estilo_personalizado():
         }}
         .header-title {{ color: #0A2540; font-size: 24px; font-weight: 800; margin: 0; }}
         .header-subtitle {{ color: #555; font-size: 14px; margin: 0; }}
+        
         div[data-testid="stForm"], div.stExpander, div[data-testid="stDataFrame"] {{
             background: rgba(255, 255, 255, 0.95) !important;
             border-radius: 12px !important;
             padding: 20px !important;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2) !important;
         }}
+        
         label, .stMarkdown label, .stMarkdown p {{ color: #0A2540 !important; font-weight: 700 !important; }}
         h1, h2, h3, h4 {{ color: #FFFFFF !important; text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8); }}
-        
-        /* CORREÇÃO DEFINITIVA DO CONTRASTE DAS ABAS */
-        button[data-baseweb="tab"] {{
-            background-color: transparent !important;
-            padding: 10px 20px !important;
-            margin-right: 10px !important;
-        }}
-        
-        /* Texto das Abas Inativas: Branco Puro, Sem Transparência e Negrito */
-        button[data-baseweb="tab"] p, 
-        button[data-baseweb="tab"] span, 
-        button[data-baseweb="tab"] div {{
-            color: #FFFFFF !important;
-            font-weight: 700 !important;
-            font-size: 16px !important;
+
+        /* ============================================================================== */
+        /* CORREÇÃO DEFINITIVA DO VISUAL E CONTRASTE DAS ABAS (TABS)                      */
+        /* ============================================================================== */
+        div[data-testid="stTabs"] button[data-baseweb="tab"] {{
+            background-color: #FFFFFF !important;
+            border-radius: 8px 8px 0 0 !important;
+            padding: 12px 24px !important;
+            margin-right: 8px !important;
+            border: 1px solid #CBD5E1 !important;
+            border-bottom: none !important;
             opacity: 1 !important;
-            -webkit-text-fill-color: #FFFFFF !important;
-        }}
-        
-        /* Aba Ativa: Destaque Vermelho/Laranja Comercial com Linha Inferior */
-        button[aria-selected="true"] {{
-            border-bottom: 3px solid #FF4B4B !important;
-        }}
-        button[aria-selected="true"] p, 
-        button[aria-selected="true"] span, 
-        button[aria-selected="true"] div {{
-            color: #FF4B4B !important;
-            -webkit-text-fill-color: #FF4B4B !important;
         }}
 
+        /* Texto de Abas Inativas: Azul Escuro, Negrito e 100% Visível */
+        div[data-testid="stTabs"] button[data-baseweb="tab"] *, 
+        div[data-testid="stTabs"] button[data-baseweb="tab"] p, 
+        div[data-testid="stTabs"] button[data-baseweb="tab"] span {{
+            color: #0A2540 !important;
+            -webkit-text-fill-color: #0A2540 !important;
+            font-weight: 800 !important;
+            font-size: 16px !important;
+            opacity: 1 !important;
+        }}
+
+        /* Aba Ativa (Selecionada): Fundo Azul Destacado com Texto Branco */
+        div[data-testid="stTabs"] button[aria-selected="true"] {{
+            background-color: #0052B4 !important;
+            border-color: #0052B4 !important;
+        }}
+
+        div[data-testid="stTabs"] button[aria-selected="true"] *, 
+        div[data-testid="stTabs"] button[aria-selected="true"] p, 
+        div[data-testid="stTabs"] button[aria-selected="true"] span {{
+            color: #FFFFFF !important;
+            -webkit-text-fill-color: #FFFFFF !important;
+            font-weight: 800 !important;
+        }}
+
+        /* Botões Padrão da Aplicação */
         .stButton>button {{
             background: linear-gradient(135deg, #0052B4 0%, #003B82 100%) !important;
             color: #FFFFFF !important;
