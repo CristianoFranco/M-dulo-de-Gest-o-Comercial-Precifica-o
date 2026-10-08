@@ -27,10 +27,6 @@ def remover_item_proposta(codigo_para_remover):
     ]
 
 def aplicar_reajuste_percentual_global(percentual):
-    """
-    Aplica o reajuste percentual nas tarifas e força a atualização
-    das chaves gravadas no estado do Streamlit.
-    """
     fator = 1.0 + (float(percentual) / 100.0)
     
     for item in st.session_state["rascunho_itens"]:
@@ -163,84 +159,6 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_fn=None, *args, **k
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # ESTILIZAÇÃO CSS FORÇADA PARA BOTÕES
-    st.markdown("""
-        <style>
-            div[data-testid="stExpander"] .stButton > button {
-                background-color: #0052B4 !important;
-                color: #FFFFFF !important;
-                font-weight: bold !important;
-                border: 1px solid #60A5FA !important;
-                opacity: 1 !important;
-                border-radius: 6px !important;
-            }
-            div[data-testid="stExpander"] .stButton > button:hover {
-                background-color: #003B82 !important;
-                color: #FFFFFF !important;
-            }
-            div[data-testid="stExpander"] .stButton > button p {
-                color: #FFFFFF !important;
-                font-weight: bold !important;
-            }
-        </style>
-    """, unsafe_allow_html=True)
-
-    df_servicos = carregar_dados_fn(apenas_ativos=True)
-
-    # Painel de Ajuste Percentual Global
-    if st.session_state["rascunho_itens"]:
-        with st.expander("📈 **Ajuste Percentual Geral nas Tarifas do Rascunho**", expanded=True):
-            col_perc, col_apply, _ = st.columns([2, 2.5, 3.5])
-            
-            with col_perc:
-                percentual_ajuste = st.number_input(
-                    "Reajuste (%):",
-                    value=0.0,
-                    step=0.5,
-                    format="%.2f",
-                    key="input_reajuste_perc_global",
-                    help="Exemplo: 5.0 para +5% ou -5.0 para 5% de desconto"
-                )
-            with col_apply:
-                st.write("")
-                st.write("")
-                if st.button("⚡ Aplicar Reajuste", key="btn_aplicar_reajuste_global", use_container_width=True):
-                    if percentual_ajuste != 0.0:
-                        aplicar_reajuste_percentual_global(percentual_ajuste)
-                        st.success(f"Reajuste de {percentual_ajuste:.2f}% aplicado!")
-                        st.rerun()
-
-        st.markdown("<br>", unsafe_allow_html=True)
-
-    if df_servicos.empty:
-        st.warning("Nenhum serviço ativo encontrado no cadastro.")
-        return
-
-    df_servicos["Cat_Upper"] = df_servicos["Categoria"].astype(str).str.strip().str.upper()
-
-    df_armazenagem = df_servicos[df_servicos["Cat_Upper"] == "ARMAZENAGEM"]
-    df_seguro = df_servicos[df_servicos["Cat_Upper"] == "SEGURO"]
-    df_servicos_handling = df_servicos[df_servicos["Cat_Upper"].isin(["SERVIÇO", "MOVIMENTAÇÃO (HANDLING)"])]
-    df_outros = df_servicos[~df_servicos["Cat_Upper"].isin(["ARMAZENAGEM", "SEGURO", "SERVIÇO", "MOVIMENTAÇÃO (HANDLING)"])]
-
-    # 4 Blocos
-    renderizar_bloco_categoria("Armazenagem", "ARM", df_armazenagem, "🏬")
-    renderizar_bloco_categoria("Seguro", "SEG", df_seguro, "🛡️")
-    renderizar_bloco_categoria("Serviços e Movimentações", "SER", df_servicos_handling, "⚙️")
-    renderizar_bloco_categoria("Outros", "OUT", df_outros, "📦")
-
-    # Resumo Geral e Direcionamento para Tela 3
-    todos_itens = st.session_state["rascunho_itens"]
-
-    col_res1, col_res2 = st.columns([2, 1])
-    with col_res1:
-        st.markdown(f"### Total de Itens no Rascunho: **{len(todos_itens)}**")
-        
-    with col_res2:
-        if st.button("➡️ Finalizar Lançamento e Ir para Proposta Cliente", use_container_width=True):
-            if not todos_itens:
-                st.error("Adicione pelo menos um item antes de avançar.")
-            else:
-                # Altera a aba ativa para a Tela 3 sem limpar o rascunho
-                st.session_state["aba_ativa"] = "cliente"
-                st.rerun()
+    # --------------------------------------------------------------------------
+    # CAMPOS LIVRES: CLIENTE (OBRIGATÓRIO) E CNPJ
+    #
