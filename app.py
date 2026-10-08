@@ -7,6 +7,7 @@ from google.oauth2.service_account import Credentials
 
 from modulo_cadastro import renderizar_aba_cadastro
 from modulo_propostas import renderizar_aba_propostas
+from modulo_proposta_cliente import renderizar_aba_proposta_cliente
 
 # ==============================================================================
 # 1. ESTILO E CONFIGURAÇÃO DA PÁGINA
@@ -110,131 +111,7 @@ aplicar_estilo_personalizado()
 SPREADSHEET_ID = "1wbhgMnqQuyOxwCef4pJh3vDnafBBU2AZk-uSt1NnPWc"
 
 @st.cache_resource(ttl=3600)
-def obter_aba_google_sheets():
+def obter_planilha_google_sheets():
     scope = ["https://www.googleapis.com/auth/spreadsheets"]
     if "gcp_service_account" in st.secrets:
-        creds_dict = dict(st.secrets["gcp_service_account"])
-        if "private_key" in creds_dict:
-            creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
-        creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
-    else:
-        creds = Credentials.from_service_account_file("credentials.json", scopes=scope)
-    client = gspread.authorize(creds)
-    return client.open_by_url(f"https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}").sheet1
-
-@st.cache_data(ttl=60)
-def carregar_dados_cached():
-    try:
-        worksheet = obter_aba_google_sheets()
-        data = worksheet.get_all_records()
-        return pd.DataFrame(data)
-    except Exception:
-        return pd.DataFrame()
-
-def carregar_dados(apenas_ativos=True):
-    df = carregar_dados_cached()
-    colunas_esperadas = ["Código", "Descrição", "Tarifa (R$)", "Unidade", "Categoria", "Observações", "Status"]
-    
-    if df.empty:
-        df_vazio = pd.DataFrame(columns=colunas_esperadas)
-        return df_vazio[colunas_esperadas[:-1]] if apenas_ativos else df_vazio
-
-    if "Status" not in df.columns:
-        df["Status"] = "Ativo"
-    
-    df["Status"] = df["Status"].astype(str).str.strip().replace("", "Ativo")
-    df["Código"] = df["Código"].astype(str).str.strip()
-
-    if apenas_ativos:
-        df_ativos = df[df["Status"].str.upper() != "INATIVO"].copy()
-        return df_ativos[["Código", "Descrição", "Tarifa (R$)", "Unidade", "Categoria", "Observações"]]
-    
-    return df
-
-def salvar_dados_completos(df_completo):
-    try:
-        worksheet = obter_aba_google_sheets()
-        worksheet.clear()
-        df_salvar = df_completo.copy()
-        df_salvar["Código"] = df_salvar["Código"].astype(str).str.strip()
-        dados_lista = [df_salvar.columns.values.tolist()] + df_salvar.astype(str).values.tolist()
-        worksheet.update(range_name='A1', values=dados_lista)
-        carregar_dados_cached.clear()
-        return True
-    except Exception as e:
-        st.error(f"Erro ao salvar no Google Sheets: {e}")
-        return False
-
-def normalizar_codigo(codigo_str):
-    limpo = str(codigo_str).strip().upper()
-    return str(int(limpo)) if limpo.isdigit() else limpo
-
-def formatar_tarifa(val):
-    try:
-        f = float(val)
-        s = f"{f:.5f}".rstrip('0')
-        if s.endswith('.'): s += '00'
-        elif len(s.split('.')[1]) < 2: s += '0'
-        return s
-    except (ValueError, TypeError):
-        return str(val)
-
-# ==============================================================================
-# 3. CABEÇALHO & NAVEGAÇÃO
-# ==============================================================================
-logo_b64 = get_base64_of_bin_file('logo.png')
-
-if logo_b64:
-    st.markdown(f"""
-        <div class="header-container">
-            <div>
-                <h1 class="header-title">Módulo Comercial & Precificação</h1>
-                <p class="header-subtitle">Gestão Integrada de Serviços e Tabelas Tarifárias</p>
-            </div>
-            <div>
-                <img src="data:image/png;base64,{logo_b64}" style="height: 60px;">
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
-else:
-    st.markdown("""
-        <div class="header-container">
-            <div>
-                <h1 class="header-title">Módulo Comercial & Precificação</h1>
-                <p class="header-subtitle">Gestão Integrada de Serviços e Tabelas Tarifárias</p>
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
-
-# BARRA DE NAVEGAÇÃO COM DESTAQUE VISUAL
-col_nav1, col_nav2, _ = st.columns([2.5, 2.5, 5])
-
-eh_cadastro = st.session_state["aba_ativa"] == "cadastro"
-
-with col_nav1:
-    if st.button(
-        "📋 Cadastro de Serviços",
-        key="btn_nav_cadastro",
-        type="primary" if eh_cadastro else "secondary",
-        use_container_width=True
-    ):
-        st.session_state["aba_ativa"] = "cadastro"
-        st.rerun()
-
-with col_nav2:
-    if st.button(
-        "🛠️ Propostas e Precificação",
-        key="btn_nav_propostas",
-        type="secondary" if eh_cadastro else "primary",
-        use_container_width=True
-    ):
-        st.session_state["aba_ativa"] = "propostas"
-        st.rerun()
-
-st.markdown("<br>", unsafe_allow_html=True)
-
-# RENDERIZAÇÃO DA TELA SELECIONADA
-if st.session_state["aba_ativa"] == "cadastro":
-    renderizar_aba_cadastro(carregar_dados, salvar_dados_completos, normalizar_codigo, formatar_tarifa)
-else:
-    renderizar_aba_propostas(carregar_dados, salvar_dados_completos)
+        creds_dict = dict(st.secrets["g
