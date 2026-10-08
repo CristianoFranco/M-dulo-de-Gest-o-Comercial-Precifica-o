@@ -79,7 +79,6 @@ def aplicar_estilo_personalizado():
             label, .stMarkdown label, .stMarkdown p {{ color: #0A2540 !important; font-weight: 700 !important; }}
             h1, h2, h3, h4 {{ color: #FFFFFF !important; text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8); }}
 
-            /* ESTILIZAÇÃO DOS BOTÕES DE NAVEGAÇÃO */
             div[data-testid="stColumn"] button[kind="primary"] {{
                 background: #0052B4 !important;
                 color: #FFFFFF !important;
@@ -135,7 +134,7 @@ def obter_aba_propostas():
         return sh.worksheet("Propostas_Salvas")
     except Exception:
         ws = sh.add_worksheet(title="Propostas_Salvas", rows=1000, cols=10)
-        ws.append_row(["Proposta", "Data", "Cliente", "Código", "Descrição", "Categoria", "Unidade", "Tarifa (R$)", "Observações"])
+        ws.append_row(["Proposta", "Data", "Cliente", "CNPJ", "Código", "Descrição", "Categoria", "Unidade", "Tarifa (R$)", "Observações"])
         return ws
 
 @st.cache_data(ttl=60)
@@ -187,12 +186,30 @@ def salvar_dados_completos(df_completo):
 def salvar_propostas_na_planilha(linhas_proposta):
     try:
         ws = obter_aba_propostas()
+        
+        # Se for uma atualização de proposta existente, removemos as linhas antigas com o mesmo número
+        num_prop = str(linhas_proposta[0].get("Proposta", "")).strip() if linhas_proposta else ""
+        
+        dados_existentes = ws.get_all_records()
+        if dados_existentes and num_prop:
+            df_exist = pd.DataFrame(dados_existentes)
+            if "Proposta" in df_exist.columns:
+                # Se o código da proposta já existir na base, limpa a planilha e reescreve mantendo os outros
+                if num_prop in df_exist["Proposta"].astype(str).str.strip().values:
+                    df_filtrado = df_exist[df_exist["Proposta"].astype(str).str.strip() != num_prop]
+                    ws.clear()
+                    header = ["Proposta", "Data", "Cliente", "CNPJ", "Código", "Descrição", "Categoria", "Unidade", "Tarifa (R$)", "Observações"]
+                    ws.append_row(header)
+                    if not df_filtrado.empty:
+                        ws.append_rows(df_filtrado.astype(str).values.tolist())
+
         novas_linhas = []
         for reg in linhas_proposta:
             novas_linhas.append([
                 str(reg.get("Proposta", "")),
                 str(reg.get("Data", "")),
                 str(reg.get("Cliente", "")),
+                str(reg.get("CNPJ", "")),
                 str(reg.get("Código", "")),
                 str(reg.get("Descrição", "")),
                 str(reg.get("Categoria", "")),
