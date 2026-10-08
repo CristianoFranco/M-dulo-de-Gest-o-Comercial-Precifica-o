@@ -26,11 +26,24 @@ def remover_item_proposta(codigo_para_remover):
         if str(item.get("Código", "")) != str(codigo_para_remover)
     ]
 
-def aplicar_reajuste_percentual_global(percentual):
+def aplicar_reajuste_percentual_global(percentual, df_servicos_origem):
+    """
+    Aplica o reajuste limpando os valores salvos nas keys dos inputs
+    e forçando a atualização imediata dos campos numéricos.
+    """
     fator = 1.0 + (float(percentual) / 100.0)
-    for idx in range(len(st.session_state["rascunho_itens"])):
-        val_atual = float(st.session_state["rascunho_itens"][idx]["Tarifa (R$)"])
-        st.session_state["rascunho_itens"][idx]["Tarifa (R$)"] = round(val_atual * fator, 5)
+    
+    for item in st.session_state["rascunho_itens"]:
+        # Recalcula a tarifa do item no rascunho
+        val_atual = float(item["Tarifa (R$)"])
+        nova_tarifa = round(val_atual * fator, 5)
+        item["Tarifa (R$)"] = nova_tarifa
+        
+        # Força a atualização do estado do widget limpando sua key no session_state
+        cat_code = item.get("Cat_Code", "GEN")
+        input_key = f"input_tarifa_{cat_code}_{item['Código']}"
+        if input_key in st.session_state:
+            st.session_state[input_key] = nova_tarifa
 
 # ==============================================================================
 # RENDERIZADOR DE BLOCO POR CATEGORIA
@@ -78,7 +91,8 @@ def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_blo
                         "Tarifa (R$)": tarifa_float,
                         "Unidade": str(row["Unidade"]),
                         "Observações": obs_val,
-                        "Categoria": titulo
+                        "Categoria": titulo,
+                        "Cat_Code": categoria_filtro
                     })
                     st.rerun()
                 else:
@@ -114,17 +128,21 @@ def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_blo
             with c_desc:
                 st.markdown(f"<span style='color: #FFFFFF;'>{item['Descrição']}</span>", unsafe_allow_html=True)
             with c_tar:
+                input_key = f"input_tarifa_{categoria_filtro}_{item['Código']}"
+                
+                # Se a chave não existir no state, inicializa com o valor do item
+                if input_key not in st.session_state:
+                    st.session_state[input_key] = float(item["Tarifa (R$)"])
+                    
                 nova_tarifa = st.number_input(
                     label=f"Tarifa_{item['Código']}",
                     label_visibility="collapsed",
-                    value=float(item["Tarifa (R$)"]),
                     min_value=0.0,
                     step=0.01,
                     format="%.5f",
-                    key=f"input_tarifa_{categoria_filtro}_{item['Código']}"
+                    key=input_key
                 )
-                if nova_tarifa != item["Tarifa (R$)"]:
-                    item["Tarifa (R$)"] = nova_tarifa
+                item["Tarifa (R$)"] = nova_tarifa
                     
             with c_un:
                 st.markdown(f"<span style='color: #FFFFFF;'>{item['Unidade']}</span>", unsafe_allow_html=True)
@@ -149,10 +167,32 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_fn=None):
 
     st.markdown("<br>", unsafe_allow_html=True)
 
+    # CSS ESPECÍFICO PARA O PAINEL DE REAJUSTE
+    st.markdown("""
+        <style>
+            div[data-testid="stExpander"] div.stButton > button {
+                background-color: #0052B4 !important;
+                color: #FFFFFF !important;
+                font-weight: bold !important;
+                border: 1px solid #60A5FA !important;
+                opacity: 1 !important;
+            }
+            div[data-testid="stExpander"] div.stButton > button:hover {
+                background-color: #003B82 !important;
+                color: #FFFFFF !important;
+            }
+            div[data-testid="stExpander"] div.stButton > button p {
+                color: #FFFFFF !important;
+            }
+        </style>
+    """, unsafe_allow_html=True)
+
+    df_servicos = carregar_dados_fn(apenas_ativos=True)
+
     # Painel de Ajuste Percentual Global
     if st.session_state["rascunho_itens"]:
         with st.expander("📈 **Ajuste Percentual Geral nas Tarifas do Rascunho**", expanded=True):
-            col_perc, col_apply, _ = st.columns([1.8, 2.2, 4])
+            col_perc, col_apply, _ = st.columns([2, 2.5, 3.5])
             
             with col_perc:
                 percentual_ajuste = st.number_input(
@@ -161,20 +201,18 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_fn=None):
                     step=0.5,
                     format="%.2f",
                     key="input_reajuste_perc_global",
-                    help="Exemplo: 5.0 para +5% de aumento ou -5.0 para 5% de desconto em todas as tarifas"
+                    help="Exemplo: 5.0 para +5% ou -5.0 para 5% de desconto"
                 )
             with col_apply:
                 st.write("")
                 st.write("")
-                if st.button("⚡ Aplicar Reajuste", key="btn_aplicar_reajuste_global", type="primary", use_container_width=True):
+                if st.button("⚡ Aplicar Reajuste", key="btn_aplicar_reajuste_global", use_container_width=True):
                     if percentual_ajuste != 0.0:
-                        aplicar_reajuste_percentual_global(percentual_ajuste)
+                        aplicar_reajuste_percentual_global(percentual_ajuste, df_servicos)
                         st.success(f"Reajuste de {percentual_ajuste:.2f}% aplicado!")
                         st.rerun()
 
         st.markdown("<br>", unsafe_allow_html=True)
-
-    df_servicos = carregar_dados_fn(apenas_ativos=True)
 
     if df_servicos.empty:
         st.warning("Nenhum serviço ativo encontrado no cadastro.")
@@ -183,4 +221,12 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_fn=None):
     df_servicos["Cat_Upper"] = df_servicos["Categoria"].astype(str).str.strip().str.upper()
 
     df_armazenagem = df_servicos[df_servicos["Cat_Upper"] == "ARMAZENAGEM"]
-    df_seguro = df_servicos
+    df_seguro = df_servicos[df_servicos["Cat_Upper"] == "SEGURO"]
+    df_servicos_handling = df_servicos[df_servicos["Cat_Upper"].isin(["SERVIÇO", "MOVIMENTAÇÃO (HANDLING)"])]
+    df_outros = df_servicos[~df_servicos["Cat_Upper"].isin(["ARMAZENAGEM", "SEGURO", "SERVIÇO", "MOVIMENTAÇÃO (HANDLING)"])]
+
+    # 4 Blocos
+    renderizar_bloco_categoria("Armazenagem", "ARM", df_armazenagem, "🏬")
+    renderizar_bloco_categoria("Seguro", "SEG", df_seguro, "🛡️")
+    renderizar_bloco_categoria("Serviços e Movimentações", "SER", df_servicos_handling, "⚙️")
+    renderizar_bloco_categoria("Outros", "OUT", df_outros, "📦
