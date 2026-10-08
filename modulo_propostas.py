@@ -229,4 +229,28 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_fn=None):
     renderizar_bloco_categoria("Armazenagem", "ARM", df_armazenagem, "🏬")
     renderizar_bloco_categoria("Seguro", "SEG", df_seguro, "🛡️")
     renderizar_bloco_categoria("Serviços e Movimentações", "SER", df_servicos_handling, "⚙️")
-    renderizar_bloco_categoria("Outros", "OUT", df_outros, "📦
+    renderizar_bloco_categoria("Outros", "OUT", df_outros, "📦")
+
+    # Resumo Geral
+    todos_itens = st.session_state["rascunho_itens"]
+
+    col_res1, col_res2 = st.columns([2, 1])
+    with col_res1:
+        st.markdown(f"### Total de Itens no Rascunho: **{len(todos_itens)}**")
+        
+    with col_res2:
+        if st.button("🔒 Fechar Rascunho e Salvar Proposta", use_container_width=True):
+            if not todos_itens:
+                st.error("Adicione pelo menos um item antes de fechar a proposta.")
+            else:
+                st.session_state["sequencial_proposta"] += 1
+                st.session_state["rascunho_itens"] = []
+                
+                # Limpa as chaves de input armazenadas
+                for k in list(st.session_state.keys()):
+                    if k.startswith("input_tarifa_"):
+                        del st.session_state[k]
+                        
+                st.success(f"Proposta {numero_proposta} gravada em rascunho com sucesso!")
+                st.balloons()
+                st.rerun()
