@@ -7,39 +7,31 @@ import pandas as pd
 def aplicar_estilos_cadastro():
     st.markdown("""
         <style>
-            /* Estilização para Botões de Inclusão/Ação na Tela 1 */
-            div[data-testid="stExpander"] button[kind="primary"],
+            /* Garante visibilidade e contraste dos botões dentro do expander */
             div[data-testid="stExpander"] .stButton > button {
                 background-color: #0052B4 !important;
                 color: #FFFFFF !important;
                 font-weight: bold !important;
-                border: 1px solid #003B82 !important;
+                border: 1px solid #60A5FA !important;
                 opacity: 1 !important;
                 border-radius: 6px !important;
             }
-            div[data-testid="stExpander"] button[kind="primary"]:hover,
             div[data-testid="stExpander"] .stButton > button:hover {
                 background-color: #003B82 !important;
                 color: #FFFFFF !important;
             }
-            div[data-testid="stExpander"] button p {
+            div[data-testid="stExpander"] .stButton > button p {
                 color: #FFFFFF !important;
                 font-weight: bold !important;
             }
 
-            /* Estilização do Botão de Exclusão (Vermelho) */
-            .btn-excluir-red button {
+            /* Estilo especial para o botão de exclusão */
+            .btn-excluir-red .stButton > button {
                 background-color: #D32F2F !important;
-                color: #FFFFFF !important;
-                font-weight: bold !important;
-                border: 1px solid #B71C1C !important;
+                border-color: #B71C1C !important;
             }
-            .btn-excluir-red button:hover {
+            .btn-excluir-red .stButton > button:hover {
                 background-color: #B71C1C !important;
-                color: #FFFFFF !important;
-            }
-            .btn-excluir-red button p {
-                color: #FFFFFF !important;
             }
         </style>
     """, unsafe_allow_html=True)
@@ -47,7 +39,7 @@ def aplicar_estilos_cadastro():
 # ==============================================================================
 # RENDERIZADOR PRINCIPAL ABA 1 - CADASTRO
 # ==============================================================================
-def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn):
+def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codigo_fn=None, formatar_tarifa_fn=None):
     aplicar_estilos_cadastro()
     
     st.markdown("## 📋 Cadastro de Serviços e Tarifas")
@@ -125,12 +117,14 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn):
             if not codigo.strip() or not descricao.strip():
                 st.error("Preencha os campos obrigatórios (*): Código e Descrição.")
             else:
+                cod_final = normalizar_codigo_fn(codigo) if normalizar_codigo_fn else str(codigo.strip())
                 df_atual = carregar_dados_fn()
-                if not df_atual.empty and str(codigo.strip()) in df_atual["Código"].astype(str).values:
-                    st.error(f"O código '{codigo}' já está cadastrado no sistema.")
+                
+                if not df_atual.empty and cod_final in df_atual["Código"].astype(str).values:
+                    st.error(f"O código '{cod_final}' já está cadastrado no sistema.")
                 else:
                     novo_registro = {
-                        "Código": str(codigo.strip()),
+                        "Código": cod_final,
                         "Descrição": str(descricao.strip()),
                         "Tarifa (R$)": tarifa,
                         "Unidade": unidade,
