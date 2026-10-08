@@ -38,7 +38,7 @@ def gerar_pdf_proposta(numero_proposta, cliente_nome, cnpj_val, itens_proposta):
 
     cnpj_texto = f" | <b>CNPJ:</b> {cnpj_val}" if cnpj_val else ""
     story.append(Paragraph(f"PROPOSTA COMERCIAL — Nº {numero_proposta}", titulo_style))
-    story.append(Paragraph(f"<b>Cliente:</b> {cliente_nome}{cnpj_texto} | <b>Data:</b> {datetime.now().strftime('%d/%m/%Y')}", subtitulo_style))
+    story.append(Paragraph(f"<b>Cliente:</b> {cliente_nome if cliente_nome else 'Não Informado'}{cnpj_texto} | <b>Data:</b> {datetime.now().strftime('%d/%m/%Y')}", subtitulo_style))
     story.append(Spacer(1, 12))
 
     dados_tabela = [["Código", "Descrição", "Categoria", "Unidade", "Tarifa (R$)"]]
@@ -83,14 +83,15 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
     st.markdown("<br>", unsafe_allow_html=True)
 
     itens_rascunho = st.session_state.get("rascunho_itens", [])
-    cliente_nome = st.session_state.get("proposta_cliente_nome", "").strip()
-    cnpj_val = st.session_state.get("proposta_cliente_cnpj", "").strip()
+    
+    # Captura os valores gravados no session_state vindos da Tela 2
+    cliente_nome = str(st.session_state.get("proposta_cliente_nome", "")).strip()
+    cnpj_val = str(st.session_state.get("proposta_cliente_cnpj", "")).strip()
     
     agora = datetime.now()
     mes_str = agora.strftime("%m")
     ano_str = agora.strftime("%Y")
     
-    # Se uma proposta já gravada foi selecionada, usamos o número dela
     if st.session_state.get("proposta_id_em_edicao"):
         numero_proposta_atual = st.session_state["proposta_id_em_edicao"]
     else:
@@ -189,7 +190,7 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                             if k.startswith("input_tarifa_"):
                                 del st.session_state[k]
 
-                        st.success(f"Proposta `{numero_proposta_atual}` salva/atualizada com sucesso no Google Sheets!")
+                        st.success(f"Proposta `{numero_proposta_atual}` salva com sucesso no Google Sheets!")
                         st.balloons()
                         st.rerun()
                     else:
@@ -228,7 +229,6 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                     if ano_consulta.strip():
                         df_filtrado = df_filtrado[df_filtrado["Proposta"].astype(str).str.endswith("/" + ano_consulta.strip())]
 
-                # EXIBIÇÃO UNIFICADA: 1 LINHA POR PROPOSTA (Proposta, Data, Cliente)
                 colunas_resumo = [c for c in ["Proposta", "Data", "Cliente"] if c in df_filtrado.columns]
                 df_resumido = df_filtrado[colunas_resumo].drop_duplicates(subset=["Proposta"]).reset_index(drop=True)
 
@@ -237,7 +237,6 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
 
                 st.markdown("<br>", unsafe_allow_html=True)
                 
-                # SELETOR PARA ABRIR E EDITAR UMA PROPOSTA EXISTENTE
                 propostas_unicas = [""] + df_resumido["Proposta"].tolist()
                 
                 col_sel_prop, col_btn_carregar = st.columns([3, 1])
@@ -252,18 +251,15 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                     st.write("")
                     if st.button("📂 Carregar Proposta", use_container_width=True):
                         if prop_escolhida:
-                            # Filtra todas as linhas correspondentes à proposta selecionada
                             df_prop_sel = df_historico[df_historico["Proposta"].astype(str).str.strip() == prop_escolhida.strip()]
                             
                             if not df_prop_sel.empty:
                                 st.session_state["proposta_id_em_edicao"] = prop_escolhida.strip()
                                 
-                                # Carrega Cliente e CNPJ
                                 primeiro_reg = df_prop_sel.iloc[0]
                                 st.session_state["proposta_cliente_nome"] = str(primeiro_reg.get("Cliente", ""))
                                 st.session_state["proposta_cliente_cnpj"] = str(primeiro_reg.get("CNPJ", "")) if "CNPJ" in primeiro_reg else ""
 
-                                # Carrega Itens no Rascunho
                                 novos_itens = []
                                 for _, row in df_prop_sel.iterrows():
                                     try:
