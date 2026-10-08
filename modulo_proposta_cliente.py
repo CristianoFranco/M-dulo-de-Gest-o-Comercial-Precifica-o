@@ -89,13 +89,18 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
     agora = datetime.now()
     mes_str = agora.strftime("%m")
     ano_str = agora.strftime("%Y")
-    seq = st.session_state.get("sequencial_proposta", 1)
-    numero_proposta_atual = f"{mes_str}/{seq:05d}/{ano_str}"
+    
+    # Se uma proposta já gravada foi selecionada, usamos o número dela
+    if st.session_state.get("proposta_id_em_edicao"):
+        numero_proposta_atual = st.session_state["proposta_id_em_edicao"]
+    else:
+        seq = st.session_state.get("sequencial_proposta", 1)
+        numero_proposta_atual = f"{mes_str}/{seq:05d}/{ano_str}"
 
     st.markdown("### 📋 Documento da Proposta")
 
     if not itens_rascunho:
-        st.warning("⚠️ Nenhum item pendente no rascunho. Monte os itens na **Tela 2 (Propostas e Precificação)** antes de visualizar.")
+        st.warning("⚠️ Nenhum item pendente no rascunho. Monte os itens na **Tela 2 (Propostas e Precificação)** ou escolha uma proposta na consulta abaixo.")
     else:
         col_info1, col_info2, col_info3 = st.columns([2.5, 1.5, 1.5])
         with col_info1:
@@ -172,7 +177,10 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                     sucesso = salvar_proposta_sheets_fn(linhas_para_salvar)
 
                     if sucesso:
-                        st.session_state["sequencial_proposta"] = seq + 1
+                        if not st.session_state.get("proposta_id_em_edicao"):
+                            st.session_state["sequencial_proposta"] = seq + 1
+                        
+                        st.session_state["proposta_id_em_edicao"] = None
                         st.session_state["rascunho_itens"] = []
                         st.session_state["proposta_cliente_nome"] = ""
                         st.session_state["proposta_cliente_cnpj"] = ""
@@ -181,7 +189,7 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                             if k.startswith("input_tarifa_"):
                                 del st.session_state[k]
 
-                        st.success(f"Proposta `{numero_proposta_atual}` salva com sucesso no Google Sheets!")
+                        st.success(f"Proposta `{numero_proposta_atual}` salva/atualizada com sucesso no Google Sheets!")
                         st.balloons()
                         st.rerun()
                     else:
@@ -190,11 +198,11 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
     st.markdown("---")
 
     # --------------------------------------------------------------------------
-    # CONSULTA DE PROPOSTAS SALVAS
+    # CONSULTA E SELEÇÃO DE PROPOSTAS SALVAS
     # --------------------------------------------------------------------------
     st.markdown("### 🔍 Consulta de Propostas Salvas no Google Sheets")
 
-    with st.expander("🔎 Filtrar e Consultar Propostas Gravadas", expanded=True):
+    with st.expander("🔎 Filtrar, Consultar e Editar Propostas Gravadas", expanded=True):
         col_filtro_m, col_filtro_a = st.columns(2)
 
         with col_filtro_m:
@@ -220,7 +228,63 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                     if ano_consulta.strip():
                         df_filtrado = df_filtrado[df_filtrado["Proposta"].astype(str).str.endswith("/" + ano_consulta.strip())]
 
-                st.markdown(f"**Registros Encontrados: `{len(df_filtrado)}`**")
-                st.dataframe(df_filtrado, use_container_width=True, hide_index=True)
+                # EXIBIÇÃO UNIFICADA: 1 LINHA POR PROPOSTA (Proposta, Data, Cliente)
+                colunas_resumo = [c for c in ["Proposta", "Data", "Cliente"] if c in df_filtrado.columns]
+                df_resumido = df_filtrado[colunas_resumo].drop_duplicates(subset=["Proposta"]).reset_index(drop=True)
+
+                st.markdown(f"**Propostas Encontradas: `{len(df_resumido)}`**")
+                st.dataframe(df_resumido, use_container_width=True, hide_index=True)
+
+                st.markdown("<br>", unsafe_allow_html=True)
+                
+                # SELETOR PARA ABRIR E EDITAR UMA PROPOSTA EXISTENTE
+                propostas_unicas = [""] + df_resumido["Proposta"].tolist()
+                
+                col_sel_prop, col_btn_carregar = st.columns([3, 1])
+                with col_sel_prop:
+                    prop_escolhida = st.selectbox(
+                        "Selecione uma proposta para visualizar e editar na Tela 2:",
+                        options=propostas_unicas,
+                        key="select_proposta_para_editar"
+                    )
+                with col_btn_carregar:
+                    st.write("")
+                    st.write("")
+                    if st.button("📂 Carregar Proposta", use_container_width=True):
+                        if prop_escolhida:
+                            # Filtra todas as linhas correspondentes à proposta selecionada
+                            df_prop_sel = df_historico[df_historico["Proposta"].astype(str).str.strip() == prop_escolhida.strip()]
+                            
+                            if not df_prop_sel.empty:
+                                st.session_state["proposta_id_em_edicao"] = prop_escolhida.strip()
+                                
+                                # Carrega Cliente e CNPJ
+                                primeiro_reg = df_prop_sel.iloc[0]
+                                st.session_state["proposta_cliente_nome"] = str(primeiro_reg.get("Cliente", ""))
+                                st.session_state["proposta_cliente_cnpj"] = str(primeiro_reg.get("CNPJ", "")) if "CNPJ" in primeiro_reg else ""
+
+                                # Carrega Itens no Rascunho
+                                novos_itens = []
+                                for _, row in df_prop_sel.iterrows():
+                                    try:
+                                        tarifa_val = float(row.get("Tarifa (R$)", 0.0))
+                                    except ValueError:
+                                        tarifa_val = 0.0
+                                        
+                                    novos_itens.append({
+                                        "Código": str(row.get("Código", "")),
+                                        "Descrição": str(row.get("Descrição", "")),
+                                        "Tarifa (R$)": tarifa_val,
+                                        "Unidade": str(row.get("Unidade", "")),
+                                        "Observações": str(row.get("Observações", "")),
+                                        "Categoria": str(row.get("Categoria", "")),
+                                        "Cat_Code": "GEN"
+                                    })
+                                    
+                                st.session_state["rascunho_itens"] = novos_itens
+                                st.success(f"Proposta `{prop_escolhida}` carregada com sucesso!")
+                                st.rerun()
+                        else:
+                            st.warning("Selecione uma proposta válida na lista.")
             else:
                 st.info("Nenhuma proposta gravada na folha 'Propostas_Salvas'.")
