@@ -26,24 +26,21 @@ def remover_item_proposta(codigo_para_remover):
         if str(item.get("Código", "")) != str(codigo_para_remover)
     ]
 
-def aplicar_reajuste_percentual_global(percentual, df_servicos_origem):
+def aplicar_reajuste_percentual_global(percentual):
     """
-    Aplica o reajuste limpando os valores salvos nas keys dos inputs
-    e forçando a atualização imediata dos campos numéricos.
+    Aplica o reajuste percentual nas tarifas e força a atualização
+    das chaves gravadas no estado do Streamlit.
     """
     fator = 1.0 + (float(percentual) / 100.0)
     
     for item in st.session_state["rascunho_itens"]:
-        # Recalcula a tarifa do item no rascunho
         val_atual = float(item["Tarifa (R$)"])
         nova_tarifa = round(val_atual * fator, 5)
         item["Tarifa (R$)"] = nova_tarifa
         
-        # Força a atualização do estado do widget limpando sua key no session_state
         cat_code = item.get("Cat_Code", "GEN")
         input_key = f"input_tarifa_{cat_code}_{item['Código']}"
-        if input_key in st.session_state:
-            st.session_state[input_key] = nova_tarifa
+        st.session_state[input_key] = nova_tarifa
 
 # ==============================================================================
 # RENDERIZADOR DE BLOCO POR CATEGORIA
@@ -130,7 +127,6 @@ def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_blo
             with c_tar:
                 input_key = f"input_tarifa_{categoria_filtro}_{item['Código']}"
                 
-                # Se a chave não existir no state, inicializa com o valor do item
                 if input_key not in st.session_state:
                     st.session_state[input_key] = float(item["Tarifa (R$)"])
                     
@@ -154,7 +150,7 @@ def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_blo
 # ==============================================================================
 # RENDERIZADOR PRINCIPAL ABA 2
 # ==============================================================================
-def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_fn=None):
+def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_fn=None, *args, **kwargs):
     inicializar_estado_proposta()
     numero_proposta = obter_proximo_numero_proposta()
     
@@ -167,22 +163,24 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_fn=None):
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # CSS ESPECÍFICO PARA O PAINEL DE REAJUSTE
+    # ESTILIZAÇÃO CSS FORÇADA PARA BOTÕES
     st.markdown("""
         <style>
-            div[data-testid="stExpander"] div.stButton > button {
+            div[data-testid="stExpander"] .stButton > button {
                 background-color: #0052B4 !important;
                 color: #FFFFFF !important;
                 font-weight: bold !important;
                 border: 1px solid #60A5FA !important;
                 opacity: 1 !important;
+                border-radius: 6px !important;
             }
-            div[data-testid="stExpander"] div.stButton > button:hover {
+            div[data-testid="stExpander"] .stButton > button:hover {
                 background-color: #003B82 !important;
                 color: #FFFFFF !important;
             }
-            div[data-testid="stExpander"] div.stButton > button p {
+            div[data-testid="stExpander"] .stButton > button p {
                 color: #FFFFFF !important;
+                font-weight: bold !important;
             }
         </style>
     """, unsafe_allow_html=True)
@@ -208,7 +206,7 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_fn=None):
                 st.write("")
                 if st.button("⚡ Aplicar Reajuste", key="btn_aplicar_reajuste_global", use_container_width=True):
                     if percentual_ajuste != 0.0:
-                        aplicar_reajuste_percentual_global(percentual_ajuste, df_servicos)
+                        aplicar_reajuste_percentual_global(percentual_ajuste)
                         st.success(f"Reajuste de {percentual_ajuste:.2f}% aplicado!")
                         st.rerun()
 
@@ -231,7 +229,7 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_fn=None):
     renderizar_bloco_categoria("Serviços e Movimentações", "SER", df_servicos_handling, "⚙️")
     renderizar_bloco_categoria("Outros", "OUT", df_outros, "📦")
 
-    # Resumo Geral
+    # Resumo Geral e Direcionamento para Tela 3
     todos_itens = st.session_state["rascunho_itens"]
 
     col_res1, col_res2 = st.columns([2, 1])
@@ -239,18 +237,10 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_fn=None):
         st.markdown(f"### Total de Itens no Rascunho: **{len(todos_itens)}**")
         
     with col_res2:
-        if st.button("🔒 Fechar Rascunho e Salvar Proposta", use_container_width=True):
+        if st.button("➡️ Finalizar Lançamento e Ir para Proposta Cliente", use_container_width=True):
             if not todos_itens:
-                st.error("Adicione pelo menos um item antes de fechar a proposta.")
+                st.error("Adicione pelo menos um item antes de avançar.")
             else:
-                st.session_state["sequencial_proposta"] += 1
-                st.session_state["rascunho_itens"] = []
-                
-                # Limpa as chaves de input armazenadas
-                for k in list(st.session_state.keys()):
-                    if k.startswith("input_tarifa_"):
-                        del st.session_state[k]
-                        
-                st.success(f"Proposta {numero_proposta} gravada em rascunho com sucesso!")
-                st.balloons()
+                # Altera a aba ativa para a Tela 3 sem limpar o rascunho
+                st.session_state["aba_ativa"] = "cliente"
                 st.rerun()
