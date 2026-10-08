@@ -13,7 +13,6 @@ try:
 except ImportError:
     REPORTLAB_DISPONIVEL = False
 
-
 # ==============================================================================
 # FUNÇÃO PARA GERAR O ARQUIVO PDF EM MEMÓRIA
 # ==============================================================================
@@ -23,7 +22,6 @@ def gerar_pdf_proposta(numero_proposta, cliente_nome, itens_proposta):
     story = []
     styles = getSampleStyleSheet()
 
-    # Estilos
     titulo_style = ParagraphStyle(
         'TituloProposta',
         parent=styles['Heading1'],
@@ -43,7 +41,6 @@ def gerar_pdf_proposta(numero_proposta, cliente_nome, itens_proposta):
     story.append(Paragraph(f"<b>Cliente:</b> {cliente_nome if cliente_nome else 'Não Informado'} | <b>Data:</b> {datetime.now().strftime('%d/%m/%Y')}", subtitulo_style))
     story.append(Spacer(1, 12))
 
-    # Tabela de Itens
     dados_tabela = [["Código", "Descrição", "Categoria", "Unidade", "Tarifa (R$)"]]
     
     for item in itens_proposta:
@@ -77,7 +74,6 @@ def gerar_pdf_proposta(numero_proposta, cliente_nome, itens_proposta):
     buffer.seek(0)
     return buffer
 
-
 # ==============================================================================
 # RENDERIZADOR PRINCIPAL TELA 3 - PROPOSTA DO CLIENTE
 # ==============================================================================
@@ -86,7 +82,6 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
     st.caption("Visualização não editável pronta para conferência, geração de PDF e salvamento.")
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # Recupera o número da proposta e itens do rascunho
     itens_rascunho = st.session_state.get("rascunho_itens", [])
     
     agora = datetime.now()
@@ -95,13 +90,10 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
     seq = st.session_state.get("sequencial_proposta", 1)
     numero_proposta_atual = f"{mes_str}/{seq:05d}/{ano_str}"
 
-    # --------------------------------------------------------------------------
-    # 1. PAINEL DE VISUALIZAÇÃO DA PROPOSTA (NÃO EDITÁVEL)
-    # --------------------------------------------------------------------------
     st.markdown("### 📋 Documento da Proposta")
 
     if not itens_rascunho:
-        st.warning("⚠️ Nenhum item no rascunho da proposta. Adicione itens na **Tela 2 (Propostas e Precificação)** primeiro.")
+        st.warning("⚠️ Nenhum item pendente no rascunho. Monte os itens na **Tela 2 (Propostas e Precificação)** antes de visualizar.")
     else:
         col_c1, col_c2 = st.columns([2, 1])
         with col_c1:
@@ -111,7 +103,7 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
 
         st.markdown("<br>", unsafe_allow_html=True)
 
-        # Monta DataFrame estático (Não Editável)
+        # Monta a visualização estática (não editável)
         dados_estaticos = []
         for item in itens_rascunho:
             tarifa_val = item.get("Tarifa (R$)", 0.0)
@@ -129,7 +121,6 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
 
         df_estatico = pd.DataFrame(dados_estaticos)
         
-        # Exibe a tabela não editável
         st.dataframe(
             df_estatico,
             use_container_width=True,
@@ -138,9 +129,6 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
 
         st.markdown("<br>", unsafe_allow_html=True)
 
-        # ----------------------------------------------------------------------
-        # 2. AÇÕES: GERAR PDF E FECHAR PROPOSTA (GRAVAR NO GOOGLE SHEETS)
-        # ----------------------------------------------------------------------
         col_pdf, col_fechar = st.columns(2)
 
         with col_pdf:
@@ -154,12 +142,11 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                     use_container_width=True
                 )
             else:
-                st.info("Para habilitar o download de PDF, instale a biblioteca `reportlab` (`pip install reportlab`).")
+                st.info("Para habilitar o PDF, instale `reportlab` no ambiente.")
 
         with col_fechar:
-            if st.button("🔒 Fechar Proposta e Salvar no Google Sheets", use_container_width=True):
+            if st.button("🔒 Salvar Proposta no Google Sheets", use_container_width=True):
                 if salvar_proposta_sheets_fn:
-                    # Prepara as linhas para inserção na planilha Google Sheets
                     linhas_para_salvar = []
                     data_hoje = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -179,27 +166,29 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                     sucesso = salvar_proposta_sheets_fn(linhas_para_salvar)
 
                     if sucesso:
+                        # Incrementa a numeração sequencial e apaga o rascunho apenas APÓS o salvamento com sucesso no Sheets
                         st.session_state["sequencial_proposta"] = seq + 1
                         st.session_state["rascunho_itens"] = []
-                        st.success(f"Proposta `{numero_proposta_atual}` fechada e gravada com sucesso na planilha!")
+                        
+                        # Limpa também as chaves gravadas dos inputs
+                        for k in list(st.session_state.keys()):
+                            if k.startswith("input_tarifa_"):
+                                del st.session_state[k]
+
+                        st.success(f"Proposta `{numero_proposta_atual}` salva com sucesso no Google Sheets!")
                         st.balloons()
                         st.rerun()
                     else:
-                        st.error("Erro ao salvar os dados no Google Sheets.")
-                else:
-                    st.success(f"Proposta `{numero_proposta_atual}` finalizada!")
-                    st.session_state["sequencial_proposta"] = seq + 1
-                    st.session_state["rascunho_itens"] = []
-                    st.rerun()
+                        st.error("Falha ao salvar no Google Sheets.")
 
     st.markdown("---")
 
     # --------------------------------------------------------------------------
-    # 3. PAINEL DE CONSULTA DE PROPOSTAS GRAVADAS
+    # CONSULTA DE PROPOSTAS SALVAS
     # --------------------------------------------------------------------------
-    st.markdown("### 🔍 Consulta de Propostas Gravadas")
+    st.markdown("### 🔍 Consulta de Propostas Salvas no Google Sheets")
 
-    with st.expander("🔎 Filtrar e Consultar Histórico de Propostas", expanded=True):
+    with st.expander("🔎 Filtrar e Consultar Propostas Gravadas", expanded=True):
         col_filtro_m, col_filtro_a = st.columns(2)
 
         with col_filtro_m:
@@ -218,7 +207,6 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
             if isinstance(df_historico, pd.DataFrame) and not df_historico.empty:
                 df_filtrado = df_historico.copy()
 
-                # Aplicação do filtro de Mês e Ano pela máscara MM/SEQUENCIAL/AAAA
                 if "Proposta" in df_filtrado.columns:
                     if mes_consulta != "Todos":
                         df_filtrado = df_filtrado[df_filtrado["Proposta"].astype(str).str.startswith(mes_consulta + "/")]
@@ -229,6 +217,4 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                 st.markdown(f"**Registros Encontrados: `{len(df_filtrado)}`**")
                 st.dataframe(df_filtrado, use_container_width=True, hide_index=True)
             else:
-                st.info("Nenhuma proposta salva foi encontrada na base do Google Sheets.")
-        else:
-            st.info("A função de leitura de propostas do Google Sheets não foi vinculada.")
+                st.info("Nenhuma proposta gravada na folha 'Propostas_Salvas'.")
