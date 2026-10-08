@@ -3,7 +3,6 @@ import pandas as pd
 from datetime import datetime
 import io
 
-# Importação da biblioteca para geração de PDF
 try:
     from reportlab.lib.pagesizes import letter
     from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
@@ -16,7 +15,7 @@ except ImportError:
 # ==============================================================================
 # FUNÇÃO PARA GERAR O ARQUIVO PDF EM MEMÓRIA
 # ==============================================================================
-def gerar_pdf_proposta(numero_proposta, cliente_nome, itens_proposta):
+def gerar_pdf_proposta(numero_proposta, cliente_nome, cnpj_val, itens_proposta):
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=36)
     story = []
@@ -37,8 +36,9 @@ def gerar_pdf_proposta(numero_proposta, cliente_nome, itens_proposta):
         spaceAfter=18
     )
 
+    cnpj_texto = f" | <b>CNPJ:</b> {cnpj_val}" if cnpj_val else ""
     story.append(Paragraph(f"PROPOSTA COMERCIAL — Nº {numero_proposta}", titulo_style))
-    story.append(Paragraph(f"<b>Cliente:</b> {cliente_nome if cliente_nome else 'Não Informado'} | <b>Data:</b> {datetime.now().strftime('%d/%m/%Y')}", subtitulo_style))
+    story.append(Paragraph(f"<b>Cliente:</b> {cliente_nome}{cnpj_texto} | <b>Data:</b> {datetime.now().strftime('%d/%m/%Y')}", subtitulo_style))
     story.append(Spacer(1, 12))
 
     dados_tabela = [["Código", "Descrição", "Categoria", "Unidade", "Tarifa (R$)"]]
@@ -83,6 +83,8 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
     st.markdown("<br>", unsafe_allow_html=True)
 
     itens_rascunho = st.session_state.get("rascunho_itens", [])
+    cliente_nome = st.session_state.get("proposta_cliente_nome", "").strip()
+    cnpj_val = st.session_state.get("proposta_cliente_cnpj", "").strip()
     
     agora = datetime.now()
     mes_str = agora.strftime("%m")
@@ -95,15 +97,16 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
     if not itens_rascunho:
         st.warning("⚠️ Nenhum item pendente no rascunho. Monte os itens na **Tela 2 (Propostas e Precificação)** antes de visualizar.")
     else:
-        col_c1, col_c2 = st.columns([2, 1])
-        with col_c1:
-            nome_cliente = st.text_input("Nome do Cliente / Razão Social:", placeholder="Ex: Empresa ABC Ltda", key="input_nome_cliente_p3")
-        with col_c2:
+        col_info1, col_info2, col_info3 = st.columns([2.5, 1.5, 1.5])
+        with col_info1:
+            st.markdown(f"**Cliente / Razão Social:**\n#### {cliente_nome if cliente_nome else 'Não Informado'}")
+        with col_info2:
+            st.markdown(f"**CNPJ:**\n#### {cnpj_val if cnpj_val else 'Não Informado'}")
+        with col_info3:
             st.markdown(f"**Número da Proposta:**\n### `{numero_proposta_atual}`")
 
         st.markdown("<br>", unsafe_allow_html=True)
 
-        # Monta a visualização estática (não editável)
         dados_estaticos = []
         for item in itens_rascunho:
             tarifa_val = item.get("Tarifa (R$)", 0.0)
@@ -111,6 +114,8 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
             
             dados_estaticos.append({
                 "Proposta": numero_proposta_atual,
+                "Cliente": cliente_nome,
+                "CNPJ": cnpj_val,
                 "Código": item.get("Código", ""),
                 "Descrição": item.get("Descrição", ""),
                 "Categoria": item.get("Categoria", ""),
@@ -133,7 +138,7 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
 
         with col_pdf:
             if REPORTLAB_DISPONIVEL:
-                pdf_bytes = gerar_pdf_proposta(numero_proposta_atual, nome_cliente, itens_rascunho)
+                pdf_bytes = gerar_pdf_proposta(numero_proposta_atual, cliente_nome, cnpj_val, itens_rascunho)
                 st.download_button(
                     label="📥 Exportar Proposta em PDF",
                     data=pdf_bytes,
@@ -154,7 +159,8 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                         linhas_para_salvar.append({
                             "Proposta": numero_proposta_atual,
                             "Data": data_hoje,
-                            "Cliente": nome_cliente if nome_cliente else "Não Informado",
+                            "Cliente": cliente_nome,
+                            "CNPJ": cnpj_val,
                             "Código": str(item.get("Código", "")),
                             "Descrição": str(item.get("Descrição", "")),
                             "Categoria": str(item.get("Categoria", "")),
@@ -166,11 +172,11 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                     sucesso = salvar_proposta_sheets_fn(linhas_para_salvar)
 
                     if sucesso:
-                        # Incrementa a numeração sequencial e apaga o rascunho apenas APÓS o salvamento com sucesso no Sheets
                         st.session_state["sequencial_proposta"] = seq + 1
                         st.session_state["rascunho_itens"] = []
+                        st.session_state["proposta_cliente_nome"] = ""
+                        st.session_state["proposta_cliente_cnpj"] = ""
                         
-                        # Limpa também as chaves gravadas dos inputs
                         for k in list(st.session_state.keys()):
                             if k.startswith("input_tarifa_"):
                                 del st.session_state[k]
