@@ -160,18 +160,24 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_fn=None, *args, **k
     st.markdown("<br>", unsafe_allow_html=True)
 
     # --------------------------------------------------------------------------
-    # CAMPO DE DADOS DO CLIENTE / CNPJ
+    # CAMPOS COM RÓTULOS VISÍVEIS: CLIENTE E CNPJ
     # --------------------------------------------------------------------------
     col_cli, col_cnpj = st.columns([2.5, 1.5])
+    
     with col_cli:
+        st.markdown("<label style='color: #FFFFFF !important; font-weight: bold; font-size: 15px;'>Cliente *</label>", unsafe_allow_html=True)
         cliente_nome = st.text_input(
-            "Cliente / Razão Social *",
+            "Cliente *",
+            label_visibility="collapsed",
             placeholder="Ex: Empresa ABC Ltda",
             key="proposta_cliente_nome"
         )
+        
     with col_cnpj:
+        st.markdown("<label style='color: #FFFFFF !important; font-weight: bold; font-size: 15px;'>CNPJ</label>", unsafe_allow_html=True)
         cnpj_val = st.text_input(
-            "Cliente / CNPJ",
+            "CNPJ",
+            label_visibility="collapsed",
             placeholder="Ex: 00.000.000/0001-00",
             key="proposta_cliente_cnpj"
         )
@@ -263,7 +269,7 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_fn=None, *args, **k
     with col_res2:
         if st.button("➡️ Finalizar Lançamento e Ir para Proposta Cliente", use_container_width=True):
             if not cliente_nome.strip():
-                st.error("⚠️ O campo 'Cliente / Razão Social' é obrigatório!")
+                st.error("⚠️ O campo 'Cliente' é obrigatório!")
             elif not todos_itens:
                 st.error("Adicione pelo menos um item antes de avançar.")
             else:
