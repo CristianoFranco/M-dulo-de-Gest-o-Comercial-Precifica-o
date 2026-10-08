@@ -76,33 +76,44 @@ def aplicar_estilo_personalizado():
         h1, h2, h3, h4 {{ color: #FFFFFF !important; text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8); }}
 
         /* ============================================================================== */
-        /* CORREÇÃO DEFINITIVA DO VISUAL E CONTRASTE DAS ABAS (TABS)                      */
+        /* ABAS FORMATADAS COMO BOTÕES / BLOCOS DISCRETOS                                */
         /* ============================================================================== */
-        div[data-testid="stTabs"] button[data-baseweb="tab"] {{
-            background-color: #FFFFFF !important;
-            border-radius: 8px 8px 0 0 !important;
-            padding: 12px 24px !important;
-            margin-right: 8px !important;
-            border: 1px solid #CBD5E1 !important;
+        div[data-testid="stTabs"] [data-baseweb="tab-list"] {{
+            gap: 12px !important;
             border-bottom: none !important;
-            opacity: 1 !important;
         }}
 
-        /* Texto de Abas Inativas: Azul Escuro, Negrito e 100% Visível */
+        /* Estilo Base para os Botões/Blocos das Abas */
+        div[data-testid="stTabs"] button[data-baseweb="tab"] {{
+            background-color: rgba(255, 255, 255, 0.12) !important;
+            border: 1px solid rgba(255, 255, 255, 0.25) !important;
+            border-radius: 8px !important;
+            padding: 10px 20px !important;
+            transition: all 0.2s ease-in-out !important;
+        }}
+
+        /* Texto da Aba Inativa: Branco limpo, discreto e perfeitamente legível */
         div[data-testid="stTabs"] button[data-baseweb="tab"] *, 
         div[data-testid="stTabs"] button[data-baseweb="tab"] p, 
         div[data-testid="stTabs"] button[data-baseweb="tab"] span {{
-            color: #0A2540 !important;
-            -webkit-text-fill-color: #0A2540 !important;
-            font-weight: 800 !important;
-            font-size: 16px !important;
+            color: #E2E8F0 !important;
+            -webkit-text-fill-color: #E2E8F0 !important;
+            font-weight: 600 !important;
+            font-size: 15px !important;
             opacity: 1 !important;
         }}
 
-        /* Aba Ativa (Selecionada): Fundo Azul Destacado com Texto Branco */
+        /* Hover no Botão Inativo */
+        div[data-testid="stTabs"] button[data-baseweb="tab"]:hover {{
+            background-color: rgba(255, 255, 255, 0.22) !important;
+            border-color: rgba(255, 255, 255, 0.4) !important;
+        }}
+
+        /* Aba Ativa (Selecionada): Destaque Azul com Borda e Fundo Sólido */
         div[data-testid="stTabs"] button[aria-selected="true"] {{
             background-color: #0052B4 !important;
-            border-color: #0052B4 !important;
+            border-color: #3B82F6 !important;
+            box-shadow: 0 4px 12px rgba(0, 82, 180, 0.4) !important;
         }}
 
         div[data-testid="stTabs"] button[aria-selected="true"] *, 
@@ -113,7 +124,7 @@ def aplicar_estilo_personalizado():
             font-weight: 800 !important;
         }}
 
-        /* Botões Padrão da Aplicação */
+        /* Botões Globais */
         .stButton>button {{
             background: linear-gradient(135deg, #0052B4 0%, #003B82 100%) !important;
             color: #FFFFFF !important;
@@ -169,69 +180,4 @@ def carregar_dados(apenas_ativos=True):
 
     if apenas_ativos:
         df_ativos = df[df["Status"].str.upper() != "INATIVO"].copy()
-        return df_ativos[["Código", "Descrição", "Tarifa (R$)", "Unidade", "Categoria", "Observações"]]
-    
-    return df
-
-def salvar_dados_completos(df_completo):
-    try:
-        worksheet = obter_aba_google_sheets()
-        worksheet.clear()
-        df_salvar = df_completo.copy()
-        df_salvar["Código"] = df_salvar["Código"].astype(str).str.strip()
-        dados_lista = [df_salvar.columns.values.tolist()] + df_salvar.astype(str).values.tolist()
-        worksheet.update(range_name='A1', values=dados_lista)
-        carregar_dados_cached.clear()
-        return True
-    except Exception as e:
-        st.error(f"Erro ao salvar no Google Sheets: {e}")
-        return False
-
-def normalizar_codigo(codigo_str):
-    limpo = str(codigo_str).strip().upper()
-    return str(int(limpo)) if limpo.isdigit() else limpo
-
-def formatar_tarifa(val):
-    try:
-        f = float(val)
-        s = f"{f:.5f}".rstrip('0')
-        if s.endswith('.'): s += '00'
-        elif len(s.split('.')[1]) < 2: s += '0'
-        return s
-    except (ValueError, TypeError):
-        return str(val)
-
-# ==============================================================================
-# 3. CABEÇALHO & ABAS
-# ==============================================================================
-logo_b64 = get_base64_of_bin_file('logo.png')
-
-if logo_b64:
-    st.markdown(f"""
-        <div class="header-container">
-            <div>
-                <h1 class="header-title">Módulo Comercial & Precificação</h1>
-                <p class="header-subtitle">Gestão Integrada de Serviços e Tabelas Tarifárias</p>
-            </div>
-            <div>
-                <img src="data:image/png;base64,{logo_b64}" style="height: 60px;">
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
-else:
-    st.markdown("""
-        <div class="header-container">
-            <div>
-                <h1 class="header-title">Módulo Comercial & Precificação</h1>
-                <p class="header-subtitle">Gestão Integrada de Serviços e Tabelas Tarifárias</p>
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
-
-tabs = st.tabs(["📋 Cadastro de Serviços", "🛠️ Propostas e Precificação"])
-
-with tabs[0]:
-    renderizar_aba_cadastro(carregar_dados, salvar_dados_completos, normalizar_codigo, formatar_tarifa)
-
-with tabs[1]:
-    renderizar_aba_propostas(carregar_dados, salvar_dados_completos)
+        return df_ativos[["Código", "Descrição", "Tarifa (R$)",
