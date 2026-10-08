@@ -180,4 +180,34 @@ def carregar_dados(apenas_ativos=True):
 
     if apenas_ativos:
         df_ativos = df[df["Status"].str.upper() != "INATIVO"].copy()
-        return df_ativos[["Código", "Descrição", "Tarifa (R$)",
+        return df_ativos[["Código", "Descrição", "Tarifa (R$)", "Unidade", "Categoria", "Observações"]]
+    
+    return df
+
+def salvar_dados_completos(df_completo):
+    try:
+        worksheet = obter_aba_google_sheets()
+        worksheet.clear()
+        df_salvar = df_completo.copy()
+        df_salvar["Código"] = df_salvar["Código"].astype(str).str.strip()
+        dados_lista = [df_salvar.columns.values.tolist()] + df_salvar.astype(str).values.tolist()
+        worksheet.update(range_name='A1', values=dados_lista)
+        carregar_dados_cached.clear()
+        return True
+    except Exception as e:
+        st.error(f"Erro ao salvar no Google Sheets: {e}")
+        return False
+
+def normalizar_codigo(codigo_str):
+    limpo = str(codigo_str).strip().upper()
+    return str(int(limpo)) if limpo.isdigit() else limpo
+
+def formatar_tarifa(val):
+    try:
+        f = float(val)
+        s = f"{f:.5f}".rstrip('0')
+        if s.endswith('.'): s += '00'
+        elif len(s.split('.')[1]) < 2: s += '0'
+        return s
+    except (ValueError, TypeError):
+        return
