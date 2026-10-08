@@ -2,12 +2,12 @@ import streamlit as st
 import pandas as pd
 
 # ==============================================================================
-# ESTILIZAÇÃO CSS EXCLUSIVA PARA OS BOTÕES (DENTRO E FORA DO EXPANDER)
+# ESTILIZAÇÃO CSS EXCLUSIVA (AJUSTA APENAS OS BOTÕES DA TELA 1)
 # ==============================================================================
 def aplicar_estilos_botoes_cadastro():
     st.markdown("""
         <style>
-            /* Botão de Inclusão / Ações do Expander (Azul com Texto Branco) */
+            /* Botão 'Confirmar Inclusão' (Azul com texto branco em alto contraste) */
             div[data-testid="stExpander"] div.stButton > button {
                 background-color: #0052B4 !important;
                 color: #FFFFFF !important;
@@ -24,7 +24,7 @@ def aplicar_estilos_botoes_cadastro():
                 border-color: #93C5FD !important;
             }
 
-            /* Botão de Exclusão Especificamente (Vermelho com Texto Branco) */
+            /* Botão 'Confirmar Exclusão' (Vermelho com texto branco) */
             div[data-testid="stExpander"] .btn-excluir-container div.stButton > button {
                 background-color: #D32F2F !important;
                 color: #FFFFFF !important;
@@ -83,7 +83,6 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codig
             st.markdown("##### ➖ Remover Unidade Existente")
             unidade_excluir = st.selectbox("Selecione para excluir", options=[""] + st.session_state["lista_unidades"], key="select_excluir_unidade")
             
-            # Encapsulado para aplicação do CSS de exclusão em vermelho
             st.markdown('<div class="btn-excluir-container">', unsafe_allow_html=True)
             if st.button("Confirmar Exclusão", key="btn_confirmar_exc_unidade"):
                 if unidade_excluir and unidade_excluir in st.session_state["lista_unidades"]:
@@ -128,7 +127,12 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codig
                 cod_final = normalizar_codigo_fn(codigo) if normalizar_codigo_fn else str(codigo.strip())
                 df_atual = carregar_dados_fn()
                 
-                if not df_atual.empty and cod_final in df_atual["Código"].astype(str).values:
+                if isinstance(df_atual, pd.DataFrame) and not df_atual.empty and "Código" in df_atual.columns:
+                    ja_existe = cod_final in df_atual["Código"].astype(str).values
+                else:
+                    ja_existe = False
+
+                if ja_existe:
                     st.error(f"O código '{cod_final}' já está cadastrado no sistema.")
                 else:
                     novo_registro = {
@@ -147,12 +151,17 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codig
     st.markdown("---")
 
     # --------------------------------------------------------------------------
-    # TABELA DE EXIBIÇÃO
+    # TABELA DE EXIBIÇÃO (RESTAURADA E COMPATÍVEL COM O GOOGLE SHEETS / DATA FRAME)
     # --------------------------------------------------------------------------
     st.markdown("### 📑 Serviços Cadastrados")
-    df_exibicao = carregar_dados_fn()
     
-    if not df_exibicao.empty:
-        st.dataframe(df_exibicao, use_container_width=True, hide_index=True)
-    else:
-        st.info("Nenhum serviço cadastrado até o momento.")
+    # Executa a função de carregar dados passando os parâmetros padrões se suportado
+    try:
+        df_exibicao = carregar_dados_fn()
+    except Exception:
+        try:
+            df_exibicao = carregar_dados_fn(apenas_ativos=False)
+        except Exception:
+            df_exibicao = pd.DataFrame()
+
+    if isinstance(df_exibicao, pd.DataFrame
