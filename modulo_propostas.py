@@ -6,6 +6,10 @@ from datetime import datetime
 # FUNÇÕES AUXILIARES DA PROPOSTA
 # ==============================================================================
 def obter_proximo_numero_proposta():
+    # Se estiver editando uma proposta existente, mantém o mesmo código
+    if st.session_state.get("proposta_id_em_edicao"):
+        return st.session_state["proposta_id_em_edicao"]
+
     agora = datetime.now()
     mes = agora.strftime("%m")
     ano = agora.strftime("%Y")
@@ -150,7 +154,6 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_fn=None, *args, **k
     inicializar_estado_proposta()
     numero_proposta = obter_proximo_numero_proposta()
     
-    # ESTILIZAÇÃO CSS FORÇADA PARA RÓTULOS (LABELS) DE INPUTS FICAREM EM BRANCO
     st.markdown("""
         <style>
             div[data-testid="stTextInput"] label,
@@ -185,6 +188,13 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_fn=None, *args, **k
         st.caption("Monte a estrutura comercial selecionando os serviços e ajustando as tarifas.")
     with col_num:
         st.markdown(f"### Nº: `{numero_proposta}`")
+        if st.session_state.get("proposta_id_em_edicao"):
+            if st.button("➕ Nova Proposta (Limpar Edição)", use_container_width=True):
+                st.session_state["proposta_id_em_edicao"] = None
+                st.session_state["rascunho_itens"] = []
+                st.session_state["proposta_cliente_nome"] = ""
+                st.session_state["proposta_cliente_cnpj"] = ""
+                st.rerun()
 
     st.markdown("<br>", unsafe_allow_html=True)
 
