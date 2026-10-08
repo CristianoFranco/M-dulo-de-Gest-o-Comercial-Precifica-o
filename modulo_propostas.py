@@ -160,7 +160,7 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_fn=None, *args, **k
     st.markdown("<br>", unsafe_allow_html=True)
 
     # --------------------------------------------------------------------------
-    # CAMPOS LIVRES: CLIENTE (OBRIGATÓRIO) E CNPJ
+    # CAMPO DE DADOS DO CLIENTE / CNPJ
     # --------------------------------------------------------------------------
     col_cli, col_cnpj = st.columns([2.5, 1.5])
     with col_cli:
@@ -171,7 +171,7 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_fn=None, *args, **k
         )
     with col_cnpj:
         cnpj_val = st.text_input(
-            "CNPJ",
+            "Cliente / CNPJ",
             placeholder="Ex: 00.000.000/0001-00",
             key="proposta_cliente_cnpj"
         )
@@ -200,7 +200,6 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_fn=None, *args, **k
         </style>
     """, unsafe_allow_html=True)
 
-    # Tratamento seguro contra retornos nulos de carregamento
     try:
         df_servicos = carregar_dados_fn(apenas_ativos=True)
     except Exception:
