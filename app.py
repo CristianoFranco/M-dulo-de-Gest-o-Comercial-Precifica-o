@@ -111,4 +111,251 @@ aplicar_estilo_personalizado()
 # ==============================================================================
 SPREADSHEET_ID = "1wbhgMnqQuyOxwCef4pJh3vDnafBBU2AZk-uSt1NnPWc"
 
-HEADER_PROPOSTAS_
+HEADER_PROPOSTAS_ESPERADO = [
+    "Proposta", "Data", "Cliente", "CNPJ", "Código", 
+    "Descrição", "Categoria", "Unidade", "Tarifa (R$)", "Observações"
+]
+
+@st.cache_resource(ttl=3600)
+def obter_planilha_google_sheets():
+    scope = ["https://www.googleapis.com/auth/spreadsheets"]
+    if "gcp_service_account" in st.secrets:
+        creds_dict = dict(st.secrets["gcp_service_account"])
+        if "private_key" in creds_dict:
+            creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
+        creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
+    else:
+        creds = Credentials.from_service_account_file("credentials.json", scopes=scope)
+    client = gspread.authorize(creds)
+    return client.open_by_url("https://docs.google.com/spreadsheets/d/{}".format(SPREADSHEET_ID))
+
+def obter_aba_servicos():
+    sh = obter_planilha_google_sheets()
+    return sh.sheet1
+
+def obter_aba_propostas():
+    sh = obter_planilha_google_sheets()
+    try:
+        ws = sh.worksheet("Propostas_Salvas")
+    except Exception:
+        ws = sh.add_worksheet(title="Propostas_Salvas", rows=1000, cols=10)
+        ws.append_row(HEADER_PROPOSTAS_ESPERADO)
+        return ws
+
+    # Valida se a primeira linha (cabeçalho) possui todas as colunas
+    valores = ws.get_all_values()
+    if not valores or valores[0] != HEADER_PROPOSTAS_ESPERADO:
+        if not valores:
+            ws.append_row(HEADER_PROPOSTAS_ESPERADO)
+        else:
+            # Reescreve a linha 1 garantindo o cabeçalho correto
+            ws.update(range_name='A1:J1', values=[HEADER_PROPOSTAS_ESPERADO])
+            
+    return ws
+
+@st.cache_data(ttl=60)
+def carregar_dados_cached():
+    try:
+        worksheet = obter_aba_servicos()
+        data = worksheet.get_all_records()
+        return pd.DataFrame(data)
+    except Exception:
+        return pd.DataFrame()
+
+def carregar_dados(apenas_ativos=True):
+    df = carregar_dados_cached()
+    colunas_esperadas = ["Código", "Descrição", "Tarifa (R$)", "Unidade", "Categoria", "Observações", "Status"]
+    
+    if df.empty:
+        df_vazio = pd.DataFrame(columns=colunas_esperadas)
+        return df_vazio[colunas_esperadas[:-1]] if apenas_ativos else df_vazio
+
+    if "Status" not in df.columns:
+        df["Status"] = "Ativo"
+    
+    df["Status"] = df["Status"].astype(str).str.strip().replace("", "Ativo")
+    df["Código"] = df["Código"].astype(str).str.strip()
+
+    if apenas_ativos:
+        df_ativos = df[df["Status"].str.upper() != "INATIVO"].copy()
+        return df_ativos[["Código", "Descrição", "Tarifa (R$)", "Unidade", "Categoria", "Observações"]]
+    
+    return df
+
+def salvar_dados_completos(df_completo):
+    try:
+        worksheet = obter_aba_servicos()
+        worksheet.clear()
+        df_salvar = df_completo.copy()
+        df_salvar["Código"] = df_salvar["Código"].astype(str).str.strip()
+        dados_lista = [df_salvar.columns.values.tolist()] + df_salvar.astype(str).values.tolist()
+        worksheet.update(range_name='A1', values=dados_lista)
+        carregar_dados_cached.clear()
+        return True
+    except Exception as e:
+        st.error("Erro ao salvar no Google Sheets: {}".format(e))
+        return False
+
+# ------------------------------------------------------------------------------
+# FUNÇÕES DE INTEGRAÇÃO COM A TELA 3 (PROPOSTAS SALVAS)
+# ------------------------------------------------------------------------------
+def salvar_propostas_na_planilha(linhas_proposta):
+    try:
+        ws = obter_aba_propostas()
+        
+        num_prop = str(linhas_proposta[0].get("Proposta", "")).strip() if linhas_proposta else ""
+        
+        # Lê a folha como matriz de valores puros (evita falha por nome de chave)
+        todos_valores = ws.get_all_values()
+        
+        if not todos_valores:
+            todos_valores = [HEADER_PROPOSTAS_ESPERADO]
+        
+        header_atual = todos_valores[0]
+        linhas_existentes = todos_valores[1:] if len(todos_valores) > 1 else []
+        
+        # Filtra e remove as linhas antigas da proposta caso ela já existisse
+        linhas_filtradas = []
+        if num_prop and linhas_existentes:
+            for lin in linhas_existentes:
+                if len(lin) > 0 and str(lin[0]).strip() != num_prop:
+                    linhas_filtradas.append(lin)
+        else:
+            linhas_filtradas = linhas_existentes
+
+        # Monta a nova lista de linhas para inserção
+        novas_linhas_matriz = []
+        for reg in linhas_proposta:
+            novas_linhas_matriz.append([
+                str(reg.get("Proposta", "")),
+                str(reg.get("Data", "")),
+                str(reg.get("Cliente", "")),
+                str(reg.get("CNPJ", "")),
+                str(reg.get("Código", "")),
+                str(reg.get("Descrição", "")),
+                str(reg.get("Categoria", "")),
+                str(reg.get("Unidade", "")),
+                str(reg.get("Tarifa (R$)", "")),
+                str(reg.get("Observações", ""))
+            ])
+
+        # Reescreve a folha de forma atômica
+        ws.clear()
+        conteudo_final = [HEADER_PROPOSTAS_ESPERADO] + linhas_filtradas + novas_linhas_matriz
+        ws.update(range_name='A1', values=conteudo_final)
+        
+        return True
+    except Exception as e:
+        st.error(f"Erro ao gravar proposta no Google Sheets: {e}")
+        return False
+
+def carregar_propostas_da_planilha():
+    try:
+        ws = obter_aba_propostas()
+        valores = ws.get_all_values()
+        if not valores or len(valores) < 2:
+            return pd.DataFrame(columns=HEADER_PROPOSTAS_ESPERADO)
+        
+        df = pd.DataFrame(valores[1:], columns=valores[0])
+        return df
+    except Exception:
+        return pd.DataFrame(columns=HEADER_PROPOSTAS_ESPERADO)
+
+def normalizar_codigo(codigo_str):
+    limpo = str(codigo_str).strip().upper()
+    return str(int(limpo)) if limpo.isdigit() else limpo
+
+def formatar_tarifa(val):
+    try:
+        f = float(val)
+        s = f"{f:.5f}".rstrip('0')
+        if s.endswith('.'): s += '00'
+        elif len(s.split('.')[1]) < 2: s += '0'
+        return s
+    except (ValueError, TypeError):
+        return str(val)
+
+def executar_renderizar_cadastro():
+    params = [carregar_dados, salvar_dados_completos, normalizar_codigo, formatar_tarifa]
+    for i in range(len(params), 0, -1):
+        try:
+            renderizar_aba_cadastro(*params[:i])
+            return
+        except TypeError:
+            continue
+
+# ==============================================================================
+# 3. CABEÇALHO & NAVEGAÇÃO
+# ==============================================================================
+logo_b64 = get_base64_of_bin_file('logo.png')
+
+if logo_b64:
+    header_html = """
+        <div class="header-container">
+            <div>
+                <h1 class="header-title">Módulo Comercial & Precificação</h1>
+                <p class="header-subtitle">Gestão Integrada de Serviços e Tabelas Tarifárias</p>
+            </div>
+            <div>
+                <img src="data:image/png;base64,{}" style="height: 60px;">
+            </div>
+        </div>
+    """.format(logo_b64)
+    st.markdown(header_html, unsafe_allow_html=True)
+else:
+    st.markdown("""
+        <div class="header-container">
+            <div>
+                <h1 class="header-title">Módulo Comercial & Precificação</h1>
+                <p class="header-subtitle">Gestão Integrada de Serviços e Tabelas Tarifárias</p>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+
+# BARRA DE NAVEGAÇÃO COM DESTAQUE VISUAL (3 TELAS)
+col_nav1, col_nav2, col_nav3, _ = st.columns([2.2, 2.5, 2.5, 2.8])
+
+aba_atual = st.session_state["aba_ativa"]
+
+with col_nav1:
+    if st.button(
+        "📋 Cadastro",
+        key="btn_nav_cadastro",
+        type="primary" if aba_atual == "cadastro" else "secondary",
+        use_container_width=True
+    ):
+        st.session_state["aba_ativa"] = "cadastro"
+        st.rerun()
+
+with col_nav2:
+    if st.button(
+        "🛠️ Propostas / Precificação",
+        key="btn_nav_propostas",
+        type="primary" if aba_atual == "propostas" else "secondary",
+        use_container_width=True
+    ):
+        st.session_state["aba_ativa"] = "propostas"
+        st.rerun()
+
+with col_nav3:
+    if st.button(
+        "📄 Proposta Cliente",
+        key="btn_nav_cliente",
+        type="primary" if aba_atual == "cliente" else "secondary",
+        use_container_width=True
+    ):
+        st.session_state["aba_ativa"] = "cliente"
+        st.rerun()
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+# RENDERIZAÇÃO DA TELA SELECIONADA
+if st.session_state["aba_ativa"] == "cadastro":
+    executar_renderizar_cadastro()
+elif st.session_state["aba_ativa"] == "propostas":
+    renderizar_aba_propostas(carregar_dados, salvar_dados_completos)
+else:
+    renderizar_aba_proposta_cliente(
+        salvar_proposta_sheets_fn=salvar_propostas_na_planilha,
+        carregar_propostas_salvas_fn=carregar_propostas_da_planilha
+    )
