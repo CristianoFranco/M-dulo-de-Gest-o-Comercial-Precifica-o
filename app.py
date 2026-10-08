@@ -284,4 +284,31 @@ with col_nav2:
     if st.button(
         "🛠️ Propostas / Precificação",
         key="btn_nav_propostas",
-        type="primary" if aba_atual == "propostas" else
+        type="primary" if aba_atual == "propostas" else "secondary",
+        use_container_width=True
+    ):
+        st.session_state["aba_ativa"] = "propostas"
+        st.rerun()
+
+with col_nav3:
+    if st.button(
+        "📄 Proposta Cliente",
+        key="btn_nav_cliente",
+        type="primary" if aba_atual == "cliente" else "secondary",
+        use_container_width=True
+    ):
+        st.session_state["aba_ativa"] = "cliente"
+        st.rerun()
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+# RENDERIZAÇÃO DA TELA SELECIONADA
+if st.session_state["aba_ativa"] == "cadastro":
+    executar_renderizar_cadastro()
+elif st.session_state["aba_ativa"] == "propostas":
+    renderizar_aba_propostas(carregar_dados, salvar_dados_completos)
+else:
+    renderizar_aba_proposta_cliente(
+        salvar_proposta_sheets_fn=salvar_propostas_na_planilha,
+        carregar_propostas_salvas_fn=carregar_propostas_da_planilha
+    )
