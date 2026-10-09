@@ -12,12 +12,15 @@ UNIDADES_PADRAO = [
     "por mês"
 ]
 
+# ==============================================================================
+# ESTILIZAÇÃO CSS EXCLUSIVA PARA VISIBILIDADE DOS BOTÕES INCLUIR / EXCLUIR / EDITAR
+# ==============================================================================
 def aplicar_estilos_botoes():
     st.markdown("""
         <style>
+            /* Botão 'Cadastrar / Salvar Serviço' e 'Editar' (Azul de Alto Contraste com Texto Branco) */
             div[data-testid="stExpander"] div.stButton > button,
-            .btn-editar-container div.stButton > button,
-            .btn-acao-form div.stButton > button {
+            .btn-editar-container div.stButton > button {
                 background-color: #0052B4 !important;
                 color: #FFFFFF !important;
                 font-weight: bold !important;
@@ -25,36 +28,46 @@ def aplicar_estilos_botoes():
                 opacity: 1 !important;
             }
             div[data-testid="stExpander"] div.stButton > button p,
-            .btn-editar-container div.stButton > button p,
-            .btn-acao-form div.stButton > button p {
+            .btn-editar-container div.stButton > button p {
                 color: #FFFFFF !important;
                 font-weight: bold !important;
             }
             div[data-testid="stExpander"] div.stButton > button:hover,
-            .btn-editar-container div.stButton > button:hover,
-            .btn-acao-form div.stButton > button:hover {
+            .btn-editar-container div.stButton > button:hover {
                 background-color: #003B82 !important;
                 border-color: #93C5FD !important;
             }
             
-            div[data-testid="stExpander"] .btn-excluir-unidade-container div.stButton > button,
-            .btn-excluir-servico-container div.stButton > button,
-            .btn-cancelar-edicao div.stButton > button {
+            /* Botão 'Confirmar Exclusão' de Unidade (Vermelho de Alto Contraste) */
+            div[data-testid="stExpander"] .btn-excluir-unidade-container div.stButton > button {
                 background-color: #D32F2F !important;
                 color: #FFFFFF !important;
                 font-weight: bold !important;
                 border: 1px solid #EF4444 !important;
                 opacity: 1 !important;
             }
-            div[data-testid="stExpander"] .btn-excluir-unidade-container div.stButton > button p,
-            .btn-excluir-servico-container div.stButton > button p,
-            .btn-cancelar-edicao div.stButton > button p {
+            div[data-testid="stExpander"] .btn-excluir-unidade-container div.stButton > button p {
                 color: #FFFFFF !important;
                 font-weight: bold !important;
             }
-            div[data-testid="stExpander"] .btn-excluir-unidade-container div.stButton > button:hover,
-            .btn-excluir-servico-container div.stButton > button:hover,
-            .btn-cancelar-edicao div.stButton > button:hover {
+            div[data-testid="stExpander"] .btn-excluir-unidade-container div.stButton > button:hover {
+                background-color: #991B1B !important;
+                border-color: #F87171 !important;
+            }
+            
+            /* Botão 'Excluir Serviço Selecionado' (Vermelho Destacado) */
+            .btn-excluir-servico-container div.stButton > button {
+                background-color: #D32F2F !important;
+                color: #FFFFFF !important;
+                font-weight: bold !important;
+                border: 1px solid #EF4444 !important;
+                opacity: 1 !important;
+            }
+            .btn-excluir-servico-container div.stButton > button p {
+                color: #FFFFFF !important;
+                font-weight: bold !important;
+            }
+            .btn-excluir-servico-container div.stButton > button:hover {
                 background-color: #991B1B !important;
                 border-color: #F87171 !important;
             }
@@ -67,14 +80,19 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codig
 
     if "lista_unidades" not in st.session_state:
         st.session_state["lista_unidades"] = UNIDADES_PADRAO.copy()
+        
+    if "form_id" not in st.session_state:
+        st.session_state["form_id"] = 0
 
     if "modo_edicao_codigo" not in st.session_state:
         st.session_state["modo_edicao_codigo"] = None
 
     st.markdown("### 📝 Cadastro e Gestão de Serviços")
     
+    fid = st.session_state.get("form_id", 0)
     modo_edicao = st.session_state["modo_edicao_codigo"] is not None
 
+    # Carrega dados completos (incluindo inativos para tratar reativação/duplicidade)
     df_base_completa = carregar_dados_fn(apenas_ativos=False)
     if df_base_completa is None or not isinstance(df_base_completa, pd.DataFrame):
         df_base_completa = pd.DataFrame(columns=["Código", "Descrição", "Tarifa (R$)", "Unidade", "Categoria", "Observações", "Status"])
@@ -82,95 +100,62 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codig
     if "Status" not in df_base_completa.columns:
         df_base_completa["Status"] = "Ativo"
 
-    if "cad_codigo" not in st.session_state:
-        st.session_state["cad_codigo"] = ""
-    if "cad_descricao" not in st.session_state:
-        st.session_state["cad_descricao"] = ""
-    if "cad_tarifa" not in st.session_state:
-        st.session_state["cad_tarifa"] = 0.00000
-    if "cad_categoria" not in st.session_state:
-        st.session_state["cad_categoria"] = ""
-    if "cad_unidade" not in st.session_state:
-        st.session_state["cad_unidade"] = ""
-    if "cad_observacoes" not in st.session_state:
-        st.session_state["cad_observacoes"] = ""
-
-    categorias_opcoes = ["", "Armazenagem", "Seguro", "Serviço", "Movimentação (Handling)", "Outros"]
-    unidades_disponiveis_form = st.session_state["lista_unidades"]
-
+    # Se estiver em modo edição, busca os dados do registo atual
+    dados_edicao = {}
     if modo_edicao:
         reg_atual = df_base_completa[df_base_completa["Código"].astype(str).str.strip() == str(st.session_state["modo_edicao_codigo"])]
-        if not reg_atual.empty and st.session_state.get("_ultimo_editado") != st.session_state["modo_edicao_codigo"]:
-            d = reg_atual.iloc[0]
-            st.session_state["cad_codigo"] = str(d.get("Código", ""))
-            st.session_state["cad_descricao"] = str(d.get("Descrição", ""))
-            try:
-                st.session_state["cad_tarifa"] = float(d.get("Tarifa (R$)", 0.0))
-            except ValueError:
-                st.session_state["cad_tarifa"] = 0.0
-            st.session_state["cad_categoria"] = str(d.get("Categoria", ""))
-            st.session_state["cad_unidade"] = str(d.get("Unidade", ""))
-            st.session_state["cad_observacoes"] = str(d.get("Observações", ""))
-            st.session_state["_ultimo_editado"] = st.session_state["modo_edicao_codigo"]
+        if not reg_atual.empty:
+            dados_edicao = reg_atual.iloc[0].to_dict()
+            st.info(f"✏️ Editando o serviço código: **{st.session_state['modo_edicao_codigo']}**")
+
+    # Formulário de Cadastro / Edição
+    with st.form("form_servico", clear_on_submit=False):
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            default_cod = str(dados_edicao.get("Código", "")) if modo_edicao else ""
+            codigo = st.text_input("Código do Serviço *", value=default_cod, key=f"codigo_{fid}", placeholder="Ex: SERV-001")
             
-        st.info(f"✏️ Editando o serviço código: **{st.session_state['modo_edicao_codigo']}**")
-    else:
-        if st.session_state.get("_ultimo_editado") is not None:
-            st.session_state["cad_codigo"] = ""
-            st.session_state["cad_descricao"] = ""
-            st.session_state["cad_tarifa"] = 0.00000
-            st.session_state["cad_categoria"] = ""
-            st.session_state["cad_unidade"] = ""
-            st.session_state["cad_observacoes"] = ""
-            st.session_state["_ultimo_editado"] = None
-
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        codigo = st.text_input("Código do Serviço *", key="cad_codigo", placeholder="Ex: SERV-001")
+            default_cat = str(dados_edicao.get("Categoria", "")) if modo_edicao else ""
+            categorias_opcoes = ["", "Armazenagem", "Seguro", "Serviço", "Movimentação (Handling)", "Outros"]
+            try:
+                idx_cat = categorias_opcoes.index(default_cat)
+            except ValueError:
+                idx_cat = 0
+            categoria = st.selectbox("Categoria *", options=categorias_opcoes, index=idx_cat, key=f"categoria_{fid}")
+            
+            default_tarifa = float(dados_edicao.get("Tarifa (R$)", 0.0)) if modo_edicao else 0.00000
+            tarifa = st.number_input("Tarifa (R$) *", value=default_tarifa, min_value=0.00000, step=0.00001, format="%.5f", key=f"tarifa_{fid}")
         
-        try:
-            idx_cat = categorias_opcoes.index(st.session_state["cad_categoria"])
-        except ValueError:
-            idx_cat = 0
-        categoria = st.selectbox("Categoria *", options=categorias_opcoes, index=idx_cat, key="cad_categoria")
+        with col2:
+            default_desc = str(dados_edicao.get("Descrição", "")) if modo_edicao else ""
+            descricao = st.text_input("Descrição do Serviço *", value=default_desc, key=f"descricao_{fid}", placeholder="Ex: Armazenagem de carga paletizada")
+            
+            unidades_disponiveis_form = st.session_state["lista_unidades"]
+            default_uni = str(dados_edicao.get("Unidade", "")) if modo_edicao else ""
+            try:
+                idx_uni = unidades_disponiveis_form.index(default_uni)
+            except ValueError:
+                idx_uni = 0
+            unidade = st.selectbox("Unidade *", options=unidades_disponiveis_form, index=idx_uni, key=f"unidade_{fid}")
+            
+            default_obs = str(dados_edicao.get("Observações", "")) if modo_edicao else ""
+            observacoes = st.text_area("Observações e Premissas (Opcional)", value=default_obs, key=f"obs_{fid}", placeholder="Ex: Faturamento mínimo mensal de 50 paletes.")
         
-        tarifa = st.number_input("Tarifa (R$) *", min_value=0.00000, step=0.00001, format="%.5f", key="cad_tarifa")
-    
-    with col2:
-        descricao = st.text_input("Descrição do Serviço *", key="cad_descricao", placeholder="Ex: Armazenagem de carga paletizada")
-        
-        try:
-            idx_uni = unidades_disponiveis_form.index(st.session_state["cad_unidade"])
-        except ValueError:
-            idx_uni = 0
-        unidade = st.selectbox("Unidade *", options=unidades_disponiveis_form, index=idx_uni, key="cad_unidade")
-        
-        observacoes = st.text_area("Observações e Premissas (Opcional)", key="cad_observacoes", placeholder="Ex: Faturamento mínimo mensal de 50 paletes.")
-
-    col_b1, col_b2 = st.columns(2)
-    with col_b1:
-        st.markdown('<div class="btn-acao-form">', unsafe_allow_html=True)
-        btn_salvar = st.button("💾 Cadastrar / Salvar Serviço" if not modo_edicao else "💾 Atualizar Alterações", use_container_width=True)
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-    if modo_edicao:
-        with col_b2:
-            st.markdown('<div class="btn-cancelar-edicao">', unsafe_allow_html=True)
-            if st.button("❌ Cancelar Edição", use_container_width=True):
-                st.session_state["modo_edicao_codigo"] = None
-                st.session_state["_ultimo_editado"] = None
-                st.session_state["cad_codigo"] = ""
-                st.session_state["cad_descricao"] = ""
-                st.session_state["cad_tarifa"] = 0.00000
-                st.session_state["cad_categoria"] = ""
-                st.session_state["cad_unidade"] = ""
-                st.session_state["cad_observacoes"] = ""
-                st.rerun()
-            st.markdown('</div>', unsafe_allow_html=True)
+        col_f1, col_f2 = st.columns(2)
+        with col_f1:
+            btn_salvar = st.form_submit_button("💾 Cadastrar / Salvar Serviço" if not modo_edicao else "💾 Atualizar Alterações")
+        if modo_edicao:
+            with col_f2:
+                btn_cancelar = st.form_submit_button("❌ Cancelar Edição")
+                if btn_cancelar:
+                    st.session_state["modo_edicao_codigo"] = None
+                    st.session_state["form_id"] += 1
+                    st.rerun()
 
     st.markdown("<br>", unsafe_allow_html=True)
 
+    # Gestão de Unidades (+ / -)
     with st.expander("⚙️ Gerenciar Opções da Lista de Unidades (+ / -)"):
         col_u1, col_u2 = st.columns(2)
         
@@ -203,16 +188,19 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codig
             else:
                 st.info("Não existem unidades personalizadas para remover.")
 
+    # Processamento de Cadastro ou Edição
     if btn_salvar:
         codigo_limpo = str(codigo).strip()
         codigo_norm = normalizar_codigo_fn(codigo_limpo)
         
+        # Filtra apenas os códigos que estão com status ATIVO para validação de duplicidade
         if not df_base_completa.empty and "Código" in df_base_completa.columns and "Status" in df_base_completa.columns:
             df_ativos_val = df_base_completa[df_base_completa["Status"].astype(str).str.upper() != "INATIVO"]
             codigos_ativos_norm = [normalizar_codigo_fn(c) for c in df_ativos_val["Código"].tolist() if str(c).strip() != ""]
         else:
             codigos_ativos_norm = []
 
+        # Se estiver editando o próprio código atual, não gera erro de duplicidade
         if modo_edicao and normalizar_codigo_fn(st.session_state["modo_edicao_codigo"]) == codigo_norm:
             codigo_duplicado = False
         else:
@@ -236,9 +224,8 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codig
             tarifa_formatada = formatar_tarifa_fn(tarifa)
             
             if modo_edicao:
-                codigo_alvo = str(st.session_state["modo_edicao_codigo"]).strip()
-                mask_ed = df_base_completa["Código"].astype(str).str.strip() == codigo_alvo
-                
+                # Atualiza o registo existente na base completa
+                mask_ed = df_base_completa["Código"].astype(str).str.strip() == str(st.session_state["modo_edicao_codigo"]).strip()
                 df_base_completa.loc[mask_ed, "Código"] = codigo_limpo
                 df_base_completa.loc[mask_ed, "Descrição"] = descricao.strip()
                 df_base_completa.loc[mask_ed, "Tarifa (R$)"] = tarifa_formatada
@@ -248,9 +235,9 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codig
                 df_base_completa.loc[mask_ed, "Status"] = "Ativo"
                 
                 st.session_state["modo_edicao_codigo"] = None
-                st.session_state["_ultimo_editado"] = None
                 msg_sucesso = f"Serviço '{codigo_limpo}' atualizado com sucesso!"
             else:
+                # Verifica se já existe um registo inativo com este mesmo código para reativá-lo e atualizá-lo
                 mask_inativo = df_base_completa["Código"].astype(str).str.strip() == codigo_limpo
                 if not df_base_completa[mask_inativo].empty:
                     df_base_completa.loc[mask_inativo, "Descrição"] = descricao.strip()
@@ -274,25 +261,66 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codig
             
             if salvar_dados_fn(df_base_completa):
                 st.success(msg_sucesso)
-                st.session_state["cad_codigo"] = ""
-                st.session_state["cad_descricao"] = ""
-                st.session_state["cad_tarifa"] = 0.00000
-                st.session_state["cad_categoria"] = ""
-                st.session_state["cad_unidade"] = ""
-                st.session_state["cad_observacoes"] = ""
+                st.session_state["form_id"] += 1
                 st.rerun()
         else:
             campos_faltantes = " | ".join(erros)
             st.error(f"⚠️ Atenção: {campos_faltantes}")
 
+    # Tabela e Gestão de Serviços Ativos
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("### 🔍 Base de Serviços Cadastrados")
     
     df_servicos_ativos = carregar_dados_fn(apenas_ativos=True)
     
     if not df_servicos_ativos.empty:
-        df_servicos_ativos_copia = df_servicos_ativos.copy()
-        df_servicos_ativos_copia["Opcao_Select"] = df_servicos_ativos_copia["Código"].astype(str) + " - " + df_servicos_ativos_copia["Descrição"].astype(str)
-        lista_opcoes_servicos = [""] + df_servicos_ativos_copia["Opcao_Select"].tolist()
+        # Exibe Código e Nome/Descrição combinados na lista de seleção
+        df_servicos_ativos["Opcao_Select"] = df_servicos_ativos["Código"].astype(str) + " - " + df_servicos_ativos["Descrição"].astype(str)
+        lista_opcoes_servicos = [""] + df_servicos_ativos["Opcao_Select"].tolist()
         
         col_sel_s, col_btn_edit, col_btn_del = st.columns([3, 1.2, 1.2])
+        
+        with col_sel_s:
+            servico_escolhido = st.selectbox("Selecione um serviço (Código e Descrição):", options=lista_opcoes_servicos)
+            
+        codigo_selecionado = servico_escolhido.split(" - ")[0].strip() if servico_escolhido else ""
+
+        with col_btn_edit:
+            st.write("")
+            st.write("")
+            st.markdown('<div class="btn-editar-container">', unsafe_allow_html=True)
+            if st.button("✏️ Editar"):
+                if codigo_selecionado:
+                    st.session_state["modo_edicao_codigo"] = codigo_selecionado
+                    st.session_state["form_id"] += 1
+                    st.rerun()
+                else:
+                    st.warning("Selecione um serviço para editar.")
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        with col_btn_del:
+            st.write("")
+            st.write("")
+            st.markdown('<div class="btn-excluir-servico-container">', unsafe_allow_html=True)
+            if st.button("🗑️ Excluir"):
+                if codigo_selecionado:
+                    df_completa_del = carregar_dados_fn(apenas_ativos=False)
+                    mask = df_completa_del["Código"].astype(str).str.strip() == codigo_selecionado
+                    df_completa_del.loc[mask, "Status"] = "Inativo"
+                    if salvar_dados_fn(df_completa_del):
+                        st.success(f"Serviço '{codigo_selecionado}' excluído com sucesso!")
+                        if st.session_state.get("modo_edicao_codigo") == codigo_selecionado:
+                            st.session_state["modo_edicao_codigo"] = None
+                        st.rerun()
+                else:
+                    st.warning("Selecione um serviço para excluir.")
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # Remove a coluna auxiliar 'Opcao_Select' antes de exibir a tabela final
+    df_exibicao = df_servicos_ativos.copy()
+    if "Opcao_Select" in df_exibicao.columns:
+        df_exibicao = df_exibicao.drop(columns=["Opcao_Select"])
+        
+    st.dataframe(df_exibicao, use_container_width=True)
