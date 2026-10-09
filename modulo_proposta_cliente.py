@@ -91,7 +91,6 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
 
     itens_rascunho = st.session_state.get("rascunho_itens", [])
     
-    # Captura com prioridade rigorosa do valor preenchido na aba anterior (evita resíduos da Zigma)
     cliente_nome = str(st.session_state.get("proposta_cliente_nome") or st.session_state.get("_safe_cliente_nome", "")).strip()
     cnpj_val = str(st.session_state.get("proposta_cliente_cnpj") or st.session_state.get("_safe_cnpj_val", "")).strip()
     
@@ -293,7 +292,7 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                                     })
                                     
                                 st.session_state["rascunho_itens"] = novos_itens
-                                st.success("Proposta carregada com sucesso!")
+                                st.success("Proposta reaberta com sucesso!")
                                 st.rerun()
                         else:
                             st.warning("Selecione uma proposta válida na lista.")
