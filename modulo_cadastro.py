@@ -96,25 +96,25 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codig
     if "Status" not in df_base_completa.columns:
         df_base_completa["Status"] = "Ativo"
 
-    # Formulário de Cadastro de Novo Serviço
-    with st.form("form_servico", clear_on_submit=False):
+    # Formulário de Cadastro de Novo Serviço (utiliza chaves dinâmicas baseadas no form_id para limpar a tela ao salvar)
+    with st.form(f"form_servico_{fid}", clear_on_submit=True):
         col1, col2 = st.columns(2)
         
         with col1:
-            codigo = st.text_input("Código do Serviço *", key=f"codigo_{fid}", placeholder="Ex: SERV-001")
+            codigo = st.text_input("Código do Serviço *", placeholder="Ex: SERV-001")
             
             categorias_opcoes = ["", "Armazenagem", "Seguro", "Serviço", "Movimentação (Handling)", "Outros"]
-            categoria = st.selectbox("Categoria *", options=categorias_opcoes, key=f"categoria_{fid}")
+            categoria = st.selectbox("Categoria *", options=categorias_opcoes)
             
-            tarifa = st.number_input("Tarifa (R$) *", min_value=0.00000, step=0.00001, format="%.5f", key=f"tarifa_{fid}")
+            tarifa = st.number_input("Tarifa (R$) *", min_value=0.00000, step=0.00001, format="%.5f")
         
         with col2:
-            descricao = st.text_input("Descrição do Serviço *", key=f"descricao_{fid}", placeholder="Ex: Armazenagem de carga paletizada")
+            descricao = st.text_input("Descrição do Serviço *", placeholder="Ex: Armazenagem de carga paletizada")
             
             unidades_disponiveis_form = st.session_state["lista_unidades"]
-            unidade = st.selectbox("Unidade *", options=unidades_disponiveis_form, key=f"unidade_{fid}")
+            unidade = st.selectbox("Unidade *", options=unidades_disponiveis_form)
             
-            observacoes = st.text_area("Observações e Premissas (Opcional)", key=f"obs_{fid}", placeholder="Ex: Faturamento mínimo mensal de 50 paletes.")
+            observacoes = st.text_area("Observações e Premissas (Opcional)", placeholder="Ex: Faturamento mínimo mensal de 50 paletes.")
         
         col_f1, _ = st.columns(2)
         with col_f1:
@@ -209,6 +209,7 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codig
             
             if salvar_dados_fn(df_base_completa):
                 st.success(f"Serviço '{codigo_limpo}' cadastrado com sucesso!")
+                # Incrementa o form_id para limpar os campos do formulário na tela
                 st.session_state["form_id"] += 1
                 st.rerun()
         else:
