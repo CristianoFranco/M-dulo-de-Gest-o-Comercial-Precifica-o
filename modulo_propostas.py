@@ -21,10 +21,10 @@ def obter_proximo_numero_proposta():
 def inicializar_estado_proposta():
     if "rascunho_itens" not in st.session_state:
         st.session_state["rascunho_itens"] = []
-    if "proposta_cliente_nome" not in st.session_state:
-        st.session_state["proposta_cliente_nome"] = ""
-    if "proposta_cliente_cnpj" not in st.session_state:
-        st.session_state["proposta_cliente_cnpj"] = ""
+    if "_safe_cliente_nome" not in st.session_state:
+        st.session_state["_safe_cliente_nome"] = ""
+    if "_safe_cnpj_val" not in st.session_state:
+        st.session_state["_safe_cnpj_val"] = ""
 
 def remover_item_proposta_por_indice(index_para_remover):
     if 0 <= index_para_remover < len(st.session_state["rascunho_itens"]):
@@ -194,46 +194,47 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_fn=None, *args, **k
     with col_num:
         st.markdown(f"### Nº: `{numero_proposta}`")
         
-        # Trava de segurança com mensagem explicativa se tentar criar Nova Proposta com dados pendentes
+        # Trava de segurança para nova proposta
         if st.session_state.get("proposta_id_em_edicao") or st.session_state.get("rascunho_itens"):
             if st.button("➕ Nova Proposta", use_container_width=True):
                 if st.session_state.get("rascunho_itens"):
-                    st.warning("⚠️ **Atenção:** Existe uma proposta aberta/em edição com itens não salvos ou reaberta da Tela 3! Vá até a aba **'Proposta Cliente'** e clique em **'Salvar Proposta no Google Sheets'** antes de iniciar uma nova proposta.")
+                    st.warning("⚠️ **Atenção:** Existe uma proposta aberta/em edição com itens não salvos! Vá até a aba **'Proposta Cliente'** e clique em **'Salvar Proposta no Google Sheets'** antes de iniciar uma nova proposta.")
                 else:
                     st.session_state["proposta_id_em_edicao"] = None
                     st.session_state["rascunho_itens"] = []
-                    st.session_state["proposta_cliente_nome"] = ""
-                    st.session_state["proposta_cliente_cnpj"] = ""
                     st.session_state["_safe_cliente_nome"] = ""
                     st.session_state["_safe_cnpj_val"] = ""
-                    st.rer()
+                    st.rerun()
         else:
             if st.button("➕ Nova Proposta", use_container_width=True):
                 st.session_state["proposta_id_em_edicao"] = None
                 st.session_state["rascunho_itens"] = []
-                st.session_state["proposta_cliente_nome"] = ""
-                st.session_state["proposta_cliente_cnpj"] = ""
                 st.session_state["_safe_cliente_nome"] = ""
                 st.session_state["_safe_cnpj_val"] = ""
                 st.rerun()
                 
     st.markdown("<br>", unsafe_allow_html=True)
     
+    # Inputs com valor fixado no estado seguro para persistir ao navegar para a Tela 1 (Cadastro)
     col_cli, col_cnpj = st.columns([2.5, 1.5])
     
     with col_cli:
         cliente_nome = st.text_input(
             "Cliente *",
+            value=st.session_state.get("_safe_cliente_nome", ""),
             placeholder="Ex: Empresa ABC Ltda",
-            key="proposta_cliente_nome"
+            key="input_cli_nome_tela2"
         )
+        st.session_state["_safe_cliente_nome"] = cliente_nome
         
     with col_cnpj:
         cnpj_val = st.text_input(
             "CNPJ",
+            value=st.session_state.get("_safe_cnpj_val", ""),
             placeholder="Ex: 00.000.000/0001-00",
-            key="proposta_cliente_cnpj"
+            key="input_cnpj_tela2"
         )
+        st.session_state["_safe_cnpj_val"] = cnpj_val
         
     st.markdown("<br>", unsafe_allow_html=True)
     
