@@ -35,13 +35,13 @@ def gerar_pdf_proposta(numero_proposta, cliente_nome, cnpj_val, itens_proposta):
 
     cnpj_texto = ""
     if cnpj_val:
-        cnpj_texto = " | <b>CNPJ:</b> " + str(cnpj_val)
+        cnpj_texto = " | CNPJ: " + str(cnpj_val)
     
     cliente_str = str(cliente_nome) if cliente_nome else "Não Informado"
     data_str = datetime.now().strftime("%d/%m/%Y")
     
-    tit_text = "PROPOSTA COMERCIAL — Nº " + str(numero_proposta)
-    sub_text = "<b>Cliente:</b> " + cliente_str + cnpj_texto + " | <b>Data:</b> " + data_str
+    tit_text = "PROPOSTA COMERCIAL - Nº " + str(numero_proposta)
+    sub_text = "Cliente: " + cliente_str + cnpj_texto + " | Data: " + data_str
     
     story.append(Paragraph(tit_text, titulo_style))
     story.append(Paragraph(sub_text, subtitulo_style))
@@ -85,8 +85,8 @@ def gerar_pdf_proposta(numero_proposta, cliente_nome, cnpj_val, itens_proposta):
     return buffer
 
 def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_propostas_salvas_fn=None):
-    st.markdown("## 📄 Visão Final da Proposta (Cliente)")
-    st.caption("Visualização não editável pronta para conferência, geração de PDF e salvamento.")
+    st.markdown("## Visão Final da Proposta (Cliente)")
+    st.caption("Visualização pronta para conferência, geração de PDF e salvamento.")
     st.markdown("<br>", unsafe_allow_html=True)
 
     itens_rascunho = st.session_state.get("rascunho_itens", [])
@@ -109,20 +109,20 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
         seq = st.session_state.get("sequencial_proposta", 1)
         numero_proposta_atual = mes_str + "/" + "{:05d}".format(seq) + "/" + ano_str
 
-    st.markdown("### 📋 Documento da Proposta")
+    st.markdown("### Documento da Proposta")
 
     if not itens_rascunho:
-        st.warning("Nenhum item pendente no rascunho. Monte os itens na Tela 2 (Propostas e Precificação) ou escolha uma proposta na consulta abaixo.")
+        st.warning("Nenhum item pendente no rascunho. Monte os itens na Tela 2 (Propostas e Precificação).")
     else:
         col_info1, col_info2, col_info3 = st.columns([2.5, 1.5, 1.5])
         with col_info1:
             lbl_cli = cliente_nome if cliente_nome else "Não Informado"
-            st.markdown("**Cliente / Razão Social:**\n#### " + lbl_cli)
+            st.markdown("Cliente / Razão Social:\n### " + lbl_cli)
         with col_info2:
             lbl_cnpj = cnpj_val if cnpj_val else "Não Informado"
-            st.markdown("**CNPJ:**\n#### " + lbl_cnpj)
+            st.markdown("CNPJ:\n### " + lbl_cnpj)
         with col_info3:
-            st.markdown("**Número da Proposta:**\n### " + numero_proposta_atual)
+            st.markdown("Número da Proposta:\n### " + numero_proposta_atual)
 
         st.markdown("<br>", unsafe_allow_html=True)
 
@@ -149,12 +149,7 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
 
         df_estatico = pd.DataFrame(dados_estaticos)
         
-        st.dataframe(
-            df_estatico,
-            use_container_width=True,
-            hide_index=True
-        )
-
+        st.dataframe(df_estatico, use_container_width=True, hide_index=True)
         st.markdown("<br>", unsafe_allow_html=True)
 
         col_pdf, col_fechar = st.columns(2)
@@ -171,7 +166,7 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                     use_container_width=True
                 )
             else:
-                st.info("Para habilitar o PDF, instale reportlab no ambiente.")
+                st.info("Para habilitar o PDF, instale reportlab.")
 
         with col_fechar:
             if st.button("Salvar Proposta no Google Sheets", type="primary", use_container_width=True):
@@ -221,10 +216,9 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                         st.error("Falha ao salvar no Google Sheets.")
 
     st.markdown("---")
+    st.markdown("### Consulta Propostas Finalizadas")
 
-    st.markdown("### 🔍 Consulta Propostas Finalizadas")
-
-    with st.expander("Filtrar, Consultar e Editar Propostas Finalizadas", expanded=True):
+    with st.expander("Filtrar e Consultar Propostas Salvas", expanded=True):
         col_filtro_m, col_filtro_a = st.columns(2)
 
         with col_filtro_m:
@@ -255,9 +249,8 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                 colunas_resumo = [c for c in ["Proposta", "Data", "Cliente"] if c in df_filtrado.columns]
                 df_resumido = df_filtrado[colunas_resumo].drop_duplicates(subset=["Proposta"]).reset_index(drop=True)
 
-                st.markdown("**Propostas Encontradas: " + str(len(df_resumido)) + "**")
+                st.markdown("Propostas Encontradas: " + str(len(df_resumido)))
                 st.dataframe(df_resumido, use_container_width=True, hide_index=True)
-
                 st.markdown("<br>", unsafe_allow_html=True)
                 
                 propostas_unicas = [""] + df_resumido["Proposta"].tolist()
@@ -265,11 +258,48 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                 col_sel_prop, col_btn_carregar = st.columns([3, 1])
                 with col_sel_prop:
                     prop_escolhida = st.selectbox(
-                        "Selecione uma proposta para visualizar e editar na Tela 2:",
+                        "Selecione uma proposta para editar:",
                         options=propostas_unicas,
                         key="select_proposta_para_editar"
                     )
                 with col_btn_carregar:
                     st.write("")
                     st.write("")
-                    if st.button("
+                    if st.button("Carregar Proposta", type="primary", use_container_width=True):
+                        if prop_escolhida:
+                            df_prop_sel = df_historico[df_historico["Proposta"].astype(str).str.strip() == prop_escolhida.strip()]
+                            
+                            if not df_prop_sel.empty:
+                                st.session_state["proposta_id_em_edicao"] = prop_escolhida.strip()
+                                
+                                primeiro_reg = df_prop_sel.iloc[0]
+                                st.session_state["proposta_cliente_nome"] = str(primeiro_reg.get("Cliente", ""))
+                                st.session_state["proposta_cliente_cnpj"] = str(primeiro_reg.get("CNPJ", "")) if "CNPJ" in primeiro_reg else ""
+                                
+                                st.session_state["_safe_cliente_nome"] = st.session_state["proposta_cliente_nome"]
+                                st.session_state["_safe_cnpj_val"] = st.session_state["proposta_cliente_cnpj"]
+
+                                novos_itens = []
+                                for _, row in df_prop_sel.iterrows():
+                                    try:
+                                        tarifa_val = float(row.get("Tarifa (R$)", 0.0))
+                                    except (ValueError, TypeError):
+                                        tarifa_val = 0.0
+                                        
+                                    novos_itens.append({
+                                        "Código": str(row.get("Código", "")),
+                                        "Descrição": str(row.get("Descrição", "")),
+                                        "Tarifa (R$)": tarifa_val,
+                                        "Unidade": str(row.get("Unidade", "")),
+                                        "Observações": str(row.get("Observações", "")),
+                                        "Categoria": str(row.get("Categoria", "")),
+                                        "Cat_Code": "GEN"
+                                    })
+                                    
+                                st.session_state["rascunho_itens"] = novos_itens
+                                st.success("Proposta carregada com sucesso!")
+                                st.rerun()
+                        else:
+                            st.warning("Selecione uma proposta válida na lista.")
+            else:
+                st.info("Nenhuma proposta gravada na folha Propostas_Salvas.")
