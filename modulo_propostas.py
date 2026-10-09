@@ -193,8 +193,22 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_fn=None, *args, **k
         st.caption("Monte a estrutura comercial selecionando os serviços e ajustando as tarifas.")
     with col_num:
         st.markdown(f"### Nº: `{numero_proposta}`")
-        if st.session_state.get("proposta_id_em_edicao"):
-            if st.button("➕ Nova Proposta (Limpar Edição)", use_container_width=True):
+        
+        # Trava de segurança com mensagem explicativa se tentar criar Nova Proposta com dados pendentes
+        if st.session_state.get("proposta_id_em_edicao") or st.session_state.get("rascunho_itens"):
+            if st.button("➕ Nova Proposta", use_container_width=True):
+                if st.session_state.get("rascunho_itens"):
+                    st.warning("⚠️ **Atenção:** Existe uma proposta aberta/em edição com itens não salvos ou reaberta da Tela 3! Vá até a aba **'Proposta Cliente'** e clique em **'Salvar Proposta no Google Sheets'** antes de iniciar uma nova proposta.")
+                else:
+                    st.session_state["proposta_id_em_edicao"] = None
+                    st.session_state["rascunho_itens"] = []
+                    st.session_state["proposta_cliente_nome"] = ""
+                    st.session_state["proposta_cliente_cnpj"] = ""
+                    st.session_state["_safe_cliente_nome"] = ""
+                    st.session_state["_safe_cnpj_val"] = ""
+                    st.rer()
+        else:
+            if st.button("➕ Nova Proposta", use_container_width=True):
                 st.session_state["proposta_id_em_edicao"] = None
                 st.session_state["rascunho_itens"] = []
                 st.session_state["proposta_cliente_nome"] = ""
@@ -205,13 +219,6 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_fn=None, *args, **k
                 
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # Sincroniza com as variáveis seguras se necessário
-    if not st.session_state.get("proposta_id_em_edicao"):
-        if "proposta_cliente_nome" not in st.session_state:
-            st.session_state["proposta_cliente_nome"] = ""
-        if "proposta_cliente_cnpj" not in st.session_state:
-            st.session_state["proposta_cliente_cnpj"] = ""
-
     col_cli, col_cnpj = st.columns([2.5, 1.5])
     
     with col_cli:
@@ -306,7 +313,6 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_fn=None, *args, **k
             elif not todos_itens:
                 st.error("Adicione pelo menos um item antes de avançar.")
             else:
-                # Atualiza as variáveis seguras antes de ir para a aba do cliente
                 st.session_state["_safe_cliente_nome"] = cliente_nome.strip()
                 st.session_state["_safe_cnpj_val"] = cnpj_val.strip()
                 st.session_state["aba_ativa"] = "cliente"
