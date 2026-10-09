@@ -192,16 +192,13 @@ def salvar_dados_completos(df_completo):
 def salvar_propostas_na_planilha(linhas_proposta):
     try:
         ws = obter_aba_propostas()
-        
         num_prop = str(linhas_proposta[0].get("Proposta", "")).strip() if linhas_proposta else ""
-        
         todos_valores = ws.get_all_values()
         
         if not todos_valores:
             todos_valores = [HEADER_PROPOSTAS_ESPERADO]
         
         linhas_existentes = todos_valores[1:] if len(todos_valores) > 1 else []
-        
         está_editando = st.session_state.get("proposta_id_em_edicao") is not None
         
         linhas_filtradas = []
