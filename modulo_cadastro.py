@@ -80,15 +80,13 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codig
 
     if "lista_unidades" not in st.session_state:
         st.session_state["lista_unidades"] = UNIDADES_PADRAO.copy()
-
-    # Inicializa estados dos campos se não existirem
-    for campo in ["cad_codigo", "cad_descricao", "cad_categoria", "cad_unidade", "cad_observacoes"]:
-        if campo not in st.session_state:
-            st.session_state[campo] = ""
-    if "cad_tarifa" not in st.session_state:
-        st.session_state["cad_tarifa"] = 0.00000
+        
+    if "form_id" not in st.session_state:
+        st.session_state["form_id"] = 0
 
     st.markdown("### 📝 Cadastro e Gestão de Serviços")
+    
+    fid = st.session_state.get("form_id", 0)
 
     # Carrega dados completos (incluindo inativos para gerenciar reutilização de códigos)
     df_base_completa = carregar_dados_fn(apenas_ativos=False)
@@ -98,40 +96,29 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codig
     if "Status" not in df_base_completa.columns:
         df_base_completa["Status"] = "Ativo"
 
-    # Campos de entrada vinculados diretamente ao session_state
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        codigo = st.text_input("Código do Serviço *", key="cad_codigo", placeholder="Ex: SERV-001")
+    # Formulário original estruturado com st.form e chaves dinâmicas baseadas no form_id
+    with st.form(f"form_servico_{fid}", clear_on_submit=False):
+        col1, col2 = st.columns(2)
         
-        categorias_opcoes = ["", "Armazenagem", "Seguro", "Serviço", "Movimentação (Handling)", "Outros"]
-        try:
-            idx_cat = categorias_opcoes.index(st.session_state["cad_categoria"])
-        except ValueError:
-            idx_cat = 0
-        categoria = st.selectbox("Categoria *", options=categorias_opcoes, index=idx_cat, key="cad_categoria")
+        with col1:
+            codigo = st.text_input("Código do Serviço *", key=f"codigo_{fid}", placeholder="Ex: SERV-001")
+            
+            categorias_opcoes = ["", "Armazenagem", "Seguro", "Serviço", "Movimentação (Handling)", "Outros"]
+            categoria = st.selectbox("Categoria *", options=categorias_opcoes, key=f"categoria_{fid}")
+            
+            tarifa = st.number_input("Tarifa (R$) *", min_value=0.00000, step=0.00001, format="%.5f", key=f"tarifa_{fid}")
         
-        tarifa = st.number_input("Tarifa (R$) *", min_value=0.00000, step=0.00001, format="%.5f", key="cad_tarifa")
-    
-    with col2:
-        descricao = st.text_input("Descrição do Serviço *", key="cad_descricao", placeholder="Ex: Armazenagem de carga paletizada")
+        with col2:
+            descricao = st.text_input("Descrição do Serviço *", key=f"descricao_{fid}", placeholder="Ex: Armazenagem de carga paletizada")
+            
+            unidades_disponiveis_form = st.session_state["lista_unidades"]
+            unidade = st.selectbox("Unidade *", options=unidades_disponiveis_form, key=f"unidade_{fid}")
+            
+            observacoes = st.text_area("Observações e Premissas (Opcional)", key=f"obs_{fid}", placeholder="Ex: Faturamento mínimo mensal de 50 paletes.")
         
-        unidades_disponiveis_form = st.session_state["lista_unidades"]
-        try:
-            idx_uni = unidades_disponiveis_form.index(st.session_state["cad_unidade"])
-        except ValueError:
-            idx_uni = 0
-        unidade = st.selectbox("Unidade *", options=unidades_disponiveis_form, index=idx_uni, key="cad_unidade")
-        
-        observacoes = st.text_area("Observações e Premissas (Opcional)", key="cad_observacoes", placeholder="Ex: Faturamento mínimo mensal de 50 paletes.")
-
-    st.markdown("<br>", unsafe_allow_html=True)
-    
-    col_f1, _ = st.columns(2)
-    with col_f1:
-        st.markdown('<div class="btn-acao-form">', unsafe_allow_html=True)
-        btn_salvar = st.button("💾 Cadastrar / Salvar Serviço", use_container_width=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+        col_f1, _ = st.columns(2)
+        with col_f1:
+            btn_salvar = st.form_submit_button("💾 Cadastrar / Salvar Serviço")
 
     st.markdown("<br>", unsafe_allow_html=True)
 
@@ -173,7 +160,7 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codig
         codigo_limpo = str(codigo).strip()
         codigo_norm = normalizar_codigo_fn(codigo_limpo)
         
-        # Valida duplicidade estritamente contra códigos que estão com status ATIVO
+        # Valida duplicidade apenas comparando com os códigos que estão com status ATIVO
         if not df_base_completa.empty and "Código" in df_base_completa.columns and "Status" in df_base_completa.columns:
             df_ativos_val = df_base_completa[df_base_completa["Status"].astype(str).str.upper() != "INATIVO"]
             codigos_ativos_norm = [normalizar_codigo_fn(c) for c in df_ativos_val["Código"].tolist() if str(c).strip() != ""]
@@ -200,14 +187,14 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codig
             tarifa_formatada = formatar_tarifa_fn(tarifa)
             
             # Se já existir uma linha na base com esse código (mesmo que estivesse Inativo), reaproveita e reativa
-            mask_codigo = df_base_completa["Código"].astype(str).str.strip() == codigo_limpo
-            if not df_base_completa[mask_codigo].empty:
-                df_base_completa.loc[mask_codigo, "Descrição"] = descricao.strip()
-                df_base_completa.loc[mask_codigo, "Tarifa (R$)"] = tarifa_formatada
-                df_base_completa.loc[mask_codigo, "Unidade"] = unidade
-                df_base_completa.loc[mask_codigo, "Categoria"] = categoria
-                df_base_completa.loc[mask_codigo, "Observações"] = observacoes.strip()
-                df_base_completa.loc[mask_codigo, "Status"] = "Ativo"
+            mask_inativo = df_base_completa["Código"].astype(str).str.strip() == codigo_limpo
+            if not df_base_completa[mask_inativo].empty:
+                df_base_completa.loc[mask_inativo, "Descrição"] = descricao.strip()
+                df_base_completa.loc[mask_inativo, "Tarifa (R$)"] = tarifa_formatada
+                df_base_completa.loc[mask_inativo, "Unidade"] = unidade
+                df_base_completa.loc[mask_inativo, "Categoria"] = categoria
+                df_base_completa.loc[mask_inativo, "Observações"] = observacoes.strip()
+                df_base_completa.loc[mask_inativo, "Status"] = "Ativo"
             else:
                 nova_linha = pd.DataFrame([{
                     "Código": codigo_limpo,
@@ -222,13 +209,8 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codig
             
             if salvar_dados_fn(df_base_completa):
                 st.success(f"Serviço '{codigo_limpo}' cadastrado com sucesso!")
-                # Limpa os campos da tela limpando o session_state
-                st.session_state["cad_codigo"] = ""
-                st.session_state["cad_descricao"] = ""
-                st.session_state["cad_tarifa"] = 0.00000
-                st.session_state["cad_categoria"] = ""
-                st.session_state["cad_unidade"] = ""
-                st.session_state["cad_observacoes"] = ""
+                # Incrementa o form_id para limpar os campos da tela automaticamente
+                st.session_state["form_id"] += 1
                 st.rerun()
         else:
             campos_faltantes = " | ".join(erros)
@@ -241,6 +223,7 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codig
     df_servicos_ativos = carregar_dados_fn(apenas_ativos=True)
     
     if not df_servicos_ativos.empty:
+        # Exibe Código e Nome/Descrição combinados na lista de seleção para exclusão
         df_servicos_ativos["Opcao_Select"] = df_servicos_ativos["Código"].astype(str) + " - " + df_servicos_ativos["Descrição"].astype(str)
         lista_opcoes_servicos = [""] + df_servicos_ativos["Opcao_Select"].tolist()
         
@@ -269,6 +252,7 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codig
             
     st.markdown("<br>", unsafe_allow_html=True)
     
+    # Remove a coluna auxiliar 'Opcao_Select' antes de exibir a tabela final
     df_exibicao = df_servicos_ativos.copy()
     if "Opcao_Select" in df_exibicao.columns:
         df_exibicao = df_exibicao.drop(columns=["Opcao_Select"])
