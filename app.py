@@ -187,7 +187,7 @@ def salvar_dados_completos(df_completo):
         return False
 
 # ==============================================================================
-# FUNÇÕES DE INTEGRAÇÃO COM A TELA 3 (PROPOSTAS SALVAS) - CORRIGIDA
+# FUNÇÕES DE INTEGRAÇÃO COM A TELA 3 (PROPOSTAS SALVAS)
 # ==============================================================================
 def salvar_propostas_na_planilha(linhas_proposta):
     try:
@@ -202,14 +202,12 @@ def salvar_propostas_na_planilha(linhas_proposta):
         
         linhas_existentes = todos_valores[1:] if len(todos_valores) > 1 else []
         
-        # Valida se estamos editando uma proposta existente ou criando uma nova
         está_editando = st.session_state.get("proposta_id_em_edicao") is not None
         
         linhas_filtradas = []
         for lin in linhas_existentes:
             if len(lin) > 0:
                 proposta_linha = str(lin[0]).strip()
-                # Se for edição, remove apenas a linha antiga daquela proposta. Se for nova, preserva tudo!
                 if está_editando and proposta_linha == num_prop:
                     continue
                 linhas_filtradas.append(lin)
