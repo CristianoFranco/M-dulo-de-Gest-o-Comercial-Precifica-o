@@ -157,13 +157,6 @@ def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_blo
 # ==============================================================================
 def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_fn=None, *args, **kwargs):
     inicializar_estado_proposta()
-    
-    # Se não estiver a editar uma proposta existente, garante que os campos de cliente iniciam limpos
-    if not st.session_state.get("proposta_id_em_edicao"):
-        if "proposta_cliente_nome" in st.session_state and st.session_state.get("rascunho_itens") == []:
-            # Opcional: limpa se o rascunho estiver vazio para evitar reter lixo antigo
-            pass
-
     numero_proposta = obter_proximo_numero_proposta()
     
     st.markdown("""
@@ -206,13 +199,19 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_fn=None, *args, **k
                 st.session_state["rascunho_itens"] = []
                 st.session_state["proposta_cliente_nome"] = ""
                 st.session_state["proposta_cliente_cnpj"] = ""
+                st.session_state["_safe_cliente_nome"] = ""
+                st.session_state["_safe_cnpj_val"] = ""
                 st.rerun()
                 
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # --------------------------------------------------------------------------
-    # CAMPOS DE INPUT VINCULADOS DIRETAMENTE À SESSÃO COM LIMPEZA SEGURA
-    # --------------------------------------------------------------------------
+    # Sincroniza com as variáveis seguras se necessário
+    if not st.session_state.get("proposta_id_em_edicao"):
+        if "proposta_cliente_nome" not in st.session_state:
+            st.session_state["proposta_cliente_nome"] = ""
+        if "proposta_cliente_cnpj" not in st.session_state:
+            st.session_state["proposta_cliente_cnpj"] = ""
+
     col_cli, col_cnpj = st.columns([2.5, 1.5])
     
     with col_cli:
@@ -307,5 +306,8 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_fn=None, *args, **k
             elif not todos_itens:
                 st.error("Adicione pelo menos um item antes de avançar.")
             else:
+                # Atualiza as variáveis seguras antes de ir para a aba do cliente
+                st.session_state["_safe_cliente_nome"] = cliente_nome.strip()
+                st.session_state["_safe_cnpj_val"] = cnpj_val.strip()
                 st.session_state["aba_ativa"] = "cliente"
                 st.rerun()
