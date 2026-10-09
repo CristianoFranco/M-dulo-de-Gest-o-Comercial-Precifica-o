@@ -19,43 +19,27 @@ def aplicar_estilos_botoes():
     st.markdown("""
         <style>
             /* Botão 'Cadastrar / Salvar Serviço' (Azul de Alto Contraste com Texto Branco) */
-            div[data-testid="stExpander"] div.stButton > button,
-            .btn-acao-form div.stButton > button {
+            div[data-testid="stForm"] div.stButton > button,
+            div[data-testid="stExpander"] div.stButton > button {
                 background-color: #0052B4 !important;
                 color: #FFFFFF !important;
                 font-weight: bold !important;
                 border: 1px solid #60A5FA !important;
                 opacity: 1 !important;
             }
-            div[data-testid="stExpander"] div.stButton > button p,
-            .btn-acao-form div.stButton > button p {
+            div[data-testid="stForm"] div.stButton > button p,
+            div[data-testid="stExpander"] div.stButton > button p {
                 color: #FFFFFF !important;
                 font-weight: bold !important;
             }
-            div[data-testid="stExpander"] div.stButton > button:hover,
-            .btn-acao-form div.stButton > button:hover {
+            div[data-testid="stForm"] div.stButton > button:hover,
+            div[data-testid="stExpander"] div.stButton > button:hover {
                 background-color: #003B82 !important;
                 border-color: #93C5FD !important;
             }
             
-            /* Botão 'Confirmar Exclusão' de Unidade (Vermelho de Alto Contraste) */
-            div[data-testid="stExpander"] .btn-excluir-unidade-container div.stButton > button {
-                background-color: #D32F2F !important;
-                color: #FFFFFF !important;
-                font-weight: bold !important;
-                border: 1px solid #EF4444 !important;
-                opacity: 1 !important;
-            }
-            div[data-testid="stExpander"] .btn-excluir-unidade-container div.stButton > button p {
-                color: #FFFFFF !important;
-                font-weight: bold !important;
-            }
-            div[data-testid="stExpander"] .btn-excluir-unidade-container div.stButton > button:hover {
-                background-color: #991B1B !important;
-                border-color: #F87171 !important;
-            }
-            
-            /* Botão 'Excluir Serviço Selecionado' (Vermelho Destacado) */
+            /* Botão 'Confirmar Exclusão' de Unidade e 'Excluir Serviço' (Vermelho) */
+            .btn-excluir-unidade-container div.stButton > button,
             .btn-excluir-servico-container div.stButton > button {
                 background-color: #D32F2F !important;
                 color: #FFFFFF !important;
@@ -63,10 +47,12 @@ def aplicar_estilos_botoes():
                 border: 1px solid #EF4444 !important;
                 opacity: 1 !important;
             }
+            .btn-excluir-unidade-container div.stButton > button p,
             .btn-excluir-servico-container div.stButton > button p {
                 color: #FFFFFF !important;
                 font-weight: bold !important;
             }
+            .btn-excluir-unidade-container div.stButton > button:hover,
             .btn-excluir-servico-container div.stButton > button:hover {
                 background-color: #991B1B !important;
                 border-color: #F87171 !important;
@@ -96,11 +82,12 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codig
     if "Status" not in df_base_completa.columns:
         df_base_completa["Status"] = "Ativo"
 
-    # Formulário original estruturado com st.form e chaves dinâmicas baseadas no form_id
-    with st.form(f"form_servico_{fid}", clear_on_submit=False):
+    # NOME DO FORMULÁRIO ESTÁTICO (isso garante que o botão salvar funcione sempre)
+    with st.form("form_cadastro_servico", clear_on_submit=False):
         col1, col2 = st.columns(2)
         
         with col1:
+            # As chaves dos campos são dinâmicas (fid) para limpar a tela após o save
             codigo = st.text_input("Código do Serviço *", key=f"codigo_{fid}", placeholder="Ex: SERV-001")
             
             categorias_opcoes = ["", "Armazenagem", "Seguro", "Serviço", "Movimentação (Handling)", "Outros"]
@@ -160,7 +147,7 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codig
         codigo_limpo = str(codigo).strip()
         codigo_norm = normalizar_codigo_fn(codigo_limpo)
         
-        # Valida duplicidade apenas comparando com os códigos que estão com status ATIVO
+        # Valida duplicidade comparando APENAS com os códigos que estão com status ATIVO
         if not df_base_completa.empty and "Código" in df_base_completa.columns and "Status" in df_base_completa.columns:
             df_ativos_val = df_base_completa[df_base_completa["Status"].astype(str).str.upper() != "INATIVO"]
             codigos_ativos_norm = [normalizar_codigo_fn(c) for c in df_ativos_val["Código"].tolist() if str(c).strip() != ""]
@@ -186,7 +173,7 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codig
         if not erros:
             tarifa_formatada = formatar_tarifa_fn(tarifa)
             
-            # Se já existir uma linha na base com esse código (mesmo que estivesse Inativo), reaproveita e reativa
+            # Se já existir uma linha na base com esse código (como o código "1" que está "Inativo"), reaproveita e reativa[cite: 1, 2, 3]
             mask_inativo = df_base_completa["Código"].astype(str).str.strip() == codigo_limpo
             if not df_base_completa[mask_inativo].empty:
                 df_base_completa.loc[mask_inativo, "Descrição"] = descricao.strip()
@@ -208,8 +195,8 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codig
                 df_base_completa = pd.concat([df_base_completa, nova_linha], ignore_index=True)
             
             if salvar_dados_fn(df_base_completa):
-                st.success(f"Serviço '{codigo_limpo}' cadastrado com sucesso!")
-                # Incrementa o form_id para limpar os campos da tela automaticamente
+                st.success(f"Serviço '{codigo_limpo}' cadastrado/reativado com sucesso!")
+                # Atualiza o ID do formulário para limpar todos os campos da tela instantaneamente
                 st.session_state["form_id"] += 1
                 st.rerun()
         else:
