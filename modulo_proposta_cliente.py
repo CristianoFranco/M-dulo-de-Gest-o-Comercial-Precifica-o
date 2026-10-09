@@ -91,8 +91,19 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
 
     itens_rascunho = st.session_state.get("rascunho_itens", [])
     
-    cliente_nome = str(st.session_state.get("proposta_cliente_nome", "")).strip()
-    cnpj_val = str(st.session_state.get("proposta_cliente_cnpj", "")).strip()
+    # =========================================================================
+    # FIX: MEMÓRIA SEGURA CONTRA O "WIDGET CLEANUP" DO STREAMLIT
+    # Faz uma cópia protegida dos dados preenchidos na Tela 2 para que não 
+    # se percam durante o refresh do botão de Salvar.
+    # =========================================================================
+    if "proposta_cliente_nome" in st.session_state:
+        st.session_state["_safe_cliente_nome"] = st.session_state["proposta_cliente_nome"]
+    if "proposta_cliente_cnpj" in st.session_state:
+        st.session_state["_safe_cnpj_val"] = st.session_state["proposta_cliente_cnpj"]
+
+    cliente_nome = str(st.session_state.get("_safe_cliente_nome", "")).strip()
+    cnpj_val = str(st.session_state.get("_safe_cnpj_val", "")).strip()
+    # =========================================================================
     
     agora = datetime.now()
     mes_str = agora.strftime("%m")
@@ -186,7 +197,7 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                             "Cliente": cliente_nome,
                             "CNPJ": cnpj_val,
                             "Código": str(item.get("Código", "")),
-                            "Descrição": str(item.get("Descrição", "")),
+                            "Descrição": str(item.get("Descrição", ""),
                             "Categoria": str(item.get("Categoria", "")),
                             "Unidade": str(item.get("Unidade", "")),
                             "Tarifa (R$)": t_val,
@@ -199,10 +210,13 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                         if not st.session_state.get("proposta_id_em_edicao"):
                             st.session_state["sequencial_proposta"] = st.session_state.get("sequencial_proposta", 1) + 1
                         
+                        # Limpa os estados originais e também as memórias de segurança
                         st.session_state["proposta_id_em_edicao"] = None
                         st.session_state["rascunho_itens"] = []
                         st.session_state["proposta_cliente_nome"] = ""
                         st.session_state["proposta_cliente_cnpj"] = ""
+                        st.session_state["_safe_cliente_nome"] = ""
+                        st.session_state["_safe_cnpj_val"] = ""
                         
                         for k in list(st.session_state.keys()):
                             if k.startswith("input_tarifa_"):
@@ -279,6 +293,10 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                                 primeiro_reg = df_prop_sel.iloc[0]
                                 st.session_state["proposta_cliente_nome"] = str(primeiro_reg.get("Cliente", ""))
                                 st.session_state["proposta_cliente_cnpj"] = str(primeiro_reg.get("CNPJ", "")) if "CNPJ" in primeiro_reg else ""
+                                
+                                # Carrega os dados também para a memória segura ao editar
+                                st.session_state["_safe_cliente_nome"] = st.session_state["proposta_cliente_nome"]
+                                st.session_state["_safe_cnpj_val"] = st.session_state["proposta_cliente_cnpj"]
 
                                 novos_itens = []
                                 for _, row in df_prop_sel.iterrows():
