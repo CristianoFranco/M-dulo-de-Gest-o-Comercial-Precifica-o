@@ -4,7 +4,6 @@ import gspread
 import base64
 import os
 from google.oauth2.service_account import Credentials
-
 from modulo_cadastro import renderizar_aba_cadastro
 from modulo_propostas import renderizar_aba_propostas
 from modulo_proposta_cliente import renderizar_aba_proposta_cliente
@@ -31,10 +30,8 @@ UNIDADES_PADRAO = [
 
 if "lista_unidades" not in st.session_state:
     st.session_state["lista_unidades"] = UNIDADES_PADRAO.copy()
-
 if "form_id" not in st.session_state:
     st.session_state["form_id"] = 0
-
 if "aba_ativa" not in st.session_state:
     st.session_state["aba_ativa"] = "cadastro"
 
@@ -51,7 +48,7 @@ def aplicar_estilo_personalizado():
         bg_style = ".stApp {{ background: linear-gradient(rgba(10, 25, 40, 0.75), rgba(10, 25, 40, 0.75)), url('data:image/jpg;base64,{}') no-repeat center center fixed; background-size: cover; }}".format(bg_b64)
     else:
         bg_style = ".stApp { background-color: #0A2540; }"
-
+        
     css_template = """
         <style>
             {}
@@ -78,7 +75,7 @@ def aplicar_estilo_personalizado():
             
             label, .stMarkdown label, .stMarkdown p {{ color: #0A2540 !important; font-weight: 700 !important; }}
             h1, h2, h3, h4 {{ color: #FFFFFF !important; text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8); }}
-
+            
             div[data-testid="stColumn"] button[kind="primary"] {{
                 background: #0052B4 !important;
                 color: #FFFFFF !important;
@@ -86,14 +83,12 @@ def aplicar_estilo_personalizado():
                 border: 2px solid #60A5FA !important;
                 box-shadow: 0 4px 14px rgba(0, 82, 180, 0.6) !important;
             }}
-
             div[data-testid="stColumn"] button[kind="secondary"] {{
                 background: rgba(255, 255, 255, 0.1) !important;
                 color: #E2E8F0 !important;
                 font-weight: 600 !important;
                 border: 1px solid rgba(255, 255, 255, 0.25) !important;
             }}
-            
             div[data-testid="stColumn"] button[kind="secondary"]:hover {{
                 background: rgba(255, 255, 255, 0.2) !important;
                 color: #FFFFFF !important;
@@ -110,7 +105,6 @@ aplicar_estilo_personalizado()
 # 2. CONEXÃO COM GOOGLE SHEETS
 # ==============================================================================
 SPREADSHEET_ID = "1wbhgMnqQuyOxwCef4pJh3vDnafBBU2AZk-uSt1NnPWc"
-
 HEADER_PROPOSTAS_ESPERADO = [
     "Proposta", "Data", "Cliente", "CNPJ", "Código", 
     "Descrição", "Categoria", "Unidade", "Tarifa (R$)", "Observações"
@@ -141,14 +135,12 @@ def obter_aba_propostas():
         ws = sh.add_worksheet(title="Propostas_Salvas", rows=1000, cols=10)
         ws.append_row(HEADER_PROPOSTAS_ESPERADO)
         return ws
-
-    # Valida se a primeira linha (cabeçalho) possui todas as colunas
+        
     valores = ws.get_all_values()
     if not valores or valores[0] != HEADER_PROPOSTAS_ESPERADO:
         if not valores:
             ws.append_row(HEADER_PROPOSTAS_ESPERADO)
         else:
-            # Reescreve a linha 1 garantindo o cabeçalho correto
             ws.update(range_name='A1:J1', values=[HEADER_PROPOSTAS_ESPERADO])
             
     return ws
@@ -169,13 +161,11 @@ def carregar_dados(apenas_ativos=True):
     if df.empty:
         df_vazio = pd.DataFrame(columns=colunas_esperadas)
         return df_vazio[colunas_esperadas[:-1]] if apenas_ativos else df_vazio
-
     if "Status" not in df.columns:
         df["Status"] = "Ativo"
     
     df["Status"] = df["Status"].astype(str).str.strip().replace("", "Ativo")
     df["Código"] = df["Código"].astype(str).str.strip()
-
     if apenas_ativos:
         df_ativos = df[df["Status"].str.upper() != "INATIVO"].copy()
         return df_ativos[["Código", "Descrição", "Tarifa (R$)", "Unidade", "Categoria", "Observações"]]
@@ -196,34 +186,34 @@ def salvar_dados_completos(df_completo):
         st.error("Erro ao salvar no Google Sheets: {}".format(e))
         return False
 
-# ------------------------------------------------------------------------------
-# FUNÇÕES DE INTEGRAÇÃO COM A TELA 3 (PROPOSTAS SALVAS)
-# ------------------------------------------------------------------------------
+# ==============================================================================
+# FUNÇÕES DE INTEGRAÇÃO COM A TELA 3 (PROPOSTAS SALVAS) - CORRIGIDA
+# ==============================================================================
 def salvar_propostas_na_planilha(linhas_proposta):
     try:
         ws = obter_aba_propostas()
         
         num_prop = str(linhas_proposta[0].get("Proposta", "")).strip() if linhas_proposta else ""
         
-        # Lê a folha como matriz de valores puros (evita falha por nome de chave)
         todos_valores = ws.get_all_values()
         
         if not todos_valores:
             todos_valores = [HEADER_PROPOSTAS_ESPERADO]
         
-        header_atual = todos_valores[0]
         linhas_existentes = todos_valores[1:] if len(todos_valores) > 1 else []
         
-        # Filtra e remove as linhas antigas da proposta caso ela já existisse
+        # Valida se estamos editando uma proposta existente ou criando uma nova
+        está_editando = st.session_state.get("proposta_id_em_edicao") is not None
+        
         linhas_filtradas = []
-        if num_prop and linhas_existentes:
-            for lin in linhas_existentes:
-                if len(lin) > 0 and str(lin[0]).strip() != num_prop:
-                    linhas_filtradas.append(lin)
-        else:
-            linhas_filtradas = linhas_existentes
+        for lin in linhas_existentes:
+            if len(lin) > 0:
+                proposta_linha = str(lin[0]).strip()
+                # Se for edição, remove apenas a linha antiga daquela proposta. Se for nova, preserva tudo!
+                if está_editando and proposta_linha == num_prop:
+                    continue
+                linhas_filtradas.append(lin)
 
-        # Monta a nova lista de linhas para inserção
         novas_linhas_matriz = []
         for reg in linhas_proposta:
             novas_linhas_matriz.append([
@@ -238,8 +228,7 @@ def salvar_propostas_na_planilha(linhas_proposta):
                 str(reg.get("Tarifa (R$)", "")),
                 str(reg.get("Observações", ""))
             ])
-
-        # Reescreve a folha de forma atômica
+            
         ws.clear()
         conteudo_final = [HEADER_PROPOSTAS_ESPERADO] + linhas_filtradas + novas_linhas_matriz
         ws.update(range_name='A1', values=conteudo_final)
@@ -288,7 +277,6 @@ def executar_renderizar_cadastro():
 # 3. CABEÇALHO & NAVEGAÇÃO
 # ==============================================================================
 logo_b64 = get_base64_of_bin_file('logo.png')
-
 if logo_b64:
     header_html = """
         <div class="header-container">
@@ -314,7 +302,6 @@ else:
 
 # BARRA DE NAVEGAÇÃO COM DESTAQUE VISUAL (3 TELAS)
 col_nav1, col_nav2, col_nav3, _ = st.columns([2.2, 2.5, 2.5, 2.8])
-
 aba_atual = st.session_state["aba_ativa"]
 
 with col_nav1:
