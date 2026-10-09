@@ -100,7 +100,7 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codig
     if "Status" not in df_base_completa.columns:
         df_base_completa["Status"] = "Ativo"
 
-    # Se estiver em modo edição, busca os dados do registo atual
+    # Se estiver em modo edição, busca os dados do registo atual e garante rastreio limpo
     dados_edicao = {}
     if modo_edicao:
         reg_atual = df_base_completa[df_base_completa["Código"].astype(str).str.strip() == str(st.session_state["modo_edicao_codigo"])]
@@ -224,8 +224,10 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codig
             tarifa_formatada = formatar_tarifa_fn(tarifa)
             
             if modo_edicao:
-                # Atualiza o registo existente na base completa
-                mask_ed = df_base_completa["Código"].astype(str).str.strip() == str(st.session_state["modo_edicao_codigo"]).strip()
+                # Localiza a linha original utilizando estritamente o código guardado no session_state em modo edição
+                codigo_alvo = str(st.session_state["modo_edicao_codigo"]).strip()
+                mask_ed = df_base_completa["Código"].astype(str).str.strip() == codigo_alvo
+                
                 df_base_completa.loc[mask_ed, "Código"] = codigo_limpo
                 df_base_completa.loc[mask_ed, "Descrição"] = descricao.strip()
                 df_base_completa.loc[mask_ed, "Tarifa (R$)"] = tarifa_formatada
