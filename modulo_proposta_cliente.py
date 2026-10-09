@@ -91,9 +91,8 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
 
     itens_rascunho = st.session_state.get("rascunho_itens", [])
     
-    # Recupera de forma segura priorizando a sessão atual, mas mantendo o fallback seguro para navegação
-    cliente_nome = str(st.session_state.get("proposta_cliente_nome") or st.session_state.get("_safe_cliente_nome", "")).strip()
-    cnpj_val = str(st.session_state.get("proposta_cliente_cnpj") or st.session_state.get("_safe_cnpj_val", "")).strip()
+    cliente_nome = str(st.session_state.get("_safe_cliente_nome", "")).strip()
+    cnpj_val = str(st.session_state.get("_safe_cnpj_val", "")).strip()
     
     agora = datetime.now()
     mes_str = agora.strftime("%m")
@@ -195,16 +194,14 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                         if not st.session_state.get("proposta_id_em_edicao"):
                             st.session_state["sequencial_proposta"] = st.session_state.get("sequencial_proposta", 1) + 1
                         
-                        # Limpa os estados e define explicitamente vazios para resetar os inputs na proxima renderizacao
+                        # Limpeza completa e definitiva após salvar com sucesso
                         st.session_state["proposta_id_em_edicao"] = None
                         st.session_state["rascunho_itens"] = []
-                        st.session_state["proposta_cliente_nome"] = ""
-                        st.session_state["proposta_cliente_cnpj"] = ""
                         st.session_state["_safe_cliente_nome"] = ""
                         st.session_state["_safe_cnpj_val"] = ""
                         
                         for k in list(st.session_state.keys()):
-                            if k.startswith("input_tarifa_"):
+                            if k.startswith("input_tarifa_") or k.startswith("input_cli_nome_") or k.startswith("input_cnpj_"):
                                 del st.session_state[k]
 
                         st.success("Proposta salva com sucesso no Google Sheets!")
@@ -272,9 +269,6 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                                 primeiro_reg = df_prop_sel.iloc[0]
                                 nome_carregado = str(primeiro_reg.get("Cliente", ""))
                                 cnpj_carregado = str(primeiro_reg.get("CNPJ", "")) if "CNPJ" in primeiro_reg else ""
-                                
-                                st.session_state["proposta_cliente_nome"] = nome_carregado
-                                st.session_state["proposta_cliente_cnpj"] = cnpj_carregado
                                 
                                 st.session_state["_safe_cliente_nome"] = nome_carregado
                                 st.session_state["_safe_cnpj_val"] = cnpj_carregado
