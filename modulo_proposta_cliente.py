@@ -91,6 +91,7 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
 
     itens_rascunho = st.session_state.get("rascunho_itens", [])
     
+    # Recupera de forma segura priorizando a sessão atual, mas mantendo o fallback seguro para navegação
     cliente_nome = str(st.session_state.get("proposta_cliente_nome") or st.session_state.get("_safe_cliente_nome", "")).strip()
     cnpj_val = str(st.session_state.get("proposta_cliente_cnpj") or st.session_state.get("_safe_cnpj_val", "")).strip()
     
@@ -194,7 +195,7 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                         if not st.session_state.get("proposta_id_em_edicao"):
                             st.session_state["sequencial_proposta"] = st.session_state.get("sequencial_proposta", 1) + 1
                         
-                        # Limpeza completa de todos os estados e inputs vinculados
+                        # Limpa os estados e define explicitamente vazios para resetar os inputs na proxima renderizacao
                         st.session_state["proposta_id_em_edicao"] = None
                         st.session_state["rascunho_itens"] = []
                         st.session_state["proposta_cliente_nome"] = ""
@@ -203,8 +204,8 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                         st.session_state["_safe_cnpj_val"] = ""
                         
                         for k in list(st.session_state.keys()):
-                            if k.startswith("input_tarifa_") or k == "proposta_cliente_nome" or k == "proposta_cliente_cnpj":
-                                st.session_state[k] = ""
+                            if k.startswith("input_tarifa_"):
+                                del st.session_state[k]
 
                         st.success("Proposta salva com sucesso no Google Sheets!")
                         st.rerun()
@@ -269,11 +270,14 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                                 st.session_state["proposta_id_em_edicao"] = prop_escolhida.strip()
                                 
                                 primeiro_reg = df_prop_sel.iloc[0]
-                                st.session_state["proposta_cliente_nome"] = str(primeiro_reg.get("Cliente", ""))
-                                st.session_state["proposta_cliente_cnpj"] = str(primeiro_reg.get("CNPJ", "")) if "CNPJ" in primeiro_reg else ""
+                                nome_carregado = str(primeiro_reg.get("Cliente", ""))
+                                cnpj_carregado = str(primeiro_reg.get("CNPJ", "")) if "CNPJ" in primeiro_reg else ""
                                 
-                                st.session_state["_safe_cliente_nome"] = st.session_state["proposta_cliente_nome"]
-                                st.session_state["_safe_cnpj_val"] = st.session_state["proposta_cliente_cnpj"]
+                                st.session_state["proposta_cliente_nome"] = nome_carregado
+                                st.session_state["proposta_cliente_cnpj"] = cnpj_carregado
+                                
+                                st.session_state["_safe_cliente_nome"] = nome_carregado
+                                st.session_state["_safe_cnpj_val"] = cnpj_carregado
 
                                 novos_itens = []
                                 for _, row in df_prop_sel.iterrows():
