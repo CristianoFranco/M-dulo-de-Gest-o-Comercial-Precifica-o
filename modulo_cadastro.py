@@ -18,9 +18,10 @@ UNIDADES_PADRAO = [
 def aplicar_estilos_botoes():
     st.markdown("""
         <style>
-            /* Botão 'Cadastrar / Salvar Serviço' e 'Editar' (Azul de Alto Contraste com Texto Branco) */
+            /* Botão de Salvar / Atualizar / Editar (Azul de Alto Contraste com Texto Branco) */
             div[data-testid="stExpander"] div.stButton > button,
-            .btn-editar-container div.stButton > button {
+            .btn-editar-container div.stButton > button,
+            .btn-acao-form div.stButton > button {
                 background-color: #0052B4 !important;
                 color: #FFFFFF !important;
                 font-weight: bold !important;
@@ -28,46 +29,37 @@ def aplicar_estilos_botoes():
                 opacity: 1 !important;
             }
             div[data-testid="stExpander"] div.stButton > button p,
-            .btn-editar-container div.stButton > button p {
+            .btn-editar-container div.stButton > button p,
+            .btn-acao-form div.stButton > button p {
                 color: #FFFFFF !important;
                 font-weight: bold !important;
             }
             div[data-testid="stExpander"] div.stButton > button:hover,
-            .btn-editar-container div.stButton > button:hover {
+            .btn-editar-container div.stButton > button:hover,
+            .btn-acao-form div.stButton > button:hover {
                 background-color: #003B82 !important;
                 border-color: #93C5FD !important;
             }
             
-            /* Botão 'Confirmar Exclusão' de Unidade (Vermelho de Alto Contraste) */
-            div[data-testid="stExpander"] .btn-excluir-unidade-container div.stButton > button {
+            /* Botão de Exclusão (Vermelho de Alto Contraste) */
+            div[data-testid="stExpander"] .btn-excluir-unidade-container div.stButton > button,
+            .btn-excluir-servico-container div.stButton > button,
+            .btn-cancelar-form div.stButton > button {
                 background-color: #D32F2F !important;
                 color: #FFFFFF !important;
                 font-weight: bold !important;
                 border: 1px solid #EF4444 !important;
                 opacity: 1 !important;
             }
-            div[data-testid="stExpander"] .btn-excluir-unidade-container div.stButton > button p {
+            div[data-testid="stExpander"] .btn-excluir-unidade-container div.stButton > button p,
+            .btn-excluir-servico-container div.stButton > button p,
+            .btn-cancelar-form div.stButton > button p {
                 color: #FFFFFF !important;
                 font-weight: bold !important;
             }
-            div[data-testid="stExpander"] .btn-excluir-unidade-container div.stButton > button:hover {
-                background-color: #991B1B !important;
-                border-color: #F87171 !important;
-            }
-            
-            /* Botão 'Excluir Serviço Selecionado' (Vermelho Destacado) */
-            .btn-excluir-servico-container div.stButton > button {
-                background-color: #D32F2F !important;
-                color: #FFFFFF !important;
-                font-weight: bold !important;
-                border: 1px solid #EF4444 !important;
-                opacity: 1 !important;
-            }
-            .btn-excluir-servico-container div.stButton > button p {
-                color: #FFFFFF !important;
-                font-weight: bold !important;
-            }
-            .btn-excluir-servico-container div.stButton > button:hover {
+            div[data-testid="stExpander"] .btn-excluir-unidade-container div.stButton > button:hover,
+            .btn-excluir-servico-container div.stButton > button:hover,
+            .btn-cancelar-form div.stButton > button:hover {
                 background-color: #991B1B !important;
                 border-color: #F87171 !important;
             }
@@ -142,16 +134,18 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codig
             default_obs = str(dados_edicao.get("Observações", "")) if modo_edicao else ""
             observacoes = st.text_area("Observações e Premissas (Opcional)", value=default_obs, key=f"obs_{fid}", placeholder="Ex: Faturamento mínimo mensal de 50 paletes.")
         
-        col_f1, col_f2 = st.columns(2)
-        with col_f1:
-            btn_salvar = st.form_submit_button("💾 Cadastrar / Salvar Serviço" if not modo_edicao else "💾 Atualizar Alterações")
-        if modo_edicao:
-            with col_f2:
-                btn_cancelar = st.form_submit_button("❌ Cancelar Edição")
-                if btn_cancelar:
-                    st.session_state["modo_edicao_codigo"] = None
-                    st.session_state["form_id"] += 1
-                    st.rerun()
+        btn_salvar = st.form_submit_button("💾 Cadastrar / Salvar Serviço" if not modo_edicao else "💾 Atualizar Alterações")
+
+    # Botão de cancelar edição fora do formulário principal para evitar conflito de submissão
+    if modo_edicao:
+        col_canc1, _ = st.columns([2, 2])
+        with col_canc1:
+            st.markdown('<div class="btn-cancelar-form">', unsafe_allow_html=True)
+            if st.button("❌ Cancelar Edição", use_container_width=True):
+                st.session_state["modo_edicao_codigo"] = None
+                st.session_state["form_id"] += 1
+                st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
