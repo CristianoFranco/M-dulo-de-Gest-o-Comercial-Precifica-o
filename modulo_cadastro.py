@@ -65,11 +65,15 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codig
     if "lista_unidades" not in st.session_state:
         st.session_state["lista_unidades"] = UNIDADES_PADRAO.copy()
 
+    if "form_id" not in st.session_state:
+        st.session_state["form_id"] = 0
+
     if "modo_edicao_codigo" not in st.session_state:
         st.session_state["modo_edicao_codigo"] = None
 
     st.markdown("### 📝 Cadastro e Gestão de Serviços")
     
+    fid = st.session_state["form_id"]
     modo_edicao = st.session_state["modo_edicao_codigo"] is not None
 
     df_base_completa = carregar_dados_fn(apenas_ativos=False)
@@ -79,7 +83,6 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codig
     if "Status" not in df_base_completa.columns:
         df_base_completa["Status"] = "Ativo"
 
-    # Prepara valores padrão para os campos (vazio se novo, preenchido se edição)
     val_codigo, val_desc, val_tarifa, val_obs = "", "", 0.00000, ""
     idx_cat, idx_uni = 0, 0
 
@@ -108,19 +111,19 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codig
 
             st.info(f"✏️ Editando o serviço código: **{st.session_state['modo_edicao_codigo']}**")
 
-    # Formulário de Cadastro / Edição (Sem chaves complexas nos inputs)
+    # Formulário de Cadastro / Edição com chaves dinâmicas baseadas em form_id
     with st.form("form_servico", clear_on_submit=False):
         col1, col2 = st.columns(2)
         
         with col1:
-            codigo = st.text_input("Código do Serviço *", value=val_codigo, placeholder="Ex: SERV-001")
-            categoria = st.selectbox("Categoria *", options=categorias_opcoes, index=idx_cat)
-            tarifa = st.number_input("Tarifa (R$) *", value=val_tarifa, min_value=0.00000, step=0.00001, format="%.5f")
+            codigo = st.text_input("Código do Serviço *", value=val_codigo, key=f"codigo_{fid}", placeholder="Ex: SERV-001")
+            categoria = st.selectbox("Categoria *", options=categorias_opcoes, index=idx_cat, key=f"categoria_{fid}")
+            tarifa = st.number_input("Tarifa (R$) *", value=val_tarifa, min_value=0.00000, step=0.00001, format="%.5f", key=f"tarifa_{fid}")
         
         with col2:
-            descricao = st.text_input("Descrição do Serviço *", value=val_desc, placeholder="Ex: Armazenagem de carga paletizada")
-            unidade = st.selectbox("Unidade *", options=unidades_disponiveis_form, index=idx_uni)
-            observacoes = st.text_area("Observações e Premissas (Opcional)", value=val_obs, placeholder="Ex: Faturamento mínimo mensal de 50 paletes.")
+            descricao = st.text_input("Descrição do Serviço *", value=val_desc, key=f"descricao_{fid}", placeholder="Ex: Armazenagem de carga paletizada")
+            unidade = st.selectbox("Unidade *", options=unidades_disponiveis_form, index=idx_uni, key=f"unidade_{fid}")
+            observacoes = st.text_area("Observações e Premissas (Opcional)", value=val_obs, key=f"obs_{fid}", placeholder="Ex: Faturamento mínimo mensal de 50 paletes.")
         
         col_f1, col_f2 = st.columns(2)
         with col_f1:
@@ -169,6 +172,7 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codig
     # Ação de Cancelar Edição
     if btn_cancelar:
         st.session_state["modo_edicao_codigo"] = None
+        st.session_state["form_id"] += 1
         st.rerun()
 
     # Processamento de Cadastro ou Edição (Salvar / Atualizar)
@@ -240,6 +244,7 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codig
             
             if salvar_dados_fn(df_base_completa):
                 st.success(msg_sucesso)
+                st.session_state["form_id"] += 1
                 st.rerun()
         else:
             campos_faltantes = " | ".join(erros)
@@ -270,6 +275,7 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codig
             if st.button("✏️ Editar"):
                 if codigo_selecionado:
                     st.session_state["modo_edicao_codigo"] = codigo_selecionado
+                    st.session_state["form_id"] += 1
                     st.rerun()
                 else:
                     st.warning("Selecione um serviço para editar.")
