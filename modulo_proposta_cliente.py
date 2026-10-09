@@ -33,16 +33,26 @@ def gerar_pdf_proposta(numero_proposta, cliente_nome, cnpj_val, itens_proposta):
         spaceAfter=18
     )
 
-    cnpj_texto = f" | <b>CNPJ:</b> {cnpj_val}" if cnpj_val else ""
-    story.append(Paragraph(f"PROPOSTA COMERCIAL — Nº {numero_proposta}", titulo_style))
-    story.append(Paragraph(f"<b>Cliente:</b> {cliente_nome if cliente_nome else 'Não Informado'}{cnpj_texto} | <b>Data:</b> {datetime.now().strftime('%d/%m/%Y')}", subtitulo_style))
+    cnpj_texto = " | <b>CNPJ:</b> " + str(cnpj_val) if cnpj_val else ""
+    cliente_str = str(cliente_nome) if cliente_nome else "Não Informado"
+    data_str = datetime.now().strftime("%d/%m/%Y")
+    
+    tit_text = "PROPOSTA COMERCIAL — Nº " + str(numero_proposta)
+    sub_text = "<b>Cliente:</b> " + cliente_str + cnpj_texto + " | <b>Data:</b> " + data_str
+    
+    story.append(Paragraph(tit_text, titulo_style))
+    story.append(Paragraph(sub_text, subtitulo_style))
     story.append(Spacer(1, 12))
 
     dados_tabela = [["Código", "Descrição", "Categoria", "Unidade", "Tarifa (R$)"]]
     
     for item in itens_proposta:
         tarifa_val = item.get("Tarifa (R$)", 0.0)
-        tarifa_str = f"R$ {float(tarifa_val):,.5f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        try:
+            tarifa_float = float(tarifa_val)
+            tarifa_str = "R$ " + f"{tarifa_float:,.5f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        except (ValueError, TypeError):
+            tarifa_str = str(tarifa_val)
         
         dados_tabela.append([
             str(item.get("Código", "")),
@@ -86,10 +96,10 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
     ano_str = agora.strftime("%Y")
     
     if st.session_state.get("proposta_id_em_edicao"):
-        numero_proposta_atual = st.session_state["proposta_id_em_edicao"]
+        numero_proposta_atual = str(st.session_state["proposta_id_em_edicao"])
     else:
         seq = st.session_state.get("sequencial_proposta", 1)
-        numero_proposta_atual = f"{mes_str}/{seq:05d}/{ano_str}"
+        numero_proposta_atual = mes_str + "/" + f"{seq:05d}" + "/" + ano_str
 
     st.markdown("### 📋 Documento da Proposta")
 
@@ -98,18 +108,24 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
     else:
         col_info1, col_info2, col_info3 = st.columns([2.5, 1.5, 1.5])
         with col_info1:
-            st.markdown(f"**Cliente / Razão Social:**\n#### {cliente_nome if cliente_nome else 'Não Informado'}")
+            lbl_cli = cliente_nome if cliente_nome else "Não Informado"
+            st.markdown("**Cliente / Razão Social:**\n#### " + lbl_cli)
         with col_info2:
-            st.markdown(f"**CNPJ:**\n#### {cnpj_val if cnpj_val else 'Não Informado'}")
+            lbl_cnpj = cnpj_val if cnpj_val else "Não Informado"
+            st.markdown("**CNPJ:**\n#### " + lbl_cnpj)
         with col_info3:
-            st.markdown(f"**Número da Proposta:**\n### `{numero_proposta_atual}`")
+            st.markdown("**Número da Proposta:**\n### `" + numero_proposta_atual + "`")
 
         st.markdown("<br>", unsafe_allow_html=True)
 
         dados_estaticos = []
         for item in itens_rascunho:
             tarifa_val = item.get("Tarifa (R$)", 0.0)
-            tarifa_fmt = f"R$ {float(tarifa_val):,.5f}".replace(",", "X").replace(".", ",").replace("X", ".")
+            try:
+                tarifa_float = float(tarifa_val)
+                tarifa_fmt = "R$ " + f"{tarifa_float:,.5f}".replace(",", "X").replace(".", ",").replace("X", ".")
+            except (ValueError, TypeError):
+                tarifa_fmt = str(tarifa_val)
             
             dados_estaticos.append({
                 "Proposta": numero_proposta_atual,
@@ -138,10 +154,11 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
         with col_pdf:
             if REPORTLAB_DISPONIVEL:
                 pdf_bytes = gerar_pdf_proposta(numero_proposta_atual, cliente_nome, cnpj_val, itens_rascunho)
+                nome_arquivo_pdf = "Proposta_" + numero_proposta_atual.replace("/", "_") + ".pdf"
                 st.download_button(
                     label="📥 Exportar Proposta em PDF",
                     data=pdf_bytes,
-                    file_name=f"Proposta_{numero_proposta_atual.replace('/', '_')}.pdf",
+                    file_name=nome_arquivo_pdf,
                     mime="application/pdf",
                     use_container_width=True
                 )
@@ -155,6 +172,11 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                     data_hoje = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
                     for item in itens_rascunho:
+                        try:
+                            t_val = float(item.get("Tarifa (R$)", 0.0))
+                        except (ValueError, TypeError):
+                            t_val = 0.0
+                            
                         linhas_para_salvar.append({
                             "Proposta": numero_proposta_atual,
                             "Data": data_hoje,
@@ -163,4 +185,28 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                             "Código": str(item.get("Código", "")),
                             "Descrição": str(item.get("Descrição", "")),
                             "Categoria": str(item.get("Categoria", "")),
-                            "Unidade":
+                            "Unidade": str(item.get("Unidade", "")),
+                            "Tarifa (R$)": t_val,
+                            "Observações": str(item.get("Observações", ""))
+                        })
+
+                    sucesso = salvar_proposta_sheets_fn(linhas_para_salvar)
+
+                    if sucesso:
+                        if not st.session_state.get("proposta_id_em_edicao"):
+                            st.session_state["sequencial_proposta"] = st.session_state.get("sequencial_proposta", 1) + 1
+                        
+                        st.session_state["proposta_id_em_edicao"] = None
+                        st.session_state["rascunho_itens"] = []
+                        st.session_state["proposta_cliente_nome"] = ""
+                        st.session_state["proposta_cliente_cnpj"] = ""
+                        
+                        for k in list(st.session_state.keys()):
+                            if k.startswith("input_tarifa_"):
+                                del st.session_state[k]
+
+                        st.success("Proposta `" + numero_proposta_atual + "` salva com sucesso no Google Sheets!")
+                        st.balloons()
+                        st.rerun()
+                    else:
+                        st.error("Falha ao salvar no Google Sheets
