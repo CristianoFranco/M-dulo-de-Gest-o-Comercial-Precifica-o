@@ -90,7 +90,6 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codig
             dados_edicao = reg_atual.iloc[0].to_dict()
             st.info(f"✏️ Editando o serviço código: **{st.session_state['modo_edicao_codigo']}**")
 
-    # Sincroniza os valores no session_state para garantir preenchimento correto em modo edição
     k_cod = f"codigo_{fid}"
     k_cat = f"categoria_{fid}"
     k_tar = f"tarifa_{fid}"
@@ -274,8 +273,9 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codig
     df_servicos_ativos = carregar_dados_fn(apenas_ativos=True)
     
     if not df_servicos_ativos.empty:
-        df_servicos_ativos["Opcao_Select"] = df_servicos_ativos["Código"].astype(str) + " - " + df_servicos_ativos["Descrição"].astype(str)
-        lista_opcoes_servicos = [""] + df_servicos_ativos["Opcao_Select"].tolist()
+        df_servicos_ativos_copia = df_servicos_ativos.copy()
+        df_servicos_ativos_copia["Opcao_Select"] = df_servicos_ativos_copia["Código"].astype(str) + " - " + df_servicos_ativos_copia["Descrição"].astype(str)
+        lista_opcoes_servicos = [""] + df_servicos_ativos_copia["Opcao_Select"].tolist()
         
         col_sel_s, col_btn_edit, col_btn_del = st.columns([3, 1.2, 1.2])
         
@@ -311,3 +311,16 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codig
                         if st.session_state.get("modo_edicao_codigo") == codigo_selecionado:
                             st.session_state["modo_edicao_codigo"] = None
                             st.session_state["_ultimo_editado"] = None
+                        st.rerun()
+                else:
+                    st.warning("Selecione um serviço para excluir.")
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # Exibe explicitamente a tabela de dados ativos abaixo dos botões de gestão
+    df_exibicao = df_servicos_ativos.copy()
+    if "Opcao_Select" in df_exibicao.columns:
+        df_exibicao = df_exibicao.drop(columns=["Opcao_Select"])
+        
+    st.dataframe(df_exibicao, use_container_width=True, hide_index=True)
