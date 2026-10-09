@@ -82,7 +82,6 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codig
     if "Status" not in df_base_completa.columns:
         df_base_completa["Status"] = "Ativo"
 
-    # Inicializa o estado dos campos se não existirem
     if "cad_codigo" not in st.session_state:
         st.session_state["cad_codigo"] = ""
     if "cad_descricao" not in st.session_state:
@@ -125,7 +124,6 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codig
             st.session_state["cad_observacoes"] = ""
             st.session_state["_ultimo_editado"] = None
 
-    # Renderização dos campos com chaves ligadas ao session_state (sem st.form)
     col1, col2 = st.columns(2)
     
     with col1:
@@ -173,7 +171,6 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codig
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # Gestão de Unidades (+ / -)
     with st.expander("⚙️ Gerenciar Opções da Lista de Unidades (+ / -)"):
         col_u1, col_u2 = st.columns(2)
         
@@ -206,7 +203,6 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codig
             else:
                 st.info("Não existem unidades personalizadas para remover.")
 
-    # Processamento do botão Salvar / Atualizar
     if btn_salvar:
         codigo_limpo = str(codigo).strip()
         codigo_norm = normalizar_codigo_fn(codigo_limpo)
@@ -278,7 +274,6 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codig
             
             if salvar_dados_fn(df_base_completa):
                 st.success(msg_sucesso)
-                # Limpa os campos após salvar com sucesso
                 st.session_state["cad_codigo"] = ""
                 st.session_state["cad_descricao"] = ""
                 st.session_state["cad_tarifa"] = 0.00000
@@ -290,7 +285,6 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codig
             campos_faltantes = " | ".join(erros)
             st.error(f"⚠️ Atenção: {campos_faltantes}")
 
-    # Tabela e Gestão de Serviços Ativos
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("### 🔍 Base de Serviços Cadastrados")
     
@@ -302,35 +296,3 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codig
         lista_opcoes_servicos = [""] + df_servicos_ativos_copia["Opcao_Select"].tolist()
         
         col_sel_s, col_btn_edit, col_btn_del = st.columns([3, 1.2, 1.2])
-        
-        with col_sel_s:
-            servico_escolhido = st.selectbox("Selecione um serviço (Código e Descrição):", options=lista_opcoes_servicos)
-            
-        codigo_selecionado = servico_escolhido.split(" - ")[0].strip() if servico_escolhido else ""
-
-        with col_btn_edit:
-            st.write("")
-            st.write("")
-            st.markdown('<div class="btn-editar-container">', unsafe_allow_html=True)
-            if st.button("✏️ Editar"):
-                if codigo_selecionado:
-                    st.session_state["modo_edicao_codigo"] = codigo_selecionado
-                    st.rerun()
-                else:
-                    st.warning("Selecione um serviço para editar.")
-            st.markdown('</div>', unsafe_allow_html=True)
-
-        with col_btn_del:
-            st.write("")
-            st.write("")
-            st.markdown('<div class="btn-excluir-servico-container">', unsafe_allow_html=True)
-            if st.button("🗑️ Excluir"):
-                if codigo_selecionado:
-                    df_completa_del = carregar_dados_fn(apenas_ativos=False)
-                    mask = df_completa_del["Código"].astype(str).str.strip() == codigo_selecionado
-                    df_completa_del.loc[mask, "Status"] = "Inativo"
-                    if salvar_dados_fn(df_completa_del):
-                        st.success(f"Serviço '{codigo_selecionado}' excluído com sucesso!")
-                        if st.session_state.get("modo_edicao_codigo") == codigo_selecionado:
-                            st.session_state["modo_edicao_codigo"] = None
-                            st.
