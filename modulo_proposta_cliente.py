@@ -91,13 +91,9 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
 
     itens_rascunho = st.session_state.get("rascunho_itens", [])
     
-    if "proposta_cliente_nome" in st.session_state:
-        st.session_state["_safe_cliente_nome"] = st.session_state["proposta_cliente_nome"]
-    if "proposta_cliente_cnpj" in st.session_state:
-        st.session_state["_safe_cnpj_val"] = st.session_state["proposta_cliente_cnpj"]
-
-    cliente_nome = str(st.session_state.get("_safe_cliente_nome", "")).strip()
-    cnpj_val = str(st.session_state.get("_safe_cnpj_val", "")).strip()
+    # Captura com prioridade rigorosa do valor preenchido na aba anterior (evita resíduos da Zigma)
+    cliente_nome = str(st.session_state.get("proposta_cliente_nome") or st.session_state.get("_safe_cliente_nome", "")).strip()
+    cnpj_val = str(st.session_state.get("proposta_cliente_cnpj") or st.session_state.get("_safe_cnpj_val", "")).strip()
     
     agora = datetime.now()
     mes_str = agora.strftime("%m")
