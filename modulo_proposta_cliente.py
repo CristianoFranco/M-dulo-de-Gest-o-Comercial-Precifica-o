@@ -194,6 +194,7 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                         if not st.session_state.get("proposta_id_em_edicao"):
                             st.session_state["sequencial_proposta"] = st.session_state.get("sequencial_proposta", 1) + 1
                         
+                        # Limpeza completa de todos os estados e inputs vinculados
                         st.session_state["proposta_id_em_edicao"] = None
                         st.session_state["rascunho_itens"] = []
                         st.session_state["proposta_cliente_nome"] = ""
@@ -202,8 +203,8 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                         st.session_state["_safe_cnpj_val"] = ""
                         
                         for k in list(st.session_state.keys()):
-                            if k.startswith("input_tarifa_"):
-                                del st.session_state[k]
+                            if k.startswith("input_tarifa_") or k == "proposta_cliente_nome" or k == "proposta_cliente_cnpj":
+                                st.session_state[k] = ""
 
                         st.success("Proposta salva com sucesso no Google Sheets!")
                         st.rerun()
@@ -292,7 +293,7 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                                     })
                                     
                                 st.session_state["rascunho_itens"] = novos_itens
-                                st.success("Proposta reaberta com sucesso!")
+                                st.success("Proposta carregada com sucesso!")
                                 st.rerun()
                         else:
                             st.warning("Selecione uma proposta válida na lista.")
