@@ -96,25 +96,25 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codig
     if "Status" not in df_base_completa.columns:
         df_base_completa["Status"] = "Ativo"
 
-    # Formulário de Cadastro de Novo Serviço (utiliza chaves dinâmicas baseadas no form_id para limpar a tela ao salvar)
-    with st.form(f"form_servico_{fid}", clear_on_submit=True):
+    # Formulário com chaves explícitas para garantir captura correta dos dados
+    with st.form(f"form_servico_{fid}", clear_on_submit=False):
         col1, col2 = st.columns(2)
         
         with col1:
-            codigo = st.text_input("Código do Serviço *", placeholder="Ex: SERV-001")
+            codigo = st.text_input("Código do Serviço *", key=f"input_codigo_{fid}", placeholder="Ex: SERV-001")
             
             categorias_opcoes = ["", "Armazenagem", "Seguro", "Serviço", "Movimentação (Handling)", "Outros"]
-            categoria = st.selectbox("Categoria *", options=categorias_opcoes)
+            categoria = st.selectbox("Categoria *", options=categorias_opcoes, key=f"input_categoria_{fid}")
             
-            tarifa = st.number_input("Tarifa (R$) *", min_value=0.00000, step=0.00001, format="%.5f")
+            tarifa = st.number_input("Tarifa (R$) *", min_value=0.00000, step=0.00001, format="%.5f", key=f"input_tarifa_{fid}")
         
         with col2:
-            descricao = st.text_input("Descrição do Serviço *", placeholder="Ex: Armazenagem de carga paletizada")
+            descricao = st.text_input("Descrição do Serviço *", key=f"input_descricao_{fid}", placeholder="Ex: Armazenagem de carga paletizada")
             
             unidades_disponiveis_form = st.session_state["lista_unidades"]
-            unidade = st.selectbox("Unidade *", options=unidades_disponiveis_form)
+            unidade = st.selectbox("Unidade *", options=unidades_disponiveis_form, key=f"input_unidade_{fid}")
             
-            observacoes = st.text_area("Observações e Premissas (Opcional)", placeholder="Ex: Faturamento mínimo mensal de 50 paletes.")
+            observacoes = st.text_area("Observações e Premissas (Opcional)", key=f"input_observacoes_{fid}", placeholder="Ex: Faturamento mínimo mensal de 50 paletes.")
         
         col_f1, _ = st.columns(2)
         with col_f1:
@@ -186,7 +186,7 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codig
         if not erros:
             tarifa_formatada = formatar_tarifa_fn(tarifa)
             
-            # Verifica se já existe um registro inativo com este mesmo código para reaproveitá-lo/reativá-lo
+            # Reutiliza registro inativo se houver, caso contrário adiciona nova linha
             mask_inativo = df_base_completa["Código"].astype(str).str.strip() == codigo_limpo
             if not df_base_completa[mask_inativo].empty:
                 df_base_completa.loc[mask_inativo, "Descrição"] = descricao.strip()
@@ -209,7 +209,7 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codig
             
             if salvar_dados_fn(df_base_completa):
                 st.success(f"Serviço '{codigo_limpo}' cadastrado com sucesso!")
-                # Incrementa o form_id para limpar os campos do formulário na tela
+                # Incrementa o form_id para limpar os campos da tela automaticamente
                 st.session_state["form_id"] += 1
                 st.rerun()
         else:
@@ -223,7 +223,6 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codig
     df_servicos_ativos = carregar_dados_fn(apenas_ativos=True)
     
     if not df_servicos_ativos.empty:
-        # Exibe Código e Nome/Descrição combinados na lista de seleção para exclusão
         df_servicos_ativos["Opcao_Select"] = df_servicos_ativos["Código"].astype(str) + " - " + df_servicos_ativos["Descrição"].astype(str)
         lista_opcoes_servicos = [""] + df_servicos_ativos["Opcao_Select"].tolist()
         
@@ -252,7 +251,6 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codig
             
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # Remove a coluna auxiliar 'Opcao_Select' antes de exibir a tabela final
     df_exibicao = df_servicos_ativos.copy()
     if "Opcao_Select" in df_exibicao.columns:
         df_exibicao = df_exibicao.drop(columns=["Opcao_Select"])
