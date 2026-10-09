@@ -18,8 +18,7 @@ UNIDADES_PADRAO = [
 def aplicar_estilos_botoes():
     st.markdown("""
         <style>
-            /* Botão 'Cadastrar / Salvar Serviço' (Azul de Alto Contraste com Texto Branco) */
-            div[data-testid="stForm"] div.stButton > button,
+            /* Botão 'Confirmar Inclusão' (Azul de Alto Contraste com Texto Branco) */
             div[data-testid="stExpander"] div.stButton > button {
                 background-color: #0052B4 !important;
                 color: #FFFFFF !important;
@@ -27,19 +26,33 @@ def aplicar_estilos_botoes():
                 border: 1px solid #60A5FA !important;
                 opacity: 1 !important;
             }
-            div[data-testid="stForm"] div.stButton > button p,
             div[data-testid="stExpander"] div.stButton > button p {
                 color: #FFFFFF !important;
                 font-weight: bold !important;
             }
-            div[data-testid="stForm"] div.stButton > button:hover,
             div[data-testid="stExpander"] div.stButton > button:hover {
                 background-color: #003B82 !important;
                 border-color: #93C5FD !important;
             }
-            
-            /* Botão 'Confirmar Exclusão' de Unidade e 'Excluir Serviço' (Vermelho) */
-            .btn-excluir-unidade-container div.stButton > button,
+
+            /* Botão 'Confirmar Exclusão' de Unidade (Vermelho de Alto Contraste) */
+            div[data-testid="stExpander"] .btn-excluir-unidade-container div.stButton > button {
+                background-color: #D32F2F !important;
+                color: #FFFFFF !important;
+                font-weight: bold !important;
+                border: 1px solid #EF4444 !important;
+                opacity: 1 !important;
+            }
+            div[data-testid="stExpander"] .btn-excluir-unidade-container div.stButton > button p {
+                color: #FFFFFF !important;
+                font-weight: bold !important;
+            }
+            div[data-testid="stExpander"] .btn-excluir-unidade-container div.stButton > button:hover {
+                background-color: #991B1B !important;
+                border-color: #F87171 !important;
+            }
+
+            /* Botão 'Excluir Serviço Selecionado' (Vermelho Destacado) */
             .btn-excluir-servico-container div.stButton > button {
                 background-color: #D32F2F !important;
                 color: #FFFFFF !important;
@@ -47,12 +60,10 @@ def aplicar_estilos_botoes():
                 border: 1px solid #EF4444 !important;
                 opacity: 1 !important;
             }
-            .btn-excluir-unidade-container div.stButton > button p,
             .btn-excluir-servico-container div.stButton > button p {
                 color: #FFFFFF !important;
                 font-weight: bold !important;
             }
-            .btn-excluir-unidade-container div.stButton > button:hover,
             .btn-excluir-servico-container div.stButton > button:hover {
                 background-color: #991B1B !important;
                 border-color: #F87171 !important;
@@ -62,8 +73,10 @@ def aplicar_estilos_botoes():
 
 
 def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codigo_fn, formatar_tarifa_fn):
+    # Aplica os estilos ajustados para visibilidade dos botões
     aplicar_estilos_botoes()
 
+    # Garantia contra KeyError: Inicializa a lista de unidades se não existir
     if "lista_unidades" not in st.session_state:
         st.session_state["lista_unidades"] = UNIDADES_PADRAO.copy()
         
@@ -74,38 +87,35 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codig
     
     fid = st.session_state.get("form_id", 0)
 
-    # Carrega dados completos (incluindo inativos para gerenciar reutilização de códigos)
-    df_base_completa = carregar_dados_fn(apenas_ativos=False)
-    if df_base_completa is None or not isinstance(df_base_completa, pd.DataFrame):
-        df_base_completa = pd.DataFrame(columns=["Código", "Descrição", "Tarifa (R$)", "Unidade", "Categoria", "Observações", "Status"])
-    
-    if "Status" not in df_base_completa.columns:
-        df_base_completa["Status"] = "Ativo"
-
-    # NOME DO FORMULÁRIO ESTÁTICO (isso garante que o botão salvar funcione sempre)
-    with st.form("form_cadastro_servico", clear_on_submit=False):
+    # Formulário de Cadastro
+    with st.form("form_servico", clear_on_submit=False):
         col1, col2 = st.columns(2)
         
         with col1:
-            # As chaves dos campos são dinâmicas (fid) para limpar a tela após o save
             codigo = st.text_input("Código do Serviço *", key=f"codigo_{fid}", placeholder="Ex: SERV-001")
-            
-            categorias_opcoes = ["", "Armazenagem", "Seguro", "Serviço", "Movimentação (Handling)", "Outros"]
-            categoria = st.selectbox("Categoria *", options=categorias_opcoes, key=f"categoria_{fid}")
-            
-            tarifa = st.number_input("Tarifa (R$) *", min_value=0.00000, step=0.00001, format="%.5f", key=f"tarifa_{fid}")
+            categoria = st.selectbox(
+                "Categoria *", 
+                ["", "Armazenagem", "Seguro", "Serviço", "Movimentação (Handling)", "Outros"],
+                key=f"categoria_{fid}"
+            )
+            tarifa = st.number_input(
+                "Tarifa (R$) *", 
+                min_value=0.00000, 
+                step=0.00001, 
+                format="%.5f", 
+                key=f"tarifa_{fid}"
+            )
         
         with col2:
             descricao = st.text_input("Descrição do Serviço *", key=f"descricao_{fid}", placeholder="Ex: Armazenagem de carga paletizada")
-            
-            unidades_disponiveis_form = st.session_state["lista_unidades"]
-            unidade = st.selectbox("Unidade *", options=unidades_disponiveis_form, key=f"unidade_{fid}")
-            
+            unidade = st.selectbox(
+                "Unidade *", 
+                st.session_state["lista_unidades"],
+                key=f"unidade_{fid}"
+            )
             observacoes = st.text_area("Observações e Premissas (Opcional)", key=f"obs_{fid}", placeholder="Ex: Faturamento mínimo mensal de 50 paletes.")
         
-        col_f1, _ = st.columns(2)
-        with col_f1:
-            btn_salvar = st.form_submit_button("💾 Cadastrar / Salvar Serviço")
+        btn_salvar = st.form_submit_button("💾 Cadastrar / Salvar Serviço")
 
     st.markdown("<br>", unsafe_allow_html=True)
 
@@ -130,9 +140,9 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codig
                     
         with col_u2:
             st.markdown("**➖ Remover Unidade Existente**")
-            unidades_remover_list = [u for u in st.session_state["lista_unidades"] if u != ""]
-            if unidades_remover_list:
-                unidade_para_remover = st.selectbox("Selecione para excluir", unidades_remover_list, key="select_rem_u")
+            unidades_disponiveis = [u for u in st.session_state["lista_unidades"] if u != ""]
+            if unidades_disponiveis:
+                unidade_para_remover = st.selectbox("Selecione para excluir", unidades_disponiveis, key="select_rem_u")
                 st.markdown('<div class="btn-excluir-unidade-container">', unsafe_allow_html=True)
                 if st.button("Confirmar Exclusão"):
                     st.session_state["lista_unidades"].remove(unidade_para_remover)
@@ -142,25 +152,27 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codig
             else:
                 st.info("Não existem unidades personalizadas para remover.")
 
-    # Processamento do Cadastro
+    # Processamento de Cadastro
     if btn_salvar:
         codigo_limpo = str(codigo).strip()
         codigo_norm = normalizar_codigo_fn(codigo_limpo)
         
-        # Valida duplicidade comparando APENAS com os códigos que estão com status ATIVO
-        if not df_base_completa.empty and "Código" in df_base_completa.columns and "Status" in df_base_completa.columns:
-            df_ativos_val = df_base_completa[df_base_completa["Status"].astype(str).str.upper() != "INATIVO"]
-            codigos_ativos_norm = [normalizar_codigo_fn(c) for c in df_ativos_val["Código"].tolist() if str(c).strip() != ""]
+        df_base_completa = carregar_dados_fn(apenas_ativos=False)
+        
+        if not df_base_completa.empty and "Código" in df_base_completa.columns:
+            codigos_existentes_norm = [
+                normalizar_codigo_fn(c) for c in df_base_completa["Código"].tolist() if str(c).strip() != ""
+            ]
         else:
-            codigos_ativos_norm = []
+            codigos_existentes_norm = []
 
-        codigo_duplicado = codigo_norm in codigos_ativos_norm
+        codigo_duplicado = codigo_norm in codigos_existentes_norm
 
         erros = []
         if not codigo_limpo:
             erros.append("Código do Serviço é obrigatório")
         elif codigo_duplicado:
-            erros.append(f"O Código '{codigo_limpo}' já está em uso por um serviço ATIVO! Escolha outro código.")
+            erros.append(f"O Código '{codigo_limpo}' equivale a um código JÁ CADASTRADO! Escolha um código diferente.")
         if not descricao.strip():
             erros.append("Descrição do Serviço")
         if not categoria:
@@ -173,75 +185,53 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codig
         if not erros:
             tarifa_formatada = formatar_tarifa_fn(tarifa)
             
-            # Se já existir uma linha na base com esse código (como o código "1" que está "Inativo"), reaproveita e reativa[cite: 1, 2, 3]
-            mask_inativo = df_base_completa["Código"].astype(str).str.strip() == codigo_limpo
-            if not df_base_completa[mask_inativo].empty:
-                df_base_completa.loc[mask_inativo, "Descrição"] = descricao.strip()
-                df_base_completa.loc[mask_inativo, "Tarifa (R$)"] = tarifa_formatada
-                df_base_completa.loc[mask_inativo, "Unidade"] = unidade
-                df_base_completa.loc[mask_inativo, "Categoria"] = categoria
-                df_base_completa.loc[mask_inativo, "Observações"] = observacoes.strip()
-                df_base_completa.loc[mask_inativo, "Status"] = "Ativo"
-            else:
-                nova_linha = pd.DataFrame([{
-                    "Código": codigo_limpo,
-                    "Descrição": descricao.strip(),
-                    "Tarifa (R$)": tarifa_formatada,
-                    "Unidade": unidade,
-                    "Categoria": categoria,
-                    "Observações": observacoes.strip(),
-                    "Status": "Ativo"
-                }])
-                df_base_completa = pd.concat([df_base_completa, nova_linha], ignore_index=True)
+            nova_linha = pd.DataFrame([{
+                "Código": codigo_limpo,
+                "Descrição": descricao.strip(),
+                "Tarifa (R$)": tarifa_formatada,
+                "Unidade": unidade,
+                "Categoria": categoria,
+                "Observações": observacoes.strip(),
+                "Status": "Ativo"
+            }])
             
-            if salvar_dados_fn(df_base_completa):
-                st.success(f"Serviço '{codigo_limpo}' cadastrado/reativado com sucesso!")
-                # Atualiza o ID do formulário para limpar todos os campos da tela instantaneamente
+            df_atualizado = pd.concat([df_base_completa, nova_linha], ignore_index=True)
+            
+            if salvar_dados_fn(df_atualizado):
+                st.success(f"Serviço '{codigo_limpo}' salvo com sucesso!")
                 st.session_state["form_id"] += 1
                 st.rerun()
         else:
             campos_faltantes = " | ".join(erros)
             st.error(f"⚠️ Atenção: {campos_faltantes}")
 
-    # Tabela e Gestão de Serviços Ativos
+    # Tabela de Serviços
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("### 🔍 Base de Serviços Cadastrados")
     
     df_servicos_ativos = carregar_dados_fn(apenas_ativos=True)
     
     if not df_servicos_ativos.empty:
-        # Exibe Código e Nome/Descrição combinados na lista de seleção para exclusão
-        df_servicos_ativos["Opcao_Select"] = df_servicos_ativos["Código"].astype(str) + " - " + df_servicos_ativos["Descrição"].astype(str)
-        lista_opcoes_servicos = [""] + df_servicos_ativos["Opcao_Select"].tolist()
+        servicos_lista = df_servicos_ativos["Código"].tolist()
         
-        col_sel_s, col_btn_del = st.columns([4, 1.5])
-        
-        with col_sel_s:
-            servico_escolhido = st.selectbox("Selecione um serviço para excluir:", options=lista_opcoes_servicos)
-            
-        codigo_selecionado = servico_escolhido.split(" - ")[0].strip() if servico_escolhido else ""
-
-        with col_btn_del:
+        col_del1, col_del2 = st.columns([3, 1])
+        with col_del1:
+            servico_para_excluir = st.selectbox("Selecione um serviço para EXCLUIR:", [""] + servicos_lista)
+        with col_del2:
             st.write("")
             st.write("")
             st.markdown('<div class="btn-excluir-servico-container">', unsafe_allow_html=True)
-            if st.button("🗑️ Excluir"):
-                if codigo_selecionado:
-                    df_completa_del = carregar_dados_fn(apenas_ativos=False)
-                    mask = df_completa_del["Código"].astype(str).str.strip() == codigo_selecionado
-                    df_completa_del.loc[mask, "Status"] = "Inativo"
-                    if salvar_dados_fn(df_completa_del):
-                        st.success(f"Serviço '{codigo_selecionado}' excluído com sucesso!")
+            if st.button("🗑️ Excluir Serviço Selecionado"):
+                if servico_para_excluir:
+                    df_base_completa = carregar_dados_fn(apenas_ativos=False)
+                    mask = df_base_completa["Código"].astype(str).str.strip() == str(servico_para_excluir).strip()
+                    df_base_completa.loc[mask, "Status"] = "Inativo"
+                    if salvar_dados_fn(df_base_completa):
+                        st.success(f"Serviço '{servico_para_excluir}' excluído com sucesso!")
                         st.rerun()
                 else:
                     st.warning("Selecione um serviço para excluir.")
             st.markdown('</div>', unsafe_allow_html=True)
-            
+
     st.markdown("<br>", unsafe_allow_html=True)
-    
-    # Remove a coluna auxiliar 'Opcao_Select' antes de exibir a tabela final
-    df_exibicao = df_servicos_ativos.copy()
-    if "Opcao_Select" in df_exibicao.columns:
-        df_exibicao = df_exibicao.drop(columns=["Opcao_Select"])
-        
-    st.dataframe(df_exibicao, use_container_width=True)
+    st.dataframe(df_servicos_ativos, use_container_width=True)
