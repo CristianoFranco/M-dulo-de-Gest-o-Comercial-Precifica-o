@@ -8,7 +8,6 @@ from datetime import datetime
 def obter_proximo_numero_proposta():
     if st.session_state.get("proposta_id_em_edicao"):
         return st.session_state["proposta_id_em_edicao"]
-
     agora = datetime.now()
     mes = agora.strftime("%m")
     ano = agora.strftime("%Y")
@@ -56,7 +55,7 @@ def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_blo
         st.info(f"Nenhum serviço cadastrado na categoria '{titulo}'.")
         st.markdown("---")
         return
-
+        
     codigos_categoria = df_categoria["Código"].tolist()
     opcoes = [""] + codigos_categoria
     
@@ -100,7 +99,7 @@ def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_blo
                     st.warning("Este item já foi adicionado ao rascunho.")
             else:
                 st.warning("Selecione um item antes de adicionar.")
-
+                
     itens_do_bloco_com_idx = [
         (idx, item) for idx, item in enumerate(st.session_state["rascunho_itens"])
         if item.get("Cat_Code") == categoria_filtro or item.get("Categoria") == titulo
@@ -116,9 +115,8 @@ def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_blo
         with h_tar: st.markdown("<b style='color: #FFFFFF;'>Tarifa Editável (R$)</b>", unsafe_allow_html=True)
         with h_un: st.markdown("<b style='color: #FFFFFF;'>Unidade</b>", unsafe_allow_html=True)
         with h_obs: st.markdown("<b style='color: #FFFFFF;'>Observações</b>", unsafe_allow_html=True)
-
         st.markdown("<hr style='margin: 4px 0 10px 0; border-color: rgba(255,255,255,0.3);'>", unsafe_allow_html=True)
-
+        
         for idx, item in itens_do_bloco_com_idx:
             c_del, c_cod, c_desc, c_tar, c_un, c_obs = st.columns([0.5, 1.2, 3.2, 2.2, 1.8, 2.2])
             
@@ -151,7 +149,7 @@ def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_blo
                 st.markdown(f"<span style='color: #FFFFFF;'>{item['Unidade']}</span>", unsafe_allow_html=True)
             with c_obs:
                 st.markdown(f"<span style='color: #FFFFFF;'>{item.get('Observações', '')}</span>", unsafe_allow_html=True)
-
+                
     st.markdown("---")
 
 # ==============================================================================
@@ -159,6 +157,13 @@ def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_blo
 # ==============================================================================
 def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_fn=None, *args, **kwargs):
     inicializar_estado_proposta()
+    
+    # Se não estiver a editar uma proposta existente, garante que os campos de cliente iniciam limpos
+    if not st.session_state.get("proposta_id_em_edicao"):
+        if "proposta_cliente_nome" in st.session_state and st.session_state.get("rascunho_itens") == []:
+            # Opcional: limpa se o rascunho estiver vazio para evitar reter lixo antigo
+            pass
+
     numero_proposta = obter_proximo_numero_proposta()
     
     st.markdown("""
@@ -188,7 +193,7 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_fn=None, *args, **k
             }
         </style>
     """, unsafe_allow_html=True)
-
+    
     col_tit, col_num = st.columns([3, 1])
     with col_tit:
         st.markdown("## 📝 Proposta Rascunho")
@@ -202,11 +207,11 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_fn=None, *args, **k
                 st.session_state["proposta_cliente_nome"] = ""
                 st.session_state["proposta_cliente_cnpj"] = ""
                 st.rerun()
-
+                
     st.markdown("<br>", unsafe_allow_html=True)
-
+    
     # --------------------------------------------------------------------------
-    # CAMPOS DE INPUT VINCULADOS DIRETAMENTE À SESSÃO
+    # CAMPOS DE INPUT VINCULADOS DIRETAMENTE À SESSÃO COM LIMPEZA SEGURA
     # --------------------------------------------------------------------------
     col_cli, col_cnpj = st.columns([2.5, 1.5])
     
@@ -223,9 +228,9 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_fn=None, *args, **k
             placeholder="Ex: 00.000.000/0001-00",
             key="proposta_cliente_cnpj"
         )
-
+        
     st.markdown("<br>", unsafe_allow_html=True)
-
+    
     try:
         df_servicos = carregar_dados_fn(apenas_ativos=True)
     except Exception:
@@ -233,10 +238,10 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_fn=None, *args, **k
             df_servicos = carregar_dados_fn()
         except Exception:
             df_servicos = pd.DataFrame()
-
+            
     if df_servicos is None or not isinstance(df_servicos, pd.DataFrame):
         df_servicos = pd.DataFrame()
-
+        
     # Painel de Ajuste Percentual Global
     if st.session_state["rascunho_itens"]:
         with st.expander("📈 **Ajuste Percentual Geral nas Tarifas do Rascunho**", expanded=True):
@@ -259,20 +264,18 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_fn=None, *args, **k
                         aplicar_reajuste_percentual_global(percentual_ajuste)
                         st.success(f"Reajuste de {percentual_ajuste:.2f}% aplicado!")
                         st.rerun()
-
         st.markdown("<br>", unsafe_allow_html=True)
-
+        
     if df_servicos.empty or "Categoria" not in df_servicos.columns:
         st.warning("Nenhum serviço ativo foi encontrado na base de dados do Google Sheets.")
         return
-
+        
     df_servicos["Cat_Upper"] = df_servicos["Categoria"].astype(str).str.strip().str.upper()
-
     df_armazenagem = df_servicos[df_servicos["Cat_Upper"] == "ARMAZENAGEM"]
     df_seguro = df_servicos[df_servicos["Cat_Upper"] == "SEGURO"]
     df_servicos_handling = df_servicos[df_servicos["Cat_Upper"].isin(["SERVIÇO", "MOVIMENTAÇÃO (HANDLING)"])]
     df_outros = df_servicos[~df_servicos["Cat_Upper"].isin(["ARMAZENAGEM", "SEGURO", "SERVIÇO", "MOVIMENTAÇÃO (HANDLING)"])]
-
+    
     for item in st.session_state["rascunho_itens"]:
         if not item.get("Cat_Code") or item.get("Cat_Code") == "GEN":
             cat_up = str(item.get("Categoria", "")).strip().upper()
@@ -284,16 +287,16 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_fn=None, *args, **k
                 item["Cat_Code"] = "SER"
             else:
                 item["Cat_Code"] = "OUT"
-
+                
     # 4 Blocos
     renderizar_bloco_categoria("Armazenagem", "ARM", df_armazenagem, "🏬")
     renderizar_bloco_categoria("Seguro", "SEG", df_seguro, "🛡️")
     renderizar_bloco_categoria("Serviços e Movimentações", "SER", df_servicos_handling, "⚙️")
     renderizar_bloco_categoria("Outros", "OUT", df_outros, "📦")
-
+    
     todos_itens = st.session_state["rascunho_itens"]
-
     col_res1, col_res2 = st.columns([2, 1])
+    
     with col_res1:
         st.markdown(f"### Total de Itens no Rascunho: **{len(todos_itens)}**")
         
