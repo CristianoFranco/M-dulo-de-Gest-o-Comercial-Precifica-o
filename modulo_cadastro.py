@@ -1,237 +1,119 @@
 import streamlit as st
 import pandas as pd
 
-UNIDADES_PADRAO = [
-    "",
-    "Por caixa",
-    "por unidade",
-    "por pallet",
-    "por hora/homem",
-    "por etiqueta",
-    "por volume",
-    "por mês"
-]
+def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, normalizar_codigo_fn=None, formatar_tarifa_fn=None):
+    st.markdown("## 📋 Cadastro e Gestão de Serviços")
+    st.caption("Cadastre novos serviços, visualize a tabela tarifária e gerencie o status (Ativo/Inativo).")
+    st.markdown("<br>", unsafe_allow_html=True)
 
-# ==============================================================================
-# ESTILIZAÇÃO CSS EXCLUSIVA PARA VISIBILIDADE DOS BOTÕES INCLUIR / EXCLUIR
-# ==============================================================================
-def aplicar_estilos_botoes():
-    st.markdown("""
-        <style>
-            /* Botão 'Confirmar Inclusão' (Azul de Alto Contraste com Texto Branco) */
-            div[data-testid="stExpander"] div.stButton > button {
-                background-color: #0052B4 !important;
-                color: #FFFFFF !important;
-                font-weight: bold !important;
-                border: 1px solid #60A5FA !important;
-                opacity: 1 !important;
-            }
-            div[data-testid="stExpander"] div.stButton > button p {
-                color: #FFFFFF !important;
-                font-weight: bold !important;
-            }
-            div[data-testid="stExpander"] div.stButton > button:hover {
-                background-color: #003B82 !important;
-                border-color: #93C5FD !important;
-            }
+    # Carrega todos os dados (incluindo inativos para gerenciar)
+    try:
+        df_completo = carregar_dados_fn(apenas_ativos=False)
+    except TypeError:
+        df_completo = carregar_dados_fn()
 
-            /* Botão 'Confirmar Exclusão' de Unidade (Vermelho de Alto Contraste) */
-            div[data-testid="stExpander"] .btn-excluir-unidade-container div.stButton > button {
-                background-color: #D32F2F !important;
-                color: #FFFFFF !important;
-                font-weight: bold !important;
-                border: 1px solid #EF4444 !important;
-                opacity: 1 !important;
-            }
-            div[data-testid="stExpander"] .btn-excluir-unidade-container div.stButton > button p {
-                color: #FFFFFF !important;
-                font-weight: bold !important;
-            }
-            div[data-testid="stExpander"] .btn-excluir-unidade-container div.stButton > button:hover {
-                background-color: #991B1B !important;
-                border-color: #F87171 !important;
-            }
+    if df_completo is None or not isinstance(df_completo, pd.DataFrame):
+        df_completo = pd.DataFrame(columns=["Código", "Descrição", "Tarifa (R$)", "Unidade", "Categoria", "Observações", "Status"])
 
-            /* Botão 'Excluir Serviço Selecionado' (Vermelho Destacado) */
-            .btn-excluir-servico-container div.stButton > button {
-                background-color: #D32F2F !important;
-                color: #FFFFFF !important;
-                font-weight: bold !important;
-                border: 1px solid #EF4444 !important;
-                opacity: 1 !important;
-            }
-            .btn-excluir-servico-container div.stButton > button p {
-                color: #FFFFFF !important;
-                font-weight: bold !important;
-            }
-            .btn-excluir-servico-container div.stButton > button:hover {
-                background-color: #991B1B !important;
-                border-color: #F87171 !important;
-            }
-        </style>
-    """, unsafe_allow_html=True)
-
-
-def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_fn, normalizar_codigo_fn, formatar_tarifa_fn):
-    # Aplica os estilos ajustados para visibilidade dos botões
-    aplicar_estilos_botoes()
-
-    # Garantia contra KeyError: Inicializa a lista de unidades se não existir
-    if "lista_unidades" not in st.session_state:
-        st.session_state["lista_unidades"] = UNIDADES_PADRAO.copy()
-        
-    if "form_id" not in st.session_state:
-        st.session_state["form_id"] = 0
-
-    st.markdown("### 📝 Cadastro e Gestão de Serviços")
+    if "Status" not in df_completo.columns:
+        df_completo["Status"] = "Ativo"
     
-    fid = st.session_state.get("form_id", 0)
+    df_completo["Status"] = df_completo["Status"].astype(str).str.strip().replace("", "Ativo")
+    df_completo["Código"] = df_completo["Código"].astype(str).str.strip()
 
-    # Formulário de Cadastro
-    with st.form("form_servico", clear_on_submit=False):
+    # Formulário de Cadastro / Edição
+    with st.form("form_cadastro_servico", clear_on_submit=False):
+        st.markdown("### ➕ Novo Serviço ou Atualização")
+        
         col1, col2 = st.columns(2)
-        
         with col1:
-            codigo = st.text_input("Código do Serviço *", key=f"codigo_{fid}", placeholder="Ex: SERV-001")
-            categoria = st.selectbox(
-                "Categoria *", 
-                ["", "Armazenagem", "Seguro", "Serviço", "Movimentação (Handling)", "Outros"],
-                key=f"categoria_{fid}"
+            codigo_input = st.text_input("Código *", placeholder="Ex: 1, 2, A1...")
+            descricao_input = st.text_input("Descrição *", placeholder="Ex: Armazenagem, Reembalagem...")
+            categoria_input = st.selectbox(
+                "Categoria *",
+                options=["", "Armazenagem", "Seguro", "Serviço", "Movimentação (Handling)", "Outros"]
             )
-            tarifa = st.number_input(
-                "Tarifa (R$) *", 
-                min_value=0.00000, 
-                step=0.00001, 
-                format="%.5f", 
-                key=f"tarifa_{fid}"
-            )
-        
         with col2:
-            descricao = st.text_input("Descrição do Serviço *", key=f"descricao_{fid}", placeholder="Ex: Armazenagem de carga paletizada")
-            unidade = st.selectbox(
-                "Unidade *", 
-                st.session_state["lista_unidades"],
-                key=f"unidade_{fid}"
-            )
-            observacoes = st.text_area("Observações e Premissas (Opcional)", key=f"obs_{fid}", placeholder="Ex: Faturamento mínimo mensal de 50 paletes.")
-        
-        btn_salvar = st.form_submit_button("💾 Cadastrar / Salvar Serviço")
+            unidade_opcoes = st.session_state.get("lista_unidades", ["", "Por caixa", "por unidade", "por pallet", "por hora/homem", "por etiqueta", "por volume", "por mês"])
+            unidade_input = st.selectbox("Unidade *", options=unidade_opcoes)
+            tarifa_input = st.number_input("Tarifa (R$) *", min_value=0.0, step=0.01, format="%.5f")
+            obs_input = st.text_area("Observações e Premissas (Opcional)", placeholder="Ex: Faturamento mínimo...")
 
-    st.markdown("<br>", unsafe_allow_html=True)
+        submitted = st.form_submit_button("💾 Cadastrar / Salvar Serviço")
 
-    # Gestão de Unidades (+ / -)
-    with st.expander("⚙️ Gerenciar Opções da Lista de Unidades (+ / -)"):
-        col_u1, col_u2 = st.columns(2)
-        
-        with col_u1:
-            st.markdown("**➕ Adicionar Nova Unidade**")
-            nova_unidade_input = st.text_input("Nome da Unidade", placeholder="Ex: por container", key="input_add_u")
-            if st.button("Confirmar Inclusão"):
-                nome_limpo = nova_unidade_input.strip()
-                if nome_limpo:
-                    if nome_limpo not in st.session_state["lista_unidades"]:
-                        st.session_state["lista_unidades"].append(nome_limpo)
-                        st.success(f"Unidade '{nome_limpo}' adicionada com sucesso!")
-                        st.rerun()
-                    else:
-                        st.warning("Esta unidade já consta na lista.")
-                else:
-                    st.warning("Digite um nome válido para a unidade.")
-                    
-        with col_u2:
-            st.markdown("**➖ Remover Unidade Existente**")
-            unidades_disponiveis = [u for u in st.session_state["lista_unidades"] if u != ""]
-            if unidades_disponiveis:
-                unidade_para_remover = st.selectbox("Selecione para excluir", unidades_disponiveis, key="select_rem_u")
-                st.markdown('<div class="btn-excluir-unidade-container">', unsafe_allow_html=True)
-                if st.button("Confirmar Exclusão"):
-                    st.session_state["lista_unidades"].remove(unidade_para_remover)
-                    st.success(f"Unidade '{unidade_para_remover}' removida!")
-                    st.rerun()
-                st.markdown('</div>', unsafe_allow_html=True)
+        if submitted:
+            codigo_limp = normalizar_codigo_fn(codigo_input) if normalizar_codigo_fn else str(codigo_input).strip()
+            
+            if not codigo_limp or not descricao_input or not categoria_input or not unidade_input:
+                st.error("⚠️ Preencha todos os campos obrigatórios (*).")
             else:
-                st.info("Não existem unidades personalizadas para remover.")
+                # Valida duplicidade apenas se o código já estiver ATIVO
+                df_ativos_existentes = df_completo[df_completo["Status"].str.upper() != "INATIVO"]
+                codigo_ja_ativo = not df_ativos_existentes[df_ativos_existentes["Código"] == codigo_limp].empty
+                
+                if codigo_ja_ativo:
+                    st.error(f"⚠️ Atenção: O Código '{codigo_limp}' equivale a um código JÁ CADASTRADO! Escolha um código diferente.")
+                else:
+                    idx_existente = df_completo[df_completo["Código"] == codigo_limp].index
+                    
+                    tarifa_val = formatar_tarifa_fn(tarifa_input) if formatar_tarifa_fn else tarifa_input
 
-    # Processamento de Cadastro
-    if btn_salvar:
-        codigo_limpo = str(codigo).strip()
-        codigo_norm = normalizar_codigo_fn(codigo_limpo)
-        
-        df_base_completa = carregar_dados_fn(apenas_ativos=False)
-        
-        if not df_base_completa.empty and "Código" in df_base_completa.columns:
-            codigos_existentes_norm = [
-                normalizar_codigo_fn(c) for c in df_base_completa["Código"].tolist() if str(c).strip() != ""
-            ]
-        else:
-            codigos_existentes_norm = []
+                    novo_registro = {
+                        "Código": codigo_limp,
+                        "Descrição": descricao_input.strip(),
+                        "Tarifa (R$)": tarifa_val,
+                        "Unidade": unidade_input,
+                        "Categoria": categoria_input,
+                        "Observações": obs_input.strip() if obs_input else "",
+                        "Status": "Ativo"
+                    }
 
-        codigo_duplicado = codigo_norm in codigos_existentes_norm
+                    if not idx_existente.empty:
+                        # Reativa e atualiza a linha que estava inativa com o mesmo código
+                        for k, v in novo_registro.items():
+                            df_completo.loc[idx_existente[0], k] = v
+                        st.success(f"Servício com o código '{codigo_limp}' (anteriormente inativo) foi reativado e atualizado com sucesso!")
+                    else:
+                        # Adiciona novo registro
+                        df_novo = pd.DataFrame([novo_registro])
+                        df_completo = pd.concat([df_completo, df_novo], ignore_index=True)
+                        st.success(f"Servício '{descricao_input}' cadastrado com sucesso!")
 
-        erros = []
-        if not codigo_limpo:
-            erros.append("Código do Serviço é obrigatório")
-        elif codigo_duplicado:
-            erros.append(f"O Código '{codigo_limpo}' equivale a um código JÁ CADASTRADO! Escolha um código diferente.")
-        if not descricao.strip():
-            erros.append("Descrição do Serviço")
-        if not categoria:
-            erros.append("Categoria")
-        if not unidade:
-            erros.append("Unidade")
-        if tarifa <= 0:
-            erros.append("Tarifa (R$) deve ser maior que 0.00000")
+                    if salvar_dados_completos_fn:
+                        salvar_dados_completos_fn(df_completo)
+                    st.rerun()
 
-        if not erros:
-            tarifa_formatada = formatar_tarifa_fn(tarifa)
-            
-            nova_linha = pd.DataFrame([{
-                "Código": codigo_limpo,
-                "Descrição": descricao.strip(),
-                "Tarifa (R$)": tarifa_formatada,
-                "Unidade": unidade,
-                "Categoria": categoria,
-                "Observações": observacoes.strip(),
-                "Status": "Ativo"
-            }])
-            
-            df_atualizado = pd.concat([df_base_completa, nova_linha], ignore_index=True)
-            
-            if salvar_dados_fn(df_atualizado):
-                st.success(f"Serviço '{codigo_limpo}' salvo com sucesso!")
-                st.session_state["form_id"] += 1
-                st.rerun()
-        else:
-            campos_faltantes = " | ".join(erros)
-            st.error(f"⚠️ Atenção: {campos_faltantes}")
-
-    # Tabela de Serviços
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("### 🔍 Base de Serviços Cadastrados")
+    st.markdown("---")
+    st.markdown("### 📊 Serviços Cadastrados (Ativos e Inativos)")
     
-    df_servicos_ativos = carregar_dados_fn(apenas_ativos=True)
-    
-    if not df_servicos_ativos.empty:
-        servicos_lista = df_servicos_ativos["Código"].tolist()
+    if df_completo.empty:
+        st.info("Nenhum serviço cadastrado.")
+    else:
+        st.dataframe(df_completo, use_container_width=True, hide_index=True)
         
-        col_del1, col_del2 = st.columns([3, 1])
-        with col_del1:
-            servico_para_excluir = st.selectbox("Selecione um serviço para EXCLUIR:", [""] + servicos_lista)
-        with col_del2:
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown("#### ⚙️ Gerenciar Status dos Serviços")
+        
+        col_cod_ger, col_status_ger, col_btn_ger = st.columns([2, 2, 2])
+        
+        with col_cod_ger:
+            codigos_disponiveis = df_completo["Código"].tolist()
+            cod_selecionado = st.selectbox("Selecione o Código:", options=[""] + codigos_disponiveis, key="select_cod_status")
+            
+        with col_status_ger:
+            novo_status = st.selectbox("Novo Status:", options=["Ativo", "Inativo"], key="select_novo_status")
+            
+        with col_btn_ger:
             st.write("")
             st.write("")
-            st.markdown('<div class="btn-excluir-servico-container">', unsafe_allow_html=True)
-            if st.button("🗑️ Excluir Serviço Selecionado"):
-                if servico_para_excluir:
-                    df_base_completa = carregar_dados_fn(apenas_ativos=False)
-                    mask = df_base_completa["Código"].astype(str).str.strip() == str(servico_para_excluir).strip()
-                    df_base_completa.loc[mask, "Status"] = "Inativo"
-                    if salvar_dados_fn(df_base_completa):
-                        st.success(f"Serviço '{servico_para_excluir}' excluído com sucesso!")
+            if st.button("Atualizar Status", type="primary", use_container_width=True):
+                if cod_selecionado:
+                    idx_match = df_completo[df_completo["Código"] == cod_selecionado].index
+                    if not idx_match.empty:
+                        df_completo.loc[idx_match, "Status"] = novo_status
+                        if salvar_dados_completos_fn:
+                            salvar_dados_completos_fn(df_completo)
+                        st.success(f"Status do código '{cod_selecionado}' alterado para '{novo_status}' com sucesso!")
                         st.rerun()
                 else:
-                    st.warning("Selecione um serviço para excluir.")
-            st.markdown('</div>', unsafe_allow_html=True)
-
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.dataframe(df_servicos_ativos, use_container_width=True)
+                    st.warning("Selecione um código válido.")
