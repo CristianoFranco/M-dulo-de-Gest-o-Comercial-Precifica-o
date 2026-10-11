@@ -185,7 +185,7 @@ def salvar_dados_completos(df_completo):
         return False
 
 # ==============================================================================
-# FUNÇÕES DE INTEGRAÇÃO COM A TELA 3 (PROPOSTAS SALVAS) - CORRIGIDA
+# FUNÇÕES DE INTEGRAÇÃO COM A TELA 3 (PROPOSTAS SALVAS)
 # ==============================================================================
 def salvar_propostas_na_planilha(linhas_proposta):
     try:
@@ -295,7 +295,7 @@ else:
         </div>
     """, unsafe_allow_html=True)
 
-# BARRA DE NAVEGAÇÃO COM DESTAQUE VISUAL (3 TELAS)[cite: 4]
+# BARRA DE NAVEGAÇÃO COM DESTAQUE VISUAL (3 TELAS)
 col_nav1, col_nav2, col_nav3, _ = st.columns([2.2, 2.5, 2.5, 2.8])
 aba_atual = st.session_state["aba_ativa"]
 with col_nav1:
@@ -309,7 +309,7 @@ with col_nav1:
         st.rerun()
 with col_nav2:
     if st.button(
-        "🛠️ Propostas / Precificação",
+        "🛠️ Proposta Rascunho",
         key="btn_nav_propostas",
         type="primary" if aba_atual == "propostas" else "secondary",
         use_container_width=True
@@ -337,7 +337,7 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# RENDERIZAÇÃO DA TELA SELECIONADA[cite: 4]
+# RENDERIZAÇÃO DA TELA SELECIONADA
 if st.session_state["aba_ativa"] == "cadastro":
     executar_renderizar_cadastro()
 elif st.session_state["aba_ativa"] == "propostas":
