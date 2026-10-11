@@ -147,4 +147,80 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                     use_container_width=True
                 )
         with col_fechar:
-            if st.button("Salvar proposta e gerar PDF", type="
+            if st.button("Salvar proposta e gerar PDF", type="primary", use_container_width=True):
+                if salvar_proposta_sheets_fn:
+                    linhas_para_salvar = []
+                    data_hoje = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    for item in itens_rascunho:
+                        try:
+                            t_val = float(item.get("Tarifa (R$)", 0.0))
+                        except (ValueError, TypeError):
+                            t_val = 0.0
+                            
+                        linhas_para_salvar.append({
+                            "Proposta": numero_proposta_atual,
+                            "Data": data_hoje,
+                            "Cliente": cliente_nome,
+                            "CNPJ": cnpj_val,
+                            "Código": str(item.get("Código", "")),
+                            "Descrição": str(item.get("Descrição", "")),
+                            "Categoria": str(item.get("Categoria", "")),
+                            "Unidade": str(item.get("Unidade", "")),
+                            "Tarifa (R$)": t_val,
+                            "Observações": str(item.get("Observações", ""))
+                        })
+                    sucesso = salvar_proposta_sheets_fn(linhas_para_salvar)
+                    if sucesso:
+                        if not st.session_state.get("proposta_id_em_edicao"):
+                            st.session_state["sequencial_proposta"] = st.session_state.get("sequencial_proposta", 1) + 1
+                        
+                        st.session_state["proposta_id_em_edicao"] = None
+                        st.session_state["rascunho_itens"] = []
+                        st.session_state["proposta_cliente_nome"] = ""
+                        st.session_state["proposta_cliente_cnpj"] = ""
+                        st.session_state["_safe_cliente_nome"] = ""
+                        st.session_state["_safe_cnpj_val"] = ""
+                        
+                        for k in list(st.session_state.keys()):
+                            if k.startswith("input_tarifa_"):
+                                del st.session_state[k]
+                        st.success("Proposta salva com sucesso no Google Sheets!")
+                        st.rerun()
+                    else:
+                        st.error("Falha ao salvar no Google Sheets.")
+    st.markdown("---")
+    st.markdown("### Consulta Propostas Finalizadas")
+    with st.expander("Filtrar e Consultar Propostas Salvas", expanded=True):
+        col_filtro_m, col_filtro_a = st.columns(2)
+        with col_filtro_m:
+            mes_consulta = st.selectbox(
+                "Filtrar por Mês:",
+                options=["Todos", "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"],
+                index=0
+            )
+            
+        with col_filtro_a:
+            ano_consulta = st.text_input("Filtrar por Ano (Ex: 2026):", value="")
+        if carregar_propostas_salvas_fn:
+            df_historico = carregar_propostas_salvas_fn()
+            if isinstance(df_historico, pd.DataFrame) and not df_historico.empty:
+                df_filtrado = df_historico.copy()
+                if "Proposta" in df_filtrado.columns:
+                    if mes_consulta != "Todos":
+                        prefixo = str(mes_consulta) + "/"
+                        df_filtrado = df_filtrado[df_filtrado["Proposta"].astype(str).str.startswith(prefixo)]
+                    if ano_consulta.strip():
+                        sufixo = "/" + ano_consulta.strip()
+                        df_filtrado = df_filtrado[df_filtrado["Proposta"].astype(str).str.endswith(sufixo)]
+                
+                colunas_resumo = [c for c in ["Proposta", "Data", "Cliente"] if c in df_filtrado.columns]
+                df_resumido = df_filtrado[colunas_resumo].drop_duplicates(subset=["Proposta"]).reset_index(drop=True)
+                
+                if "Data" in df_resumido.columns:
+                    df_resumido["Data"] = df_resumido["Data"].astype(str).str.split().str[0]
+
+                st.markdown("Propostas Encontradas: " + str(len(df_resumido)))
+                st.dataframe(df_resumido, use_container_width=True, hide_index=True)
+                st.markdown("<br>", unsafe_allow_html=True)
+                
+                df_resumido["Opcao_Select"] = df_resumido["Proposta"].astype(str) + " - " + df_resumido["Cliente"].astype
