@@ -87,15 +87,17 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
     cliente_nome = str(st.session_state.get("proposta_cliente_nome") or st.session_state.get("_safe_cliente_nome", "")).strip()
     cnpj_val = str(st.session_state.get("proposta_cliente_cnpj") or st.session_state.get("_safe_cnpj_val", "")).strip()
     
-    agora = datetime.now()
-    mes_str = agora.strftime("%m")
-    ano_str = agora.strftime("%Y")
-    
     if st.session_state.get("proposta_id_em_edicao"):
         numero_proposta_atual = str(st.session_state["proposta_id_em_edicao"])
+    elif st.session_state.get("proposta_id_ativo"):
+        numero_proposta_atual = str(st.session_state["proposta_id_ativo"])
     else:
+        agora = datetime.now()
+        mes_str = agora.strftime("%m")
+        ano_str = agora.strftime("%Y")
         seq = st.session_state.get("sequencial_proposta", 1)
         numero_proposta_atual = mes_str + "/" + "{:05d}".format(seq) + "/" + ano_str
+
     st.markdown("### Documento da Proposta")
     if not itens_rascunho:
         st.warning("Nenhum item pendente no rascunho. Monte os itens na Tela 2 (Proposta Rascunho).")
@@ -148,7 +150,9 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                 )
         with col_fechar:
             if st.button("Salvar proposta e gerar PDF", type="primary", use_container_width=True):
-                if salvar_proposta_sheets_fn:
+                if not cliente_nome.strip():
+                    st.error("⚠️ O nome do Cliente é obrigatório para salvar a proposta!")
+                elif salvar_proposta_sheets_fn:
                     linhas_para_salvar = []
                     data_hoje = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     for item in itens_rascunho:
@@ -171,10 +175,8 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                         })
                     sucesso = salvar_proposta_sheets_fn(linhas_para_salvar)
                     if sucesso:
-                        if not st.session_state.get("proposta_id_em_edicao"):
-                            st.session_state["sequencial_proposta"] = st.session_state.get("sequencial_proposta", 1) + 1
-                        
                         st.session_state["proposta_id_em_edicao"] = None
+                        st.session_state["proposta_id_ativo"] = None
                         st.session_state["rascunho_itens"] = []
                         st.session_state["proposta_cliente_nome"] = ""
                         st.session_state["proposta_cliente_cnpj"] = ""
