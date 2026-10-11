@@ -25,21 +25,21 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
 
     with col_form:
         st.markdown("### ➕ Novo Serviço")
-        with st.form("form_cadastro_servico_principal_v2", clear_on_submit=True):
-            codigo_input = st.text_input("Código *", placeholder="Ex: 1, 2, A1...", key="input_cad_codigo_v2")
-            descricao_input = st.text_input("Descrição *", placeholder="Ex: Armazenagem, Reembalagem...", key="input_cad_desc_v2")
+        with st.form("form_cad_servico_unico_v3", clear_on_submit=True):
+            codigo_input = st.text_input("Código *", placeholder="Ex: 1, 2, A1...", key="in_cad_cod_v3")
+            descricao_input = st.text_input("Descrição *", placeholder="Ex: Armazenagem, Reembalagem...", key="in_cad_desc_v3")
             
             categoria_input = st.selectbox(
                 "Categoria *",
                 options=["", "Armazenagem", "Seguro", "Serviço", "Movimentação (Handling)", "Outros"],
-                key="select_cad_cat_v2"
+                key="sel_cad_cat_v3"
             )
             
             unidade_opcoes = st.session_state.get("lista_unidades", ["", "Por caixa", "por unidade", "por pallet", "por hora/homem", "por etiqueta", "por volume", "por mês"])
-            unidade_input = st.selectbox("Unidade *", options=unidade_opcoes, key="select_cad_unidade_v2")
+            unidade_input = st.selectbox("Unidade *", options=unidade_opcoes, key="sel_cad_un_v3")
             
-            tarifa_input = st.number_input("Tarifa (R$) *", min_value=0.0, step=0.01, format="%.5f", key="num_cad_tarifa_v2")
-            obs_input = st.text_area("Observações e Premissas (Opcional)", placeholder="Ex: Faturamento mínimo...", key="area_cad_obs_v2")
+            tarifa_input = st.number_input("Tarifa (R$) *", min_value=0.0, step=0.01, format="%.5f", key="num_cad_tar_v3")
+            obs_input = st.text_area("Observações e Premissas (Opcional)", placeholder="Ex: Faturamento mínimo...", key="area_cad_obs_v3")
 
             submitted = st.form_submit_button("💾 Salvar Serviço", use_container_width=True)
 
@@ -97,19 +97,20 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
             st.markdown("#### ⚙️ Gerenciar Serviço (Editar / Excluir)")
             
             ativos_lista = df_completo[df_completo["Status"].str.upper() != "INATIVO"]["Código"].tolist()
-            cod_selecionado = st.selectbox("Selecione o Código do Serviço Ativo:", options=[""] + ativos_lista, key="select_servico_gerenciar_ativo_v2")
+            cod_selecionado = st.selectbox("Selecione o Código do Serviço Ativo:", options=[""] + ativos_lista, key="select_servico_gerenciar_ativo_v3")
             
             if cod_selecionado:
                 row_sel = df_completo[df_completo["Código"] == cod_selecionado].iloc[0]
                 
                 col_btn_edit, col_btn_exc = st.columns(2)
                 with col_btn_edit:
-                    btn_acao_editar = st.button("✏️ Editar", use_container_width=True, key="btn_acao_editar_servico_v2")
+                    btn_acao_editar = st.button("✏️ Editar", use_container_width=True, key="btn_edit_action_v3")
                 with col_btn_exc:
-                    btn_acao_excluir = st.button("🗑️ Excluir", use_container_width=True, key="btn_acao_excluir_servico_v2")
+                    btn_acao_excluir = st.button("🗑️ Excluir", use_container_width=True, key="btn_exc_action_v3")
                 
                 if btn_acao_editar:
                     st.session_state["modo_acao_servico"] = "editar"
+                    st.session_state["codigo_em_edicao"] = cod_selecionado
                     st.rerun()
                 
                 if btn_acao_excluir:
@@ -119,28 +120,31 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
                         salvar_dados_completos_fn(df_completo)
                     st.success("Item excluído com sucesso!")
                     st.session_state.pop("modo_acao_servico", None)
+                    st.session_state.pop("codigo_em_edicao", None)
                     st.rerun()
 
                 modo_atual = st.session_state.get("modo_acao_servico")
+                codigo_editando = st.session_state.get("codigo_em_edicao")
 
-                if modo_atual == "editar":
+                if modo_atual == "editar" and codigo_editando == cod_selecionado:
                     st.markdown("---")
                     st.markdown(f"##### Editando Serviço: `{cod_selecionado}`")
                     
-                    with st.form("form_edicao_servico_unico_v2"):
-                        st.text_input("Código (Fixo / Não Editável)", value=str(row_sel["Código"]), disabled=True)
+                    # Formulário dedicado e isolado para edição com chaves únicas
+                    with st.form(f"form_edicao_servico_{cod_selecionado}"):
+                        st.text_input("Código (Fixo / Não Editável)", value=str(row_sel["Código"]), disabled=True, key=f"edit_cod_txt_{cod_selecionado}")
                         
-                        edit_desc = st.text_input("Descrição *", value=str(row_sel["Descrição"]), key="edit_input_desc_v2")
+                        edit_desc = st.text_input("Descrição *", value=str(row_sel["Descrição"]), key=f"edit_desc_txt_{cod_selecionado}")
                         
                         cats = ["Armazenagem", "Seguro", "Serviço", "Movimentação (Handling)", "Outros"]
                         cat_atual = str(row_sel["Categoria"])
                         cat_idx = cats.index(cat_atual) if cat_atual in cats else 0
-                        edit_cat = st.selectbox("Categoria *", options=cats, index=cat_idx, key="edit_select_cat_v2")
+                        edit_cat = st.selectbox("Categoria *", options=cats, index=cat_idx, key=f"edit_cat_sel_{cod_selecionado}")
                         
                         unidades = st.session_state.get("lista_unidades", ["", "Por caixa", "por unidade", "por pallet", "por hora/homem", "por etiqueta", "por volume", "por mês"])
                         un_atual = str(row_sel["Unidade"])
                         un_idx = unidades.index(un_atual) if un_atual in unidades else 0
-                        edit_un = st.selectbox("Unidade *", options=unidades, index=un_idx, key="edit_select_un_v2")
+                        edit_un = st.selectbox("Unidade *", options=unidades, index=un_idx, key=f"edit_un_sel_{cod_selecionado}")
                         
                         try:
                             t_val_inicial = float(str(row_sel["Tarifa (R$)"]).replace(".", "").replace(",", "."))
@@ -150,8 +154,8 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
                             except Exception:
                                 t_val_inicial = 0.0
                                 
-                        edit_tarifa = st.number_input("Tarifa (R$) *", value=t_val_inicial, min_value=0.0, step=0.01, format="%.5f", key="edit_num_tarifa_v2")
-                        edit_obs = st.text_area("Observações e Premissas (Opcional)", value=str(row_sel.get("Observações", "")), key="edit_area_obs_v2")
+                        edit_tarifa = st.number_input("Tarifa (R$) *", value=t_val_inicial, min_value=0.0, step=0.01, format="%.5f", key=f"edit_tar_num_{cod_selecionado}")
+                        edit_obs = st.text_area("Observações e Premissas (Opcional)", value=str(row_sel.get("Observações", "")), key=f"edit_obs_area_{cod_selecionado}")
                         
                         col_salvar, col_cancelar = st.columns(2)
                         with col_salvar:
@@ -171,7 +175,9 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
                                 salvar_dados_completos_fn(df_completo)
                             st.success(f"Servício '{cod_selecionado}' atualizado com sucesso!")
                             st.session_state.pop("modo_acao_servico", None)
+                            st.session_state.pop("codigo_em_edicao", None)
                             st.rerun()
                         elif btn_cancelar_edicao:
                             st.session_state.pop("modo_acao_servico", None)
+                            st.session_state.pop("codigo_em_edicao", None)
                             st.rerun()
