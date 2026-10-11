@@ -106,9 +106,22 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
             if cod_selecionado:
                 row_sel = df_completo[df_completo["Código"] == cod_selecionado].iloc[0]
                 
-                acao = st.radio("Escolha a Ação:", options=["Editar Serviço", "Excluir Serviço"], horizontal=True, key="radio_acao_servico")
+                col_btn_edit, col_btn_exc = st.columns(2)
+                with col_btn_edit:
+                    btn_acao_editar = st.button("✏️ Editar", use_container_width=True)
+                with col_btn_exc:
+                    btn_acao_excluir = st.button("🗑️ Excluir", use_container_width=True)
                 
-                if acao == "Editar Serviço":
+                # Controla estado de qual ação está ativa
+                if btn_acao_editar:
+                    st.session_state["modo_acao_servico"] = "editar"
+                elif btn_acao_excluir:
+                    st.session_state["modo_acao_servico"] = "excluir"
+
+                modo_atual = st.session_state.get("modo_acao_servico", "editar")
+
+                if modo_atual == "editar":
+                    st.markdown("##### Editando Serviço: `" + str(cod_selecionado) + "`")
                     with st.form("form_edicao_servico_unico"):
                         st.text_input("Código (Fixo / Não Editável)", value=str(row_sel["Código"]), disabled=True)
                         
@@ -148,11 +161,13 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
                                 salvar_dados_completos_fn(df_completo)
                             st.success(f"Servício '{cod_selecionado}' atualizado com sucesso!")
                             st.rerun()
-                else:
-                    if st.button("🗑️ Confirmar Exclusão do Serviço", type="primary", use_container_width=True):
+                elif modo_atual == "excluir":
+                    st.warning(f"Deseja realmente excluir o serviço **{cod_selecionado} - {row_sel['Descrição']}**?")
+                    if st.button("🚨 Confirmar Exclusão Definitiva", type="primary", use_container_width=True):
                         idx_alvo = df_completo[df_completo["Código"] == cod_selecionado].index[0]
                         df_completo.loc[idx_alvo, "Status"] = "Inativo"
                         if salvar_dados_completos_fn:
                             salvar_dados_completos_fn(df_completo)
                         st.success(f"Servício '{cod_selecionado}' excluído com sucesso! O código foi liberado.")
+                        st.session_state.pop("modo_acao_servico", None)
                         st.rerun()
