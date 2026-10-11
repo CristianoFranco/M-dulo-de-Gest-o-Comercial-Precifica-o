@@ -293,4 +293,22 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_completos=None, *ar
                 item["Cat_Code"] = "OUT"
                 
     # 4 Blocos
-    renderizar_bloco_categoria("Armazenagem", "ARM
+    renderizar_bloco_categoria("Armazenagem", "ARM", df_armazenagem, "🏬")
+    renderizar_bloco_categoria("Seguro", "SEG", df_seguro, "🛡️")
+    renderizar_bloco_categoria("Serviços e Movimentações", "SER", df_servicos_handling, "⚙️")
+    renderizar_bloco_categoria("Outros", "OUT", df_outros, "📦")
+    
+    todos_itens = st.session_state["rascunho_itens"]
+    col_res1, col_res2 = st.columns([2, 1])
+    with col_res1:
+        st.markdown(f"### Total de Itens no Rascunho: **{len(todos_itens)}**")
+        
+    with col_res2:
+        if st.button("➡️ Finalizar Lançamento e Ir para Proposta Cliente", use_container_width=True):
+            if not cliente_nome.strip():
+                st.error("⚠️ O campo 'Cliente *' é obrigatório!")
+            elif not todos_itens:
+                st.error("Adicione pelo menos um item antes de avançar.")
+            else:
+                st.session_state["aba_ativa"] = "cliente"
+                st.rerun()
