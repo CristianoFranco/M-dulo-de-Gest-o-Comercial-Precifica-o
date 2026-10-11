@@ -202,9 +202,12 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_completos_fn=None, 
         if st.session_state.get("proposta_id_em_edicao"):
             if st.button("➕ Nova Proposta (Limpar Edição)", use_container_width=True):
                 st.session_state["proposta_id_em_edicao"] = None
+                st.session_state["proposta_id_ativo"] = None
                 st.session_state["rascunho_itens"] = []
                 st.session_state["_safe_cliente_nome"] = ""
                 st.session_state["_safe_cnpj_val"] = ""
+                st.session_state["input_cli_nome_tela2"] = ""
+                st.session_state["proposta_cliente_cnpj"] = ""
                 st.rerun()
     st.markdown("<br>", unsafe_allow_html=True)
     
