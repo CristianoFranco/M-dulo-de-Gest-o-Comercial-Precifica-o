@@ -25,20 +25,21 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
 
     with col_form:
         st.markdown("### ➕ Novo Serviço")
-        with st.form("form_cadastro_servico_unico", clear_on_submit=True):
-            codigo_input = st.text_input("Código *", placeholder="Ex: 1, 2, A1...")
-            descricao_input = st.text_input("Descrição *", placeholder="Ex: Armazenagem, Reembalagem...")
+        with st.form("form_cadastro_servico_principal", clear_on_submit=True):
+            codigo_input = st.text_input("Código *", placeholder="Ex: 1, 2, A1...", key="input_cad_codigo")
+            descricao_input = st.text_input("Descrição *", placeholder="Ex: Armazenagem, Reembalagem...", key="input_cad_desc")
             
             categoria_input = st.selectbox(
                 "Categoria *",
-                options=["", "Armazenagem", "Seguro", "Serviço", "Movimentação (Handling)", "Outros"]
+                options=["", "Armazenagem", "Seguro", "Serviço", "Movimentação (Handling)", "Outros"],
+                key="select_cad_cat"
             )
             
             unidade_opcoes = st.session_state.get("lista_unidades", ["", "Por caixa", "por unidade", "por pallet", "por hora/homem", "por etiqueta", "por volume", "por mês"])
-            unidade_input = st.selectbox("Unidade *", options=unidade_opcoes)
+            unidade_input = st.selectbox("Unidade *", options=unidade_opcoes, key="select_cad_unidade")
             
-            tarifa_input = st.number_input("Tarifa (R$) *", min_value=0.0, step=0.01, format="%.5f")
-            obs_input = st.text_area("Observações e Premissas (Opcional)", placeholder="Ex: Faturamento mínimo...")
+            tarifa_input = st.number_input("Tarifa (R$) *", min_value=0.0, step=0.01, format="%.5f", key="num_cad_tarifa")
+            obs_input = st.text_area("Observações e Premissas (Opcional)", placeholder="Ex: Faturamento mínimo...", key="area_cad_obs")
 
             submitted = st.form_submit_button("💾 Salvar Serviço", use_container_width=True)
 
@@ -48,7 +49,6 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
                 if not codigo_limp or not descricao_input or not categoria_input or not unidade_input:
                     st.error("⚠️ Preencha todos os campos obrigatórios (*).")
                 else:
-                    # Verifica se o código já existe e está ATIVO
                     df_ativos_existentes = df_completo[df_completo["Status"].str.upper() != "INATIVO"]
                     codigo_ja_ativo = not df_ativos_existentes[df_ativos_existentes["Código"] == codigo_limp].empty
                     
@@ -69,12 +69,10 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
                         }
 
                         if not idx_existente.empty:
-                            # Reativa e atualiza o registro inativo com este mesmo código
                             for k, v in novo_registro.items():
                                 df_completo.loc[idx_existente[0], k] = v
                             st.success(f"Servício com o código '{codigo_limp}' (anteriormente inativo) foi reativado e atualizado com sucesso!")
                         else:
-                            # Insere novo registro
                             df_novo = pd.DataFrame([novo_registro])
                             df_completo = pd.concat([df_completo, df_novo], ignore_index=True)
                             st.success(f"Servício '{descricao_input}' cadastrado com sucesso!")
@@ -86,7 +84,6 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
     with col_tabela:
         st.markdown("### 📊 Tabela de Serviços Ativos")
         
-        # Filtra apenas ativos e remove a coluna status para exibição limpa
         df_exibir = df_completo[df_completo["Status"].str.upper() != "INATIVO"].copy()
         if "Status" in df_exibir.columns:
             df_exibir = df_exibir.drop(columns=["Status"])
@@ -94,69 +91,68 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
         if df_exibir.empty:
             st.info("Nenhum serviço ativo cadastrado.")
         else:
-            # Altura fixa contida perfeitamente no bloco visual
             st.dataframe(df_exibir, use_container_width=True, height=260, hide_index=True)
             
             st.markdown("<br>", unsafe_allow_html=True)
             st.markdown("#### ⚙️ Gerenciar Serviço (Editar / Excluir)")
             
             ativos_lista = df_completo[df_completo["Status"].str.upper() != "INATIVO"]["Código"].tolist()
-            cod_selecionado = st.selectbox("Selecione o Código do Serviço Ativo:", options=[""] + ativos_lista, key="select_servico_gerenciar")
+            cod_selecionado = st.selectbox("Selecione o Código do Serviço Ativo:", options=[""] + ativos_lista, key="select_servico_gerenciar_ativo")
             
             if cod_selecionado:
                 row_sel = df_completo[df_completo["Código"] == cod_selecionado].iloc[0]
                 
                 col_btn_edit, col_btn_exc = st.columns(2)
                 with col_btn_edit:
-                    btn_acao_editar = st.button("✏️ Editar", use_container_width=True)
+                    btn_acao_editar = st.button("✏️ Editar", use_container_width=True, key="btn_acao_editar_servico")
                 with col_btn_exc:
-                    btn_acao_excluir = st.button("🗑️ Excluir", use_container_width=True)
+                    btn_acao_excluir = st.button("🗑️ Excluir", use_container_width=True, key="btn_acao_excluir_servico")
                 
                 if btn_acao_editar:
                     st.session_state["modo_acao_servico"] = "editar"
+                    st.rerun()
                 
                 if btn_acao_excluir:
-                    # Executa a exclusão imediatamente ao clicar no botão Excluir
                     idx_alvo = df_completo[df_completo["Código"] == cod_selecionado].index[0]
                     df_completo.loc[idx_alvo, "Status"] = "Inativo"
                     if salvar_dados_completos_fn:
                         salvar_dados_completos_fn(df_completo)
-                    st.success(f"Servício '{cod_selecionado}' excluído com sucesso! O código foi liberado.")
+                    st.success("Item excluído com sucesso!")
                     st.session_state.pop("modo_acao_servico", None)
                     st.rerun()
 
-                modo_atual = st.session_state.get("modo_acao_servico", "editar")
+                modo_atual = st.session_state.get("modo_acao_servico")
 
                 if modo_atual == "editar":
-                    st.markdown("##### Editando Serviço: `" + str(cod_selecionado) + "`")
-                    with st.form("form_edicao_servico_unico"):
-                        st.text_input("Código (Fixo / Não Editável)", value=str(row_sel["Código"]), disabled=True)
-                        
-                        edit_desc = st.text_input("Descrição", value=str(row_sel["Descrição"]))
-                        
-                        cats = ["Armazenagem", "Seguro", "Serviço", "Movimentação (Handling)", "Outros"]
-                        cat_atual = str(row_sel["Categoria"])
-                        cat_idx = cats.index(cat_atual) if cat_atual in cats else 0
-                        edit_cat = st.selectbox("Categoria", options=cats, index=cat_idx)
-                        
-                        unidades = st.session_state.get("lista_unidades", ["", "Por caixa", "por unidade", "por pallet", "por hora/homem", "por etiqueta", "por volume", "por mês"])
-                        un_atual = str(row_sel["Unidade"])
-                        un_idx = unidades.index(un_atual) if un_atual in unidades else 0
-                        edit_un = st.selectbox("Unidade", options=unidades, index=un_idx)
-                        
+                    st.markdown("---")
+                    st.markdown(f"##### Editando Serviço: `{cod_selecionado}`")
+                    
+                    edit_desc = st.text_input("Descrição", value=str(row_sel["Descrição"]), key="edit_input_desc")
+                    
+                    cats = ["Armazenagem", "Seguro", "Serviço", "Movimentação (Handling)", "Outros"]
+                    cat_atual = str(row_sel["Categoria"])
+                    cat_idx = cats.index(cat_atual) if cat_atual in cats else 0
+                    edit_cat = st.selectbox("Categoria", options=cats, index=cat_idx, key="edit_select_cat")
+                    
+                    unidades = st.session_state.get("lista_unidades", ["", "Por caixa", "por unidade", "por pallet", "por hora/homem", "por etiqueta", "por volume", "por mês"])
+                    un_atual = str(row_sel["Unidade"])
+                    un_idx = unidades.index(un_atual) if un_atual in unidades else 0
+                    edit_un = st.selectbox("Unidade", options=unidades, index=un_idx, key="edit_select_un")
+                    
+                    try:
+                        t_val_inicial = float(str(row_sel["Tarifa (R$)"]).replace(".", "").replace(",", "."))
+                    except Exception:
                         try:
-                            t_val_inicial = float(str(row_sel["Tarifa (R$)"]).replace(".", "").replace(",", "."))
+                            t_val_inicial = float(row_sel["Tarifa (R$)"])
                         except Exception:
-                            try:
-                                t_val_inicial = float(row_sel["Tarifa (R$)"])
-                            except Exception:
-                                t_val_inicial = 0.0
-                                
-                        edit_tarifa = st.number_input("Tarifa (R$)", value=t_val_inicial, min_value=0.0, step=0.01, format="%.5f")
-                        edit_obs = st.text_area("Observações", value=str(row_sel.get("Observações", "")))
-                        
-                        btn_salvar_edicao = st.form_submit_button("💾 Salvar Alterações", use_container_width=True)
-                        if btn_salvar_edicao:
+                            t_val_inicial = 0.0
+                            
+                    edit_tarifa = st.number_input("Tarifa (R$)", value=t_val_inicial, min_value=0.0, step=0.01, format="%.5f", key="edit_num_tarifa")
+                    edit_obs = st.text_area("Observações", value=str(row_sel.get("Observações", "")), key="edit_area_obs")
+                    
+                    col_salvar, col_cancelar = st.columns(2)
+                    with col_salvar:
+                        if st.button("💾 Salvar Alterações", type="primary", use_container_width=True, key="btn_salvar_edicao_direta"):
                             idx_alvo = df_completo[df_completo["Código"] == cod_selecionado].index[0]
                             df_completo.loc[idx_alvo, "Descrição"] = edit_desc.strip()
                             df_completo.loc[idx_alvo, "Categoria"] = edit_cat
@@ -167,4 +163,9 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
                             if salvar_dados_completos_fn:
                                 salvar_dados_completos_fn(df_completo)
                             st.success(f"Servício '{cod_selecionado}' atualizado com sucesso!")
+                            st.session_state.pop("modo_acao_servico", None)
+                            st.rerun()
+                    with col_cancelar:
+                        if st.button("❌ Cancelar", use_container_width=True, key="btn_cancelar_edicao"):
+                            st.session_state.pop("modo_acao_servico", None)
                             st.rerun()
