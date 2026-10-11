@@ -17,6 +17,7 @@ st.set_page_config(
     page_icon="📦",
     layout="wide"
 )
+
 UNIDADES_PADRAO = [
     "",
     "Por caixa",
@@ -27,6 +28,7 @@ UNIDADES_PADRAO = [
     "por volume",
     "por mês"
 ]
+
 if "lista_unidades" not in st.session_state:
     st.session_state["lista_unidades"] = UNIDADES_PADRAO.copy()
 if "form_id" not in st.session_state:
@@ -266,4 +268,119 @@ def obter_proximo_numero_proposta_global():
                     partes = p_str.split("/")
                     if len(partes) == 3:
                         try:
-                            num_seq = int(
+                            num_seq = int(partes[1])
+                            if num_seq > maior_seq:
+                                maior_seq = num_seq
+                        except ValueError:
+                            continue
+        proximo_seq = maior_seq + 1
+        return f"{mes}/{proximo_seq:05d}/{ano}"
+    except Exception:
+        return f"{mes}/00001/{ano}"
+
+def normalizar_codigo(codigo_str):
+    limpo = str(codigo_str).strip().upper()
+    return str(int(limpo)) if limpo.isdigit() else limpo
+
+def formatar_tarifa(val):
+    try:
+        f = float(val)
+        s = f"{f:.5f}".rstrip('0')
+        if s.endswith('.'): s += '00'
+        elif len(s.split('.')[1]) < 2: s += '0'
+        return s
+    except (ValueError, TypeError):
+        return str(val)
+
+def executar_renderizar_cadastro():
+    params = [carregar_dados, salvar_dados_completos, normalizar_codigo, formatar_tarifa]
+    for i in range(len(params), 0, -1):
+        try:
+            renderizar_aba_cadastro(*params[:i])
+            return
+        except TypeError:
+            continue
+
+# ==============================================================================
+# 3. CABEÇALHO & NAVEGAÇÃO
+# ==============================================================================
+logo_b64 = get_base64_of_bin_file('logo.png')
+if logo_b64:
+    header_html = """
+        <div class="header-container">
+            <div>
+                <h1 class="header-title">Módulo Comercial & Precificação</h1>
+                <p class="header-subtitle">Gestão Integrada de Serviços e Tabelas Tarifárias</p>
+            </div>
+            <div>
+                <img src="data:image/png;base64,{}" style="height: 60px;">
+            </div>
+        </div>
+    """.format(logo_b64)
+    st.markdown(header_html, unsafe_allow_html=True)
+else:
+    st.markdown("""
+        <div class="header-container">
+            <div>
+                <h1 class="header-title">Módulo Comercial & Precificação</h1>
+                <p class="header-subtitle">Gestão Integrada de Serviços e Tabelas Tarifárias</p>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+
+# BARRA DE NAVEGAÇÃO COM DESTAQUE VISUAL (3 TELAS)
+col_nav1, col_nav2, col_nav3, _ = st.columns([2.2, 2.5, 2.5, 2.8])
+aba_atual = st.session_state["aba_ativa"]
+
+with col_nav1:
+    if st.button(
+        "📋 Cadastro",
+        key="btn_nav_cadastro",
+        type="primary" if aba_atual == "cadastro" else "secondary",
+        use_container_width=True
+    ):
+        st.session_state["aba_ativa"] = "cadastro"
+        st.rerun()
+
+with col_nav2:
+    if st.button(
+        "🛠️ Proposta Rascunho",
+        key="btn_nav_propostas",
+        type="primary" if aba_atual == "propostas" else "secondary",
+        use_container_width=True
+    ):
+        st.session_state["aba_ativa"] = "propostas"
+        st.rerun()
+
+with col_nav3:
+    if st.button(
+        "📄 Proposta Cliente",
+        key="btn_nav_cliente",
+        type="primary" if aba_atual == "cliente" else "secondary",
+        use_container_width=True
+    ):
+        st.session_state["aba_ativa"] = "cliente"
+        st.rerun()
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+# SCRIPT PARA FORÇAR O SCROLL PARA O TOPO AO MUDAR DE ABA
+st.markdown(
+    "<script>setTimeout(function() { window.scrollTo({top: 0, behavior: 'auto'}); var mainContent = window.parent.document.querySelector('.main'); if (mainContent) { mainContent.scrollTop = 0; } }, 30);</script>",
+    unsafe_allow_html=True
+)
+
+# RENDERIZAÇÃO DA TELA SELECIONADA
+if st.session_state["aba_ativa"] == "cadastro":
+    executar_renderizar_cadastro()
+elif st.session_state["aba_ativa"] == "propostas":
+    renderizar_aba_propostas(
+        carregar_dados_fn=carregar_dados, 
+        salvar_dados_completos_fn=salvar_dados_completos,
+        obter_proximo_numero_fn=obter_proximo_numero_proposta_global
+    )
+else:
+    renderizar_aba_proposta_cliente(
+        salvar_proposta_sheets_fn=salvar_propostas_na_planilha,
+        carregar_propostas_salvas_fn=carregar_propostas_da_planilha
+    )
