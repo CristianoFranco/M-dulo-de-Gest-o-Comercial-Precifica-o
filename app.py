@@ -295,7 +295,7 @@ else:
         </div>
     """, unsafe_allow_html=True)
 
-# BARRA DE NAVEGAÇÃO COM DESTAQUE VISUAL (3 TELAS)
+# BARRA DE NAVEGAÇÃO COM DESTAQUE VISUAL (3 TELAS)[cite: 4]
 col_nav1, col_nav2, col_nav3, _ = st.columns([2.2, 2.5, 2.5, 2.8])
 aba_atual = st.session_state["aba_ativa"]
 with col_nav1:
@@ -327,17 +327,23 @@ with col_nav3:
         st.rerun()
 st.markdown("<br>", unsafe_allow_html=True)
 
-# SCRIPT PARA FORÇAR O SCROLL PARA O TOPO AO MUDAR DE ABA
+# SCRIPT ROBUSTO PARA FORÇAR O SCROLL PARA O TOPO AO MUDAR DE ABA
 st.markdown(
     """
     <script>
-        window.scrollTo({top: 0, behavior: 'auto'});
+        setTimeout(function() {
+            window.scrollTo({top: 0, behavior: 'auto'});
+            var mainContent = window.parent.document.querySelector('.main');
+            if (mainContent) {
+                mainContent.scrollTop = 0;
+            }
+        }, 30);
     </script>
     """,
     unsafe_allow_html=True
 )
 
-# RENDERIZAÇÃO DA TELA SELECIONADA
+# RENDERIZAÇÃO DA TELA SELECIONADA[cite: 4]
 if st.session_state["aba_ativa"] == "cadastro":
     executar_renderizar_cadastro()
 elif st.session_state["aba_ativa"] == "propostas":
