@@ -245,6 +245,36 @@ def carregar_propostas_da_planilha():
     except Exception:
         return pd.DataFrame(columns=HEADER_PROPOSTAS_ESPERADO)
 
+def obter_proximo_numero_proposta_global():
+    if st.session_state.get("proposta_id_em_edicao"):
+        return st.session_state["proposta_id_em_edicao"]
+        
+    agora = datetime.now()
+    mes = agora.strftime("%m")
+    ano = agora.strftime("%Y")
+    prefixo_busca = f"{mes}/"
+    sufixo_busca = f"/{ano}"
+    
+    try:
+        df_hist = carregar_propostas_da_planilha()
+        maior_seq = 0
+        if not df_hist.empty and "Proposta" in df_hist.columns:
+            for prop in df_hist["Proposta"].dropna().unique():
+                p_str = str(prop).strip()
+                if p_str.startswith(prefixo_busca) and p_str.endswith(sufixo_busca):
+                    partes = p_str.split("/")
+                    if len(partes) == 3:
+                        try:
+                            num_seq = int(partes[1])
+                            if num_seq > maior_seq:
+                                maior_seq = num_seq
+                        except ValueError:
+                            continue
+        proximo_seq = maior_seq + 1
+        return f"{mes}/{proximo_seq:05d}/{ano}"
+    except Exception:
+        return f"{mes}/00001/{ano}"
+
 def normalizar_codigo(codigo_str):
     limpo = str(codigo_str).strip().upper()
     return str(int(limpo)) if limpo.isdigit() else limpo
@@ -295,7 +325,7 @@ else:
         </div>
     """, unsafe_allow_html=True)
 
-# BARRA DE NAVEGAÇÃO COM DESTAQUE VISUAL (3 TELAS)[cite: 4]
+# BARRA DE NAVEGAÇÃO COM DESTAQUE VISUAL (3 TELAS)
 col_nav1, col_nav2, col_nav3, _ = st.columns([2.2, 2.5, 2.5, 2.8])
 aba_atual = st.session_state["aba_ativa"]
 with col_nav1:
@@ -343,11 +373,15 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# RENDERIZAÇÃO DA TELA SELECIONADA[cite: 4]
+# RENDERIZAÇÃO DA TELA SELECIONADA
 if st.session_state["aba_ativa"] == "cadastro":
     executar_renderizar_cadastro()
 elif st.session_state["aba_ativa"] == "propostas":
-    renderizar_aba_propostas(carregar_dados, salvar_dados_completos)
+    renderizar_aba_propostas(
+        carregar_dados_fn=carregar_dados, 
+        salvar_dados_completos_fn=salvar_dados_completos,
+        obter_proximo_numero_fn=obter_proximo_numero_proposta_global
+    )
 else:
     renderizar_aba_proposta_cliente(
         salvar_proposta_sheets_fn=salvar_propostas_na_planilha,
