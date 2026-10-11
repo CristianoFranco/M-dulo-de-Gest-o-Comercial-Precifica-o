@@ -1,17 +1,12 @@
 import streamlit as st
 import pandas as pd
 
-def renderizar_aba_cadastro(*args, **kwargs):
-    carregar_dados_fn = kwargs.get("carregar_dados_fn") or (args[0] if len(args) > 0 else None)
-    salvar_dados_completos_fn = kwargs.get("salvar_dados_completos_fn") or (args[1] if len(args) > 1 else None)
-    normalizar_codigo_fn = kwargs.get("normalizar_codigo_fn") or (args[2] if len(args) > 2 else None)
-    formatar_tarifa_fn = kwargs.get("formatar_tarifa_fn") or (args[3] if len(args) > 3 else None)
-
+def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, normalizar_codigo_fn=None, formatar_tarifa_fn=None):
     st.markdown("## 📋 Cadastro e Gestão de Serviços")
-    st.caption("Cadastre novos serviços, visualize a tabela tarifária e gerencie o status (Ativo/Inativo).")
+    st.caption("Cadastre novos serviços, visualize a tabela tarifária ativa e gerencie os itens cadastrados.")
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # Carrega todos os dados (incluindo inativos)
+    # Carrega todos os dados (incluindo inativos para validação de backend)
     try:
         df_completo = carregar_dados_fn(apenas_ativos=False) if carregar_dados_fn else pd.DataFrame()
     except Exception:
@@ -89,36 +84,75 @@ def renderizar_aba_cadastro(*args, **kwargs):
                         st.rerun()
 
     with col_tabela:
-        st.markdown("### 📊 Tabela de Serviços")
-        if df_completo.empty:
-            st.info("Nenhum serviço cadastrado.")
+        st.markdown("### 📊 Tabela de Serviços Ativos")
+        
+        # Filtra apenas ativos e remove a coluna status para exibição limpa
+        df_exibir = df_completo[df_completo["Status"].str.upper() != "INATIVO"].copy()
+        if "Status" in df_exibir.columns:
+            df_exibir = df_exibir.drop(columns=["Status"])
+
+        if df_exibir.empty:
+            st.info("Nenhum serviço ativo cadastrado.")
         else:
-            # Altura ajustada para 340 para permanecer totalmente contida no bloco visual
-            st.dataframe(df_completo, use_container_width=True, height=340, hide_index=True)
+            # Altura fixa contida perfeitamente no bloco visual
+            st.dataframe(df_exibir, use_container_width=True, height=280, hide_index=True)
             
             st.markdown("<br>", unsafe_allow_html=True)
-            st.markdown("#### ⚙️ Gerenciar Status (Ativo / Inativo)")
+            st.markdown("#### ⚙️ Gerenciar Serviço (Editar / Inativar)")
             
-            col_cod_ger, col_status_ger, col_btn_ger = st.columns([2, 2, 2])
+            ativos_lista = df_completo[df_completo["Status"].str.upper() != "INATIVO"]["Código"].tolist()
+            cod_selecionado = st.selectbox("Selecione o Código do Serviço Ativo:", options=[""] + ativos_lista, key="select_servico_gerenciar")
             
-            with col_cod_ger:
-                codigos_disponiveis = df_completo["Código"].tolist()
-                cod_selecionado = st.selectbox("Código:", options=[""] + codigos_disponiveis, key="select_cod_status")
+            if cod_selecionado:
+                row_sel = df_completo[df_completo["Código"] == cod_selecionado].iloc[0]
                 
-            with col_status_ger:
-                novo_status = st.selectbox("Status:", options=["Ativo", "Inativo"], key="select_novo_status")
+                acao = st.radio("Ação:", options=["Editar Serviço", "Inativar Serviço"], horizontal=True, key="radio_acao_servico")
                 
-            with col_btn_ger:
-                st.write("")
-                st.write("")
-                if st.button("Atualizar Status", type="primary", use_container_width=True):
-                    if cod_selecionado:
-                        idx_match = df_completo[df_completo["Código"] == cod_selecionado].index
-                        if not idx_match.empty:
-                            df_completo.loc[idx_match, "Status"] = novo_status
+                if acao == "Editar Serviço":
+                    with st.form("form_edicao_servico"):
+                        st.text_input("Código (Fixo / Não Editável)", value=str(row_sel["Código"]), disabled=True)
+                        
+                        edit_desc = st.text_input("Descrição", value=str(row_sel["Descrição"]))
+                        
+                        cats = ["Armazenagem", "Seguro", "Serviço", "Movimentação (Handling)", "Outros"]
+                        cat_atual = str(row_sel["Categoria"])
+                        cat_idx = cats.index(cat_atual) if cat_atual in cats else 0
+                        edit_cat = st.selectbox("Categoria", options=cats, index=cat_idx)
+                        
+                        unidades = st.session_state.get("lista_unidades", ["", "Por caixa", "por unidade", "por pallet", "por hora/homem", "por etiqueta", "por volume", "por mês"])
+                        un_atual = str(row_sel["Unidade"])
+                        un_idx = unidades.index(un_atual) if un_atual in unidades else 0
+                        edit_un = st.selectbox("Unidade", options=unidades, index=un_idx)
+                        
+                        try:
+                            t_val_inicial = float(str(row_sel["Tarifa (R$)"]).replace(".", "").replace(",", "."))
+                        except Exception:
+                            try:
+                                t_val_inicial = float(row_sel["Tarifa (R$)"])
+                            except Exception:
+                                t_val_inicial = 0.0
+                                
+                        edit_tarifa = st.number_input("Tarifa (R$)", value=t_val_inicial, min_value=0.0, step=0.01, format="%.5f")
+                        edit_obs = st.text_area("Observações", value=str(row_sel.get("Observações", "")))
+                        
+                        btn_salvar_edicao = st.form_submit_button("💾 Salvar Alterações", use_container_width=True)
+                        if btn_salvar_edicao:
+                            idx_alvo = df_completo[df_completo["Código"] == cod_selecionado].index[0]
+                            df_completo.loc[idx_alvo, "Descrição"] = edit_desc.strip()
+                            df_completo.loc[idx_alvo, "Categoria"] = edit_cat
+                            df_completo.loc[idx_alvo, "Unidade"] = edit_un
+                            df_completo.loc[idx_alvo, "Tarifa (R$)"] = formatar_tarifa_fn(edit_tarifa) if formatar_tarifa_fn else edit_tarifa
+                            df_completo.loc[idx_alvo, "Observações"] = edit_obs.strip()
+                            
                             if salvar_dados_completos_fn:
                                 salvar_dados_completos_fn(df_completo)
-                            st.success(f"Status do código '{cod_selecionado}' alterado para '{novo_status}'!")
+                            st.success(f"Servício '{cod_selecionado}' atualizado e salvo na planilha com sucesso!")
                             st.rerun()
-                    else:
-                        st.warning("Selecione um código.")
+                else:
+                    if st.button("🗑️ Confirmar Inativação do Serviço", type="primary", use_container_width=True):
+                        idx_alvo = df_completo[df_completo["Código"] == cod_selecionado].index[0]
+                        df_completo.loc[idx_alvo, "Status"] = "Inativo"
+                        if salvar_dados_completos_fn:
+                            salvar_dados_completos_fn(df_completo)
+                        st.success(f"Servício '{cod_selecionado}' inativado com sucesso! O código agora está liberado para novos cadastros.")
+                        st.rerun()
