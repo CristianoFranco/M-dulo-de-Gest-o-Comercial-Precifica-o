@@ -41,7 +41,7 @@ def gerar_pdf_proposta(numero_proposta, cliente_nome, cnpj_val, itens_proposta):
     sub_text = "Cliente: " + cliente_str + cnpj_texto + " | Data: " + data_str
     
     story.append(Paragraph(tit_text, titulo_style))
-    story.append(Paragraph(sub_text, subtil_style if 'subtil_style' in locals() else subtitulo_style))
+    story.append(Paragraph(sub_text, subtitulo_style))
     story.append(Spacer(1, 12))
     dados_tabela = [["Código", "Descrição", "Categoria", "Unidade", "Tarifa (R$)"]]
     
@@ -221,6 +221,23 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                 
                 if "Data" in df_resumido.columns:
                     df_resumido["Data"] = df_resumido["Data"].astype(str).str.split().str[0]
+
+                # Ordenação customizada: Ano (asc), depois Mês (asc), depois Código (asc)
+                def parse_ordenacao_proposta(prop_str):
+                    try:
+                        partes = str(prop_str).split('/')
+                        if len(partes) == 3:
+                            mes_val = int(partes[0])
+                            cod_val = int(partes[1])
+                            ano_val = int(partes[2])
+                            return (ano_val, mes_val, cod_val)
+                    except ValueError:
+                        pass
+                    return (9999, 12, 99999)
+
+                if not df_resumido.empty and "Proposta" in df_resumido.columns:
+                    df_resumido["_sort_key"] = df_resumido["Proposta"].apply(parse_ordenacao_proposta)
+                    df_resumido = df_resumido.sort_values(by="_sort_key", ascending=True).drop(columns=["_sort_key"]).reset_index(drop=True)
 
                 st.markdown("Propostas Encontradas: " + str(len(df_resumido)))
                 st.dataframe(df_resumido, use_container_width=True, hide_index=True)
