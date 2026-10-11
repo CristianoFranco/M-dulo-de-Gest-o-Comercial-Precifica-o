@@ -223,4 +223,56 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                 st.dataframe(df_resumido, use_container_width=True, hide_index=True)
                 st.markdown("<br>", unsafe_allow_html=True)
                 
-                df_resumido["Opcao_Select"] = df_resumido["Proposta"].astype(str) + " - " + df_resumido["Cliente"].astype
+                df_resumido["Opcao_Select"] = df_resumido["Proposta"].astype(str) + " - " + df_resumido["Cliente"].astype(str)
+                propostas_unicas = [""] + df_resumido["Opcao_Select"].tolist()
+                
+                col_sel_prop, col_btn_carregar = st.columns([3, 1])
+                with col_sel_prop:
+                    prop_escolhida_completa = st.selectbox(
+                        "Selecione uma proposta para editar:",
+                        options=propostas_unicas,
+                        key="select_proposta_para_editar"
+                    )
+                
+                prop_escolhida = prop_escolhida_completa.split(" - ")[0].strip() if prop_escolhida_completa else ""
+
+                with col_btn_carregar:
+                    st.write("")
+                    st.write("")
+                    if st.button("Carregar Proposta", type="primary", use_container_width=True):
+                        if prop_escolhida:
+                            df_prop_sel = df_historico[df_historico["Proposta"].astype(str).str.strip() == prop_escolhida.strip()]
+                            
+                            if not df_prop_sel.empty:
+                                st.session_state["proposta_id_em_edicao"] = prop_escolhida.strip()
+                                
+                                primeiro_reg = df_prop_sel.iloc[0]
+                                st.session_state["proposta_cliente_nome"] = str(primeiro_reg.get("Cliente", ""))
+                                st.session_state["proposta_cliente_cnpj"] = str(primeiro_reg.get("CNPJ", "")) if "CNPJ" in primeiro_reg else ""
+                                
+                                st.session_state["_safe_cliente_nome"] = st.session_state["proposta_cliente_nome"]
+                                st.session_state["_safe_cnpj_val"] = st.session_state["proposta_cliente_cnpj"]
+                                novos_itens = []
+                                for _, row in df_prop_sel.iterrows():
+                                    try:
+                                        tarifa_val = float(row.get("Tarifa (R$)", 0.0))
+                                    except (ValueError, TypeError):
+                                        tarifa_val = 0.0
+                                        
+                                    novos_itens.append({
+                                        "Código": str(row.get("Código", "")),
+                                        "Descrição": str(row.get("Descrição", "")),
+                                        "Tarifa (R$)": tarifa_val,
+                                        "Unidade": str(row.get("Unidade", "")),
+                                        "Observações": str(row.get("Observações", "")),
+                                        "Categoria": str(row.get("Categoria", "")),
+                                        "Cat_Code": "GEN"
+                                    })
+                                    
+                                st.session_state["rascunho_itens"] = novos_itens
+                                st.success("Proposta carregada com sucesso!")
+                                st.rerun()
+                        else:
+                            st.warning("Selecione uma proposta válida na lista.")
+            else:
+                st.info("Nenhuma proposta gravada na folha Propostas_Salvas.")
