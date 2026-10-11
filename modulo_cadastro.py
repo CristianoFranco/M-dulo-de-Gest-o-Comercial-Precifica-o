@@ -2,17 +2,16 @@ import streamlit as st
 import pandas as pd
 
 def renderizar_aba_cadastro(*args, **kwargs):
-    # Extração flexível de argumentos para evitar TypeError e duplicação de elementos no Streamlit
     carregar_dados_fn = kwargs.get("carregar_dados_fn") or (args[0] if len(args) > 0 else None)
     salvar_dados_completos_fn = kwargs.get("salvar_dados_completos_fn") or (args[1] if len(args) > 1 else None)
     normalizar_codigo_fn = kwargs.get("normalizar_codigo_fn") or (args[2] if len(args) > 2 else None)
     formatar_tarifa_fn = kwargs.get("formatar_tarifa_fn") or (args[3] if len(args) > 3 else None)
 
     st.markdown("## 📋 Cadastro e Gestão de Serviços")
-    st.caption("Cadastre novos serviços e visualize a tabela tarifária ativa.")
+    st.caption("Cadastre novos serviços, visualize a tabela tarifária e gerencie o status (Ativo/Inativo).")
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # Carrega dados completos no backend para verificar códigos inativos para reativação
+    # Carrega todos os dados (incluindo inativos)
     try:
         df_completo = carregar_dados_fn(apenas_ativos=False) if carregar_dados_fn else pd.DataFrame()
     except Exception:
@@ -27,7 +26,7 @@ def renderizar_aba_cadastro(*args, **kwargs):
     df_completo["Status"] = df_completo["Status"].astype(str).str.strip().replace("", "Ativo")
     df_completo["Código"] = df_completo["Código"].astype(str).str.strip()
 
-    col_form, col_tabela = st.columns([1.2, 1.8], gap="large")
+    col_form, col_tabela = st.columns([1.1, 1.9], gap="large")
 
     with col_form:
         st.markdown("### ➕ Novo Serviço")
@@ -91,12 +90,35 @@ def renderizar_aba_cadastro(*args, **kwargs):
 
     with col_tabela:
         st.markdown("### 📊 Tabela de Serviços")
-        # Filtra apenas os ativos para exibição na tabela e remove a coluna de status
-        df_exibir = df_completo[df_completo["Status"].str.upper() != "INATIVO"].copy()
-        if "Status" in df_exibir.columns:
-            df_exibir = df_exibir.drop(columns=["Status"])
-
-        if df_exibir.empty:
+        if df_completo.empty:
             st.info("Nenhum serviço cadastrado.")
         else:
-            st.dataframe(df_exibir, use_container_width=True, height=380, hide_index=True)
+            # Altura ajustada para 340 para permanecer totalmente contida no bloco visual
+            st.dataframe(df_completo, use_container_width=True, height=340, hide_index=True)
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.markdown("#### ⚙️ Gerenciar Status (Ativo / Inativo)")
+            
+            col_cod_ger, col_status_ger, col_btn_ger = st.columns([2, 2, 2])
+            
+            with col_cod_ger:
+                codigos_disponiveis = df_completo["Código"].tolist()
+                cod_selecionado = st.selectbox("Código:", options=[""] + codigos_disponiveis, key="select_cod_status")
+                
+            with col_status_ger:
+                novo_status = st.selectbox("Status:", options=["Ativo", "Inativo"], key="select_novo_status")
+                
+            with col_btn_ger:
+                st.write("")
+                st.write("")
+                if st.button("Atualizar Status", type="primary", use_container_width=True):
+                    if cod_selecionado:
+                        idx_match = df_completo[df_completo["Código"] == cod_selecionado].index
+                        if not idx_match.empty:
+                            df_completo.loc[idx_match, "Status"] = novo_status
+                            if salvar_dados_completos_fn:
+                                salvar_dados_completos_fn(df_completo)
+                            st.success(f"Status do código '{cod_selecionado}' alterado para '{novo_status}'!")
+                            st.rerun()
+                    else:
+                        st.warning("Selecione um código.")
