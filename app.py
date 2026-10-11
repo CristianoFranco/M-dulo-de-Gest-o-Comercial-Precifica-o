@@ -16,7 +16,6 @@ st.set_page_config(
     page_icon="📦",
     layout="wide"
 )
-
 UNIDADES_PADRAO = [
     "",
     "Por caixa",
@@ -27,7 +26,6 @@ UNIDADES_PADRAO = [
     "por volume",
     "por mês"
 ]
-
 if "lista_unidades" not in st.session_state:
     st.session_state["lista_unidades"] = UNIDADES_PADRAO.copy()
 if "form_id" not in st.session_state:
@@ -187,18 +185,21 @@ def salvar_dados_completos(df_completo):
         return False
 
 # ==============================================================================
-# FUNÇÕES DE INTEGRAÇÃO COM A TELA 3 (PROPOSTAS SALVAS)
+# FUNÇÕES DE INTEGRAÇÃO COM A TELA 3 (PROPOSTAS SALVAS) - CORRIGIDA
 # ==============================================================================
 def salvar_propostas_na_planilha(linhas_proposta):
     try:
         ws = obter_aba_propostas()
+        
         num_prop = str(linhas_proposta[0].get("Proposta", "")).strip() if linhas_proposta else ""
+        
         todos_valores = ws.get_all_values()
         
         if not todos_valores:
             todos_valores = [HEADER_PROPOSTAS_ESPERADO]
         
         linhas_existentes = todos_valores[1:] if len(todos_valores) > 1 else []
+        
         está_editando = st.session_state.get("proposta_id_em_edicao") is not None
         
         linhas_filtradas = []
@@ -208,7 +209,6 @@ def salvar_propostas_na_planilha(linhas_proposta):
                 if está_editando and proposta_linha == num_prop:
                     continue
                 linhas_filtradas.append(lin)
-
         novas_linhas_matriz = []
         for reg in linhas_proposta:
             novas_linhas_matriz.append([
@@ -295,10 +295,9 @@ else:
         </div>
     """, unsafe_allow_html=True)
 
-# BARRA DE NAVEGAÇÃO COM DESTAQUE VISUAL (3 TELAS)
+# BARRA DE NAVEGAÇÃO COM DESTAQUE VISUAL (3 TELAS)[cite: 4]
 col_nav1, col_nav2, col_nav3, _ = st.columns([2.2, 2.5, 2.5, 2.8])
 aba_atual = st.session_state["aba_ativa"]
-
 with col_nav1:
     if st.button(
         "📋 Cadastro",
@@ -308,7 +307,6 @@ with col_nav1:
     ):
         st.session_state["aba_ativa"] = "cadastro"
         st.rerun()
-
 with col_nav2:
     if st.button(
         "🛠️ Propostas / Precificação",
@@ -318,7 +316,6 @@ with col_nav2:
     ):
         st.session_state["aba_ativa"] = "propostas"
         st.rerun()
-
 with col_nav3:
     if st.button(
         "📄 Proposta Cliente",
@@ -328,10 +325,19 @@ with col_nav3:
     ):
         st.session_state["aba_ativa"] = "cliente"
         st.rerun()
-
 st.markdown("<br>", unsafe_allow_html=True)
 
-# RENDERIZAÇÃO DA TELA SELECIONADA
+# SCRIPT PARA FORÇAR O SCROLL PARA O TOPO AO MUDAR DE ABA
+st.markdown(
+    """
+    <script>
+        window.scrollTo({top: 0, behavior: 'auto'});
+    </script>
+    """,
+    unsafe_allow_html=True
+)
+
+# RENDERIZAÇÃO DA TELA SELECIONADA[cite: 4]
 if st.session_state["aba_ativa"] == "cadastro":
     executar_renderizar_cadastro()
 elif st.session_state["aba_ativa"] == "propostas":
