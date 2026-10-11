@@ -41,7 +41,7 @@ def gerar_pdf_proposta(numero_proposta, cliente_nome, cnpj_val, itens_proposta):
     sub_text = "Cliente: " + cliente_str + cnpj_texto + " | Data: " + data_str
     
     story.append(Paragraph(tit_text, titulo_style))
-    story.append(Paragraph(sub_text, subtitulo_style))
+    story.append(Paragraph(sub_text, subtil_style if 'subtil_style' in locals() else subtitulo_style))
     story.append(Spacer(1, 12))
     dados_tabela = [["Código", "Descrição", "Categoria", "Unidade", "Tarifa (R$)"]]
     
@@ -84,8 +84,8 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
     st.markdown("<br>", unsafe_allow_html=True)
     itens_rascunho = st.session_state.get("rascunho_itens", [])
     
-    cliente_nome = str(st.session_state.get("proposta_cliente_nome") or st.session_state.get("_safe_cliente_nome", "")).strip()
-    cnpj_val = str(st.session_state.get("proposta_cliente_cnpj") or st.session_state.get("_safe_cnpj_val", "")).strip()
+    cliente_nome = str(st.session_state.get("_safe_cliente_nome") or st.session_state.get("input_cli_nome_tela2", "")).strip()
+    cnpj_val = str(st.session_state.get("_safe_cnpj_val") or st.session_state.get("proposta_cliente_cnpj", "")).strip()
     
     if st.session_state.get("proposta_id_em_edicao"):
         numero_proposta_atual = str(st.session_state["proposta_id_em_edicao"])
@@ -150,7 +150,10 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                 )
         with col_fechar:
             if st.button("Salvar proposta e gerar PDF", type="primary", use_container_width=True):
-                if not cliente_nome.strip():
+                c_nome = str(st.session_state.get("_safe_cliente_nome") or st.session_state.get("input_cli_nome_tela2", "")).strip()
+                c_cnpj = str(st.session_state.get("_safe_cnpj_val") or st.session_state.get("proposta_cliente_cnpj", "")).strip()
+                
+                if not c_nome:
                     st.error("⚠️ O nome do Cliente é obrigatório para salvar a proposta!")
                 elif salvar_proposta_sheets_fn:
                     linhas_para_salvar = []
@@ -164,8 +167,8 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                         linhas_para_salvar.append({
                             "Proposta": numero_proposta_atual,
                             "Data": data_hoje,
-                            "Cliente": cliente_nome,
-                            "CNPJ": cnpj_val,
+                            "Cliente": c_nome,
+                            "CNPJ": c_cnpj,
                             "Código": str(item.get("Código", "")),
                             "Descrição": str(item.get("Descrição", "")),
                             "Categoria": str(item.get("Categoria", "")),
@@ -178,8 +181,6 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                         st.session_state["proposta_id_em_edicao"] = None
                         st.session_state["proposta_id_ativo"] = None
                         st.session_state["rascunho_itens"] = []
-                        st.session_state["proposta_cliente_nome"] = ""
-                        st.session_state["proposta_cliente_cnpj"] = ""
                         st.session_state["_safe_cliente_nome"] = ""
                         st.session_state["_safe_cnpj_val"] = ""
                         
@@ -247,13 +248,15 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                             
                             if not df_prop_sel.empty:
                                 st.session_state["proposta_id_em_edicao"] = prop_escolhida.strip()
+                                st.session_state["proposta_id_ativo"] = prop_escolhida.strip()
                                 
                                 primeiro_reg = df_prop_sel.iloc[0]
-                                st.session_state["proposta_cliente_nome"] = str(primeiro_reg.get("Cliente", ""))
-                                st.session_state["proposta_cliente_cnpj"] = str(primeiro_reg.get("CNPJ", "")) if "CNPJ" in primeiro_reg else ""
+                                c_nome_carregado = str(primeiro_reg.get("Cliente", ""))
+                                c_cnpj_carregado = str(primeiro_reg.get("CNPJ", "")) if "CNPJ" in primeiro_reg else ""
                                 
-                                st.session_state["_safe_cliente_nome"] = st.session_state["proposta_cliente_nome"]
-                                st.session_state["_safe_cnpj_val"] = st.session_state["proposta_cliente_cnpj"]
+                                st.session_state["_safe_cliente_nome"] = c_nome_carregado
+                                st.session_state["_safe_cnpj_val"] = c_cnpj_carregado
+                                
                                 novos_itens = []
                                 for _, row in df_prop_sel.iterrows():
                                     try:
