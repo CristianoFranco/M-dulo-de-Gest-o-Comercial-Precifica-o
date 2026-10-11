@@ -1,23 +1,9 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime
 
 # ==============================================================================
 # FUNÇÕES AUXILIARES DA PROPOSTA
 # ==============================================================================
-def obter_proximo_numero_proposta():
-    if st.session_state.get("proposta_id_em_edicao"):
-        return st.session_state["proposta_id_em_edicao"]
-    agora = datetime.now()
-    mes = agora.strftime("%m")
-    ano = agora.strftime("%Y")
-    
-    if "sequencial_proposta" not in st.session_state:
-        st.session_state["sequencial_proposta"] = 1
-        
-    seq = st.session_state["sequencial_proposta"]
-    return f"{mes}/{seq:05d}/{ano}"
-
 def inicializar_estado_proposta():
     if "rascunho_itens" not in st.session_state:
         st.session_state["rascunho_itens"] = []
@@ -170,9 +156,10 @@ def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_blo
 # ==============================================================================
 # RENDERIZADOR PRINCIPAL ABA 2
 # ==============================================================================
-def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_completos=None, *args, **kwargs):
+def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_completos_fn=None, obter_proximo_numero_fn=None, *args, **kwargs):
     inicializar_estado_proposta()
-    numero_proposta = obter_proximo_numero_proposta()
+    
+    numero_proposta = obter_proximo_numero_fn() if obter_proximo_numero_fn else "10/00001/2026"
     
     st.markdown("""
         <style>
@@ -310,5 +297,6 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_completos=None, *ar
             elif not todos_itens:
                 st.error("Adicione pelo menos um item antes de avançar.")
             else:
+                st.session_state["proposta_id_ativo"] = numero_proposta
                 st.session_state["aba_ativa"] = "cliente"
                 st.rerun()
