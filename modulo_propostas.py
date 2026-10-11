@@ -11,6 +11,10 @@ def inicializar_estado_proposta():
         st.session_state["proposta_cliente_nome"] = ""
     if "proposta_cliente_cnpj" not in st.session_state:
         st.session_state["proposta_cliente_cnpj"] = ""
+    if "_safe_cliente_nome" not in st.session_state:
+        st.session_state["_safe_cliente_nome"] = ""
+    if "_safe_cnpj_val" not in st.session_state:
+        st.session_state["_safe_cnpj_val"] = ""
 
 def remover_item_proposta_por_indice(index_para_remover):
     if 0 <= index_para_remover < len(st.session_state["rascunho_itens"]):
@@ -48,7 +52,9 @@ def formatar_cnpj(val):
         return f"{digitos[:2]}.{digitos[2:5]}.{digitos[5:8]}/{digitos[8:12]}-{digitos[12:]}"
 
 def callback_cnpj():
-    st.session_state["proposta_cliente_cnpj"] = formatar_cnpj(st.session_state.get("proposta_cliente_cnpj", ""))
+    cnpj_formatado = formatar_cnpj(st.session_state.get("proposta_cliente_cnpj", ""))
+    st.session_state["proposta_cliente_cnpj"] = cnpj_formatado
+    st.session_state["_safe_cnpj_val"] = cnpj_formatado
 
 # ==============================================================================
 # RENDERIZADOR DE BLOCO POR CATEGORIA
@@ -200,12 +206,11 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_completos_fn=None, 
                 st.session_state["rascunho_itens"] = []
                 st.session_state["proposta_cliente_nome"] = ""
                 st.session_state["proposta_cliente_cnpj"] = ""
+                st.session_state["_safe_cliente_nome"] = ""
+                st.session_state["_safe_cnpj_val"] = ""
                 st.rerun()
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # --------------------------------------------------------------------------
-    # CAMPOS DE INPUT VINCULADOS DIRETAMENTE À SESSÃO COM MÁSCARA DE CNPJ
-    # --------------------------------------------------------------------------
     col_cli, col_cnpj = st.columns([2.5, 1.5])
     
     with col_cli:
@@ -214,6 +219,8 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_completos_fn=None, 
             placeholder="Ex: Empresa ABC Ltda",
             key="proposta_cliente_nome"
         )
+        if cliente_nome:
+            st.session_state["_safe_cliente_nome"] = cliente_nome
         
     with col_cnpj:
         cnpj_val = st.text_input(
@@ -222,6 +229,9 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_completos_fn=None, 
             key="proposta_cliente_cnpj",
             on_change=callback_cnpj
         )
+        if cnpj_val:
+            st.session_state["_safe_cnpj_val"] = cnpj_val
+
     st.markdown("<br>", unsafe_allow_html=True)
     try:
         df_servicos = carregar_dados_fn(apenas_ativos=True)
@@ -233,7 +243,6 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_completos_fn=None, 
     if df_servicos is None or not isinstance(df_servicos, pd.DataFrame):
         df_servicos = pd.DataFrame()
         
-    # Painel de Ajuste Percentual Global
     if st.session_state["rascunho_itens"]:
         with st.expander("📈 **Ajuste Percentual Geral nas Tarifas do Rascunho**", expanded=True):
             col_perc, col_apply, _ = st.columns([2, 2.5, 3.5])
@@ -279,7 +288,6 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_completos_fn=None, 
             else:
                 item["Cat_Code"] = "OUT"
                 
-    # 4 Blocos
     renderizar_bloco_categoria("Armazenagem", "ARM", df_armazenagem, "🏬")
     renderizar_bloco_categoria("Seguro", "SEG", df_seguro, "🛡️")
     renderizar_bloco_categoria("Serviços e Movimentações", "SER", df_servicos_handling, "⚙️")
@@ -292,11 +300,16 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_completos_fn=None, 
         
     with col_res2:
         if st.button("➡️ Finalizar Lançamento e Ir para Proposta Cliente", use_container_width=True):
-            if not cliente_nome.strip():
+            cli_val = str(st.session_state.get("proposta_cliente_nome") or st.session_state.get("_safe_cliente_nome", "")).strip()
+            cnp_val = str(st.session_state.get("proposta_cliente_cnpj") or st.session_state.get("_safe_cnpj_val", "")).strip()
+            
+            if not cli_val:
                 st.error("⚠️ O campo 'Cliente *' é obrigatório!")
             elif not todos_itens:
                 st.error("Adicione pelo menos um item antes de avançar.")
             else:
+                st.session_state["_safe_cliente_nome"] = cli_val
+                st.session_state["_safe_cnpj_val"] = cnp_val
                 st.session_state["proposta_id_ativo"] = numero_proposta
                 st.session_state["aba_ativa"] = "cliente"
                 st.rerun()
