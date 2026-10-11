@@ -218,15 +218,21 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                 st.dataframe(df_resumido, use_container_width=True, hide_index=True)
                 st.markdown("<br>", unsafe_allow_html=True)
                 
-                propostas_unicas = [""] + df_resumido["Proposta"].tolist()
+                # Combina Código da Proposta e Nome do Cliente para visualização clara no Selectbox[cite: 10]
+                df_resumido["Opcao_Select"] = df_resumido["Proposta"].astype(str) + " - " + df_resumido["Cliente"].astype(str)
+                propostas_unicas = [""] + df_resumido["Opcao_Select"].tolist()
                 
                 col_sel_prop, col_btn_carregar = st.columns([3, 1])
                 with col_sel_prop:
-                    prop_escolhida = st.selectbox(
+                    prop_escolhida_completa = st.selectbox(
                         "Selecione uma proposta para editar:",
                         options=propostas_unicas,
                         key="select_proposta_para_editar"
                     )
+                
+                # Extrai apenas o número da proposta selecionada (antes do hífen)
+                prop_escolhida = prop_escolhida_completa.split(" - ")[0].strip() if prop_escolhida_completa else ""
+
                 with col_btn_carregar:
                     st.write("")
                     st.write("")
