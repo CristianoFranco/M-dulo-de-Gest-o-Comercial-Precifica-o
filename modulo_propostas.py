@@ -7,10 +7,6 @@ import pandas as pd
 def inicializar_estado_proposta():
     if "rascunho_itens" not in st.session_state:
         st.session_state["rascunho_itens"] = []
-    if "proposta_cliente_nome" not in st.session_state:
-        st.session_state["proposta_cliente_nome"] = ""
-    if "proposta_cliente_cnpj" not in st.session_state:
-        st.session_state["proposta_cliente_cnpj"] = ""
     if "_safe_cliente_nome" not in st.session_state:
         st.session_state["_safe_cliente_nome"] = ""
     if "_safe_cnpj_val" not in st.session_state:
@@ -165,7 +161,10 @@ def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_blo
 def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_completos_fn=None, obter_proximo_numero_fn=None, *args, **kwargs):
     inicializar_estado_proposta()
     
-    numero_proposta = obter_proximo_numero_fn() if obter_proximo_numero_fn else "10/00001/2026"
+    if st.session_state.get("proposta_id_em_edicao"):
+        numero_proposta = str(st.session_state["proposta_id_em_edicao"])
+    else:
+        numero_proposta = obter_proximo_numero_fn() if obter_proximo_numero_fn else "10/00001/2026"
     
     st.markdown("""
         <style>
@@ -204,8 +203,6 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_completos_fn=None, 
             if st.button("➕ Nova Proposta (Limpar Edição)", use_container_width=True):
                 st.session_state["proposta_id_em_edicao"] = None
                 st.session_state["rascunho_itens"] = []
-                st.session_state["proposta_cliente_nome"] = ""
-                st.session_state["proposta_cliente_cnpj"] = ""
                 st.session_state["_safe_cliente_nome"] = ""
                 st.session_state["_safe_cnpj_val"] = ""
                 st.rerun()
@@ -217,7 +214,8 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_completos_fn=None, 
         cliente_nome = st.text_input(
             "Cliente *",
             placeholder="Ex: Empresa ABC Ltda",
-            key="proposta_cliente_nome"
+            value=st.session_state.get("_safe_cliente_nome", ""),
+            key="input_cli_nome_tela2"
         )
         if cliente_nome:
             st.session_state["_safe_cliente_nome"] = cliente_nome
@@ -226,11 +224,12 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_completos_fn=None, 
         cnpj_val = st.text_input(
             "CNPJ",
             placeholder="Ex: 00.000.000/0001-00",
+            value=st.session_state.get("_safe_cnpj_val", ""),
             key="proposta_cliente_cnpj",
             on_change=callback_cnpj
         )
         if cnpj_val:
-            st.session_state["_safe_cnpj_val"] = cnpj_val
+            st.session_state["_safe_cnpj_val"] = formatar_cnpj(cnpj_val)
 
     st.markdown("<br>", unsafe_allow_html=True)
     try:
@@ -300,7 +299,7 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_completos_fn=None, 
         
     with col_res2:
         if st.button("➡️ Finalizar Lançamento e Ir para Proposta Cliente", use_container_width=True):
-            cli_val = str(st.session_state.get("proposta_cliente_nome") or st.session_state.get("_safe_cliente_nome", "")).strip()
+            cli_val = str(st.session_state.get("input_cli_nome_tela2") or st.session_state.get("_safe_cliente_nome", "")).strip()
             cnp_val = str(st.session_state.get("proposta_cliente_cnpj") or st.session_state.get("_safe_cnpj_val", "")).strip()
             
             if not cli_val:
