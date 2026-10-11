@@ -3,10 +3,10 @@ import pandas as pd
 
 def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, normalizar_codigo_fn=None, formatar_tarifa_fn=None):
     st.markdown("## 📋 Cadastro e Gestão de Serviços")
-    st.caption("Cadastre novos serviços, visualize a tabela tarifária e gerencie o status (Ativo/Inativo).")
+    st.caption("Cadastre novos serviços, visualize a tabela tarifária e altere o status (Ativo/Inativo).")
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # Carrega todos os dados (incluindo inativos para gerenciar)
+    # Carrega todos os dados (incluindo inativos)
     try:
         df_completo = carregar_dados_fn(apenas_ativos=False)
     except TypeError:
@@ -21,99 +21,99 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
     df_completo["Status"] = df_completo["Status"].astype(str).str.strip().replace("", "Ativo")
     df_completo["Código"] = df_completo["Código"].astype(str).str.strip()
 
-    # Formulário de Cadastro / Edição
-    with st.form("form_cadastro_servico", clear_on_submit=False):
-        st.markdown("### ➕ Novo Serviço ou Atualização")
-        
-        col1, col2 = st.columns(2)
-        with col1:
+    # Layout original do formulário
+    col_form, col_tabela = st.columns([1.2, 1.8], gap="large")
+
+    with col_form:
+        st.markdown("### ➕ Novo Serviço")
+        with st.form("form_cadastro_servico", clear_on_submit=True):
             codigo_input = st.text_input("Código *", placeholder="Ex: 1, 2, A1...")
             descricao_input = st.text_input("Descrição *", placeholder="Ex: Armazenagem, Reembalagem...")
+            
             categoria_input = st.selectbox(
                 "Categoria *",
                 options=["", "Armazenagem", "Seguro", "Serviço", "Movimentação (Handling)", "Outros"]
             )
-        with col2:
+            
             unidade_opcoes = st.session_state.get("lista_unidades", ["", "Por caixa", "por unidade", "por pallet", "por hora/homem", "por etiqueta", "por volume", "por mês"])
             unidade_input = st.selectbox("Unidade *", options=unidade_opcoes)
+            
             tarifa_input = st.number_input("Tarifa (R$) *", min_value=0.0, step=0.01, format="%.5f")
             obs_input = st.text_area("Observações e Premissas (Opcional)", placeholder="Ex: Faturamento mínimo...")
 
-        submitted = st.form_submit_button("💾 Cadastrar / Salvar Serviço")
+            submitted = st.form_submit_button("💾 Salvar Serviço", use_container_width=True)
 
-        if submitted:
-            codigo_limp = normalizar_codigo_fn(codigo_input) if normalizar_codigo_fn else str(codigo_input).strip()
-            
-            if not codigo_limp or not descricao_input or not categoria_input or not unidade_input:
-                st.error("⚠️ Preencha todos os campos obrigatórios (*).")
-            else:
-                # Valida duplicidade apenas se o código já estiver ATIVO
-                df_ativos_existentes = df_completo[df_completo["Status"].str.upper() != "INATIVO"]
-                codigo_ja_ativo = not df_ativos_existentes[df_ativos_existentes["Código"] == codigo_limp].empty
+            if submitted:
+                codigo_limp = normalizar_codigo_fn(codigo_input) if normalizar_codigo_fn else str(codigo_input).strip()
                 
-                if codigo_ja_ativo:
-                    st.error(f"⚠️ Atenção: O Código '{codigo_limp}' equivale a um código JÁ CADASTRADO! Escolha um código diferente.")
+                if not codigo_limp or not descricao_input or not categoria_input or not unidade_input:
+                    st.error("⚠️ Preencha todos os campos obrigatórios (*).")
                 else:
-                    idx_existente = df_completo[df_completo["Código"] == codigo_limp].index
+                    # Verifica se o código já existe e está ATIVO
+                    df_ativos_existentes = df_completo[df_completo["Status"].str.upper() != "INATIVO"]
+                    codigo_ja_ativo = not df_ativos_existentes[df_ativos_existentes["Código"] == codigo_limp].empty
                     
-                    tarifa_val = formatar_tarifa_fn(tarifa_input) if formatar_tarifa_fn else tarifa_input
-
-                    novo_registro = {
-                        "Código": codigo_limp,
-                        "Descrição": descricao_input.strip(),
-                        "Tarifa (R$)": tarifa_val,
-                        "Unidade": unidade_input,
-                        "Categoria": categoria_input,
-                        "Observações": obs_input.strip() if obs_input else "",
-                        "Status": "Ativo"
-                    }
-
-                    if not idx_existente.empty:
-                        # Reativa e atualiza a linha que estava inativa com o mesmo código
-                        for k, v in novo_registro.items():
-                            df_completo.loc[idx_existente[0], k] = v
-                        st.success(f"Servício com o código '{codigo_limp}' (anteriormente inativo) foi reativado e atualizado com sucesso!")
+                    if codigo_ja_ativo:
+                        st.error(f"⚠️ Atenção: O Código '{codigo_limp}' equivale a um código JÁ CADASTRADO e Ativo! Escolha um código diferente.")
                     else:
-                        # Adiciona novo registro
-                        df_novo = pd.DataFrame([novo_registro])
-                        df_completo = pd.concat([df_completo, df_novo], ignore_index=True)
-                        st.success(f"Servício '{descricao_input}' cadastrado com sucesso!")
+                        idx_existente = df_completo[df_completo["Código"] == codigo_limp].index
+                        tarifa_val = formatar_tarifa_fn(tarifa_input) if formatar_tarifa_fn else tarifa_input
 
-                    if salvar_dados_completos_fn:
-                        salvar_dados_completos_fn(df_completo)
-                    st.rerun()
+                        novo_registro = {
+                            "Código": codigo_limp,
+                            "Descrição": descricao_input.strip(),
+                            "Tarifa (R$)": tarifa_val,
+                            "Unidade": unidade_input,
+                            "Categoria": categoria_input,
+                            "Observações": obs_input.strip() if obs_input else "",
+                            "Status": "Ativo"
+                        }
 
-    st.markdown("---")
-    st.markdown("### 📊 Serviços Cadastrados (Ativos e Inativos)")
-    
-    if df_completo.empty:
-        st.info("Nenhum serviço cadastrado.")
-    else:
-        st.dataframe(df_completo, use_container_width=True, hide_index=True)
-        
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown("#### ⚙️ Gerenciar Status dos Serviços")
-        
-        col_cod_ger, col_status_ger, col_btn_ger = st.columns([2, 2, 2])
-        
-        with col_cod_ger:
-            codigos_disponiveis = df_completo["Código"].tolist()
-            cod_selecionado = st.selectbox("Selecione o Código:", options=[""] + codigos_disponiveis, key="select_cod_status")
-            
-        with col_status_ger:
-            novo_status = st.selectbox("Novo Status:", options=["Ativo", "Inativo"], key="select_novo_status")
-            
-        with col_btn_ger:
-            st.write("")
-            st.write("")
-            if st.button("Atualizar Status", type="primary", use_container_width=True):
-                if cod_selecionado:
-                    idx_match = df_completo[df_completo["Código"] == cod_selecionado].index
-                    if not idx_match.empty:
-                        df_completo.loc[idx_match, "Status"] = novo_status
+                        if not idx_existente.empty:
+                            # Reativa e atualiza o registro inativo com este mesmo código
+                            for k, v in novo_registro.items():
+                                df_completo.loc[idx_existente[0], k] = v
+                            st.success(f"Servício com o código '{codigo_limp}' (anteriormente inativo) foi reativado e atualizado com sucesso!")
+                        else:
+                            # Insere novo registro
+                            df_novo = pd.DataFrame([novo_registro])
+                            df_completo = pd.concat([df_completo, df_novo], ignore_index=True)
+                            st.success(f"Servício '{descricao_input}' cadastrado com sucesso!")
+
                         if salvar_dados_completos_fn:
                             salvar_dados_completos_fn(df_completo)
-                        st.success(f"Status do código '{cod_selecionado}' alterado para '{novo_status}' com sucesso!")
                         st.rerun()
-                else:
-                    st.warning("Selecione um código válido.")
+
+    with col_tabela:
+        st.markdown("### 📊 Tabela de Serviços")
+        if df_completo.empty:
+            st.info("Nenhum serviço cadastrado.")
+        else:
+            st.dataframe(df_completo, use_container_width=True, height=450, hide_index=True)
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.markdown("#### ⚙️ Inativar / Ativar Serviço")
+            
+            col_cod_ger, col_status_ger, col_btn_ger = st.columns([2, 2, 2])
+            
+            with col_cod_ger:
+                codigos_disponiveis = df_completo["Código"].tolist()
+                cod_selecionado = st.selectbox("Código:", options=[""] + codigos_disponiveis, key="select_cod_status")
+                
+            with col_status_ger:
+                novo_status = st.selectbox("Status:", options=["Ativo", "Inativo"], key="select_novo_status")
+                
+            with col_btn_ger:
+                st.write("")
+                st.write("")
+                if st.button("Atualizar Status", type="primary", use_container_width=True):
+                    if cod_selecionado:
+                        idx_match = df_completo[df_completo["Código"] == cod_selecionado].index
+                        if not idx_match.empty:
+                            df_completo.loc[idx_match, "Status"] = novo_status
+                            if salvar_dados_completos_fn:
+                                salvar_dados_completos_fn(df_completo)
+                            st.success(f"Status do código '{cod_selecionado}' alterado para '{novo_status}'!")
+                            st.rerun()
+                    else:
+                        st.warning("Selecione um código.")
