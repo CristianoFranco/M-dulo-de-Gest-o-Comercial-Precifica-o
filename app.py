@@ -3,6 +3,7 @@ import pandas as pd
 import gspread
 import base64
 import os
+from datetime import datetime
 from google.oauth2.service_account import Credentials
 from modulo_cadastro import renderizar_aba_cadastro
 from modulo_propostas import renderizar_aba_propostas
@@ -367,23 +368,3 @@ st.markdown(
             if (mainContent) {
                 mainContent.scrollTop = 0;
             }
-        }, 30);
-    </script>
-    """,
-    unsafe_allow_html=True
-)
-
-# RENDERIZAÇÃO DA TELA SELECIONADA
-if st.session_state["aba_ativa"] == "cadastro":
-    executar_renderizar_cadastro()
-elif st.session_state["aba_ativa"] == "propostas":
-    renderizar_aba_propostas(
-        carregar_dados_fn=carregar_dados, 
-        salvar_dados_completos_fn=salvar_dados_completos,
-        obter_proximo_numero_fn=obter_proximo_numero_proposta_global
-    )
-else:
-    renderizar_aba_proposta_cliente(
-        salvar_proposta_sheets_fn=salvar_propostas_na_planilha,
-        carregar_propostas_salvas_fn=carregar_propostas_da_planilha
-    )
