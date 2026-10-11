@@ -112,11 +112,18 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
                 with col_btn_exc:
                     btn_acao_excluir = st.button("🗑️ Excluir", use_container_width=True)
                 
-                # Controla estado de qual ação está ativa
                 if btn_acao_editar:
                     st.session_state["modo_acao_servico"] = "editar"
-                elif btn_acao_excluir:
-                    st.session_state["modo_acao_servico"] = "excluir"
+                
+                if btn_acao_excluir:
+                    # Executa a exclusão imediatamente ao clicar no botão Excluir
+                    idx_alvo = df_completo[df_completo["Código"] == cod_selecionado].index[0]
+                    df_completo.loc[idx_alvo, "Status"] = "Inativo"
+                    if salvar_dados_completos_fn:
+                        salvar_dados_completos_fn(df_completo)
+                    st.success(f"Servício '{cod_selecionado}' excluído com sucesso! O código foi liberado.")
+                    st.session_state.pop("modo_acao_servico", None)
+                    st.rerun()
 
                 modo_atual = st.session_state.get("modo_acao_servico", "editar")
 
@@ -161,13 +168,3 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
                                 salvar_dados_completos_fn(df_completo)
                             st.success(f"Servício '{cod_selecionado}' atualizado com sucesso!")
                             st.rerun()
-                elif modo_atual == "excluir":
-                    st.warning(f"Deseja realmente excluir o serviço **{cod_selecionado} - {row_sel['Descrição']}**?")
-                    if st.button("🚨 Confirmar Exclusão Definitiva", type="primary", use_container_width=True):
-                        idx_alvo = df_completo[df_completo["Código"] == cod_selecionado].index[0]
-                        df_completo.loc[idx_alvo, "Status"] = "Inativo"
-                        if salvar_dados_completos_fn:
-                            salvar_dados_completos_fn(df_completo)
-                        st.success(f"Servício '{cod_selecionado}' excluído com sucesso! O código foi liberado.")
-                        st.session_state.pop("modo_acao_servico", None)
-                        st.rerun()
