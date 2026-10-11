@@ -25,7 +25,7 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
 
     with col_form:
         st.markdown("### ➕ Novo Serviço")
-        with st.form("form_cadastro_servico", clear_on_submit=True):
+        with st.form("form_cadastro_servico_unico", clear_on_submit=True):
             codigo_input = st.text_input("Código *", placeholder="Ex: 1, 2, A1...")
             descricao_input = st.text_input("Descrição *", placeholder="Ex: Armazenagem, Reembalagem...")
             
@@ -95,10 +95,10 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
             st.info("Nenhum serviço ativo cadastrado.")
         else:
             # Altura fixa contida perfeitamente no bloco visual
-            st.dataframe(df_exibir, use_container_width=True, height=280, hide_index=True)
+            st.dataframe(df_exibir, use_container_width=True, height=260, hide_index=True)
             
             st.markdown("<br>", unsafe_allow_html=True)
-            st.markdown("#### ⚙️ Gerenciar Serviço (Editar / Inativar)")
+            st.markdown("#### ⚙️ Gerenciar Serviço (Editar / Excluir)")
             
             ativos_lista = df_completo[df_completo["Status"].str.upper() != "INATIVO"]["Código"].tolist()
             cod_selecionado = st.selectbox("Selecione o Código do Serviço Ativo:", options=[""] + ativos_lista, key="select_servico_gerenciar")
@@ -106,10 +106,10 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
             if cod_selecionado:
                 row_sel = df_completo[df_completo["Código"] == cod_selecionado].iloc[0]
                 
-                acao = st.radio("Ação:", options=["Editar Serviço", "Inativar Serviço"], horizontal=True, key="radio_acao_servico")
+                acao = st.radio("Escolha a Ação:", options=["Editar Serviço", "Excluir Serviço"], horizontal=True, key="radio_acao_servico")
                 
                 if acao == "Editar Serviço":
-                    with st.form("form_edicao_servico"):
+                    with st.form("form_edicao_servico_unico"):
                         st.text_input("Código (Fixo / Não Editável)", value=str(row_sel["Código"]), disabled=True)
                         
                         edit_desc = st.text_input("Descrição", value=str(row_sel["Descrição"]))
@@ -146,13 +146,13 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
                             
                             if salvar_dados_completos_fn:
                                 salvar_dados_completos_fn(df_completo)
-                            st.success(f"Servício '{cod_selecionado}' atualizado e salvo na planilha com sucesso!")
+                            st.success(f"Servício '{cod_selecionado}' atualizado com sucesso!")
                             st.rerun()
                 else:
-                    if st.button("🗑️ Confirmar Inativação do Serviço", type="primary", use_container_width=True):
+                    if st.button("🗑️ Confirmar Exclusão do Serviço", type="primary", use_container_width=True):
                         idx_alvo = df_completo[df_completo["Código"] == cod_selecionado].index[0]
                         df_completo.loc[idx_alvo, "Status"] = "Inativo"
                         if salvar_dados_completos_fn:
                             salvar_dados_completos_fn(df_completo)
-                        st.success(f"Servício '{cod_selecionado}' inativado com sucesso! O código agora está liberado para novos cadastros.")
+                        st.success(f"Servício '{cod_selecionado}' excluído com sucesso! O código foi liberado.")
                         st.rerun()
