@@ -21,10 +21,10 @@ def obter_proximo_numero_proposta():
 def inicializar_estado_proposta():
     if "rascunho_itens" not in st.session_state:
         st.session_state["rascunho_itens"] = []
-    if "_safe_cliente_nome" not in st.session_state:
-        st.session_state["_safe_cliente_nome"] = ""
-    if "_safe_cnpj_val" not in st.session_state:
-        st.session_state["_safe_cnpj_val"] = ""
+    if "proposta_cliente_nome" not in st.session_state:
+        st.session_state["proposta_cliente_nome"] = ""
+    if "proposta_cliente_cnpj" not in st.session_state:
+        st.session_state["proposta_cliente_cnpj"] = ""
 
 def remover_item_proposta_por_indice(index_para_remover):
     if 0 <= index_para_remover < len(st.session_state["rascunho_itens"]):
@@ -45,6 +45,23 @@ def aplicar_reajuste_percentual_global(percentual):
         input_key = f"input_tarifa_{cat_code}_{item['Código']}_{idx}"
         st.session_state[input_key] = nova_tarifa
 
+def formatar_cnpj(val):
+    digitos = "".join([c for c in str(val) if c.isdigit()])[:14]
+    t = len(digitos)
+    if t <= 2:
+        return digitos
+    elif t <= 5:
+        return f"{digitos[:2]}.{digitos[2:]}"
+    elif t <= 8:
+        return f"{digitos[:2]}.{digitos[2:5]}.{digitos[5:]}"
+    elif t <= 12:
+        return f"{digitos[:2]}.{digitos[2:5]}.{digitos[5:8]}/{digitos[8:]}"
+    else:
+        return f"{digitos[:2]}.{digitos[2:5]}.{digitos[5:8]}/{digitos[8:12]}-{digitos[12:]}"
+
+def callback_cnpj():
+    st.session_state["proposta_cliente_cnpj"] = formatar_cnpj(st.session_state.get("proposta_cliente_cnpj", ""))
+
 # ==============================================================================
 # RENDERIZADOR DE BLOCO POR CATEGORIA
 # ==============================================================================
@@ -55,7 +72,6 @@ def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_blo
         st.info(f"Nenhum serviço cadastrado na categoria '{titulo}'.")
         st.markdown("---")
         return
-        
     codigos_categoria = df_categoria["Código"].tolist()
     opcoes = [""] + codigos_categoria
     
@@ -99,7 +115,6 @@ def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_blo
                     st.warning("Este item já foi adicionado ao rascunho.")
             else:
                 st.warning("Selecione um item antes de adicionar.")
-                
     itens_do_bloco_com_idx = [
         (idx, item) for idx, item in enumerate(st.session_state["rascunho_itens"])
         if item.get("Cat_Code") == categoria_filtro or item.get("Categoria") == titulo
@@ -116,7 +131,6 @@ def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_blo
         with h_un: st.markdown("<b style='color: #FFFFFF;'>Unidade</b>", unsafe_allow_html=True)
         with h_obs: st.markdown("<b style='color: #FFFFFF;'>Observações</b>", unsafe_allow_html=True)
         st.markdown("<hr style='margin: 4px 0 10px 0; border-color: rgba(255,255,255,0.3);'>", unsafe_allow_html=True)
-        
         for idx, item in itens_do_bloco_com_idx:
             c_del, c_cod, c_desc, c_tar, c_un, c_obs = st.columns([0.5, 1.2, 3.2, 2.2, 1.8, 2.2])
             
@@ -149,13 +163,12 @@ def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_blo
                 st.markdown(f"<span style='color: #FFFFFF;'>{item['Unidade']}</span>", unsafe_allow_html=True)
             with c_obs:
                 st.markdown(f"<span style='color: #FFFFFF;'>{item.get('Observações', '')}</span>", unsafe_allow_html=True)
-                
-    st.markdown("---")
+        st.markdown("---")
 
 # ==============================================================================
 # RENDERIZADOR PRINCIPAL ABA 2
 # ==============================================================================
-def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_fn=None, *args, **kwargs):
+def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_completos=None, *args, **kwargs):
     inicializar_estado_proposta()
     numero_proposta = obter_proximo_numero_proposta()
     
@@ -186,58 +199,41 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_fn=None, *args, **k
             }
         </style>
     """, unsafe_allow_html=True)
-    
     col_tit, col_num = st.columns([3, 1])
     with col_tit:
         st.markdown("## 📝 Proposta Rascunho")
         st.caption("Monte a estrutura comercial selecionando os serviços e ajustando as tarifas.")
     with col_num:
         st.markdown(f"### Nº: `{numero_proposta}`")
-        
-        # Trava de segurança para nova proposta
-        if st.session_state.get("proposta_id_em_edicao") or st.session_state.get("rascunho_itens"):
-            if st.button("➕ Nova Proposta", use_container_width=True):
-                if st.session_state.get("rascunho_itens"):
-                    st.warning("⚠️ **Atenção:** Existe uma proposta aberta/em edição com itens não salvos! Vá até a aba **'Proposta Cliente'** e clique em **'Salvar Proposta no Google Sheets'** antes de iniciar uma nova proposta.")
-                else:
-                    st.session_state["proposta_id_em_edicao"] = None
-                    st.session_state["rascunho_itens"] = []
-                    st.session_state["_safe_cliente_nome"] = ""
-                    st.session_state["_safe_cnpj_val"] = ""
-                    st.rerun()
-        else:
-            if st.button("➕ Nova Proposta", use_container_width=True):
+        if st.session_state.get("proposta_id_em_edicao"):
+            if st.button("➕ Nova Proposta (Limpar Edição)", use_container_width=True):
                 st.session_state["proposta_id_em_edicao"] = None
                 st.session_state["rascunho_itens"] = []
-                st.session_state["_safe_cliente_nome"] = ""
-                st.session_state["_safe_cnpj_val"] = ""
+                st.session_state["proposta_cliente_nome"] = ""
+                st.session_state["proposta_cliente_cnpj"] = ""
                 st.rerun()
-                
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # Inputs com valor fixado no estado seguro para persistir ao navegar para a Tela 1 (Cadastro)
+    # --------------------------------------------------------------------------
+    # CAMPOS DE INPUT VINCULADOS DIRETAMENTE À SESSÃO COM MÁSCARA DE CNPJ
+    # --------------------------------------------------------------------------
     col_cli, col_cnpj = st.columns([2.5, 1.5])
     
     with col_cli:
         cliente_nome = st.text_input(
             "Cliente *",
-            value=st.session_state.get("_safe_cliente_nome", ""),
             placeholder="Ex: Empresa ABC Ltda",
-            key="input_cli_nome_tela2"
+            key="proposta_cliente_nome"
         )
-        st.session_state["_safe_cliente_nome"] = cliente_nome
         
     with col_cnpj:
         cnpj_val = st.text_input(
             "CNPJ",
-            value=st.session_state.get("_safe_cnpj_val", ""),
             placeholder="Ex: 00.000.000/0001-00",
-            key="input_cnpj_tela2"
+            key="proposta_cliente_cnpj",
+            on_change=callback_cnpj
         )
-        st.session_state["_safe_cnpj_val"] = cnpj_val
-        
     st.markdown("<br>", unsafe_allow_html=True)
-    
     try:
         df_servicos = carregar_dados_fn(apenas_ativos=True)
     except Exception:
@@ -245,7 +241,6 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_fn=None, *args, **k
             df_servicos = carregar_dados_fn()
         except Exception:
             df_servicos = pd.DataFrame()
-            
     if df_servicos is None or not isinstance(df_servicos, pd.DataFrame):
         df_servicos = pd.DataFrame()
         
@@ -303,7 +298,6 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_fn=None, *args, **k
     
     todos_itens = st.session_state["rascunho_itens"]
     col_res1, col_res2 = st.columns([2, 1])
-    
     with col_res1:
         st.markdown(f"### Total de Itens no Rascunho: **{len(todos_itens)}**")
         
@@ -314,7 +308,5 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_fn=None, *args, **k
             elif not todos_itens:
                 st.error("Adicione pelo menos um item antes de avançar.")
             else:
-                st.session_state["_safe_cliente_nome"] = cliente_nome.strip()
-                st.session_state["_safe_cnpj_val"] = cnpj_val.strip()
                 st.session_state["aba_ativa"] = "cliente"
                 st.rerun()
