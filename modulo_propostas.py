@@ -82,7 +82,6 @@ def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_blo
             if item_selecionado != "":
                 row = df_categoria[df_categoria["Código"] == item_selecionado].iloc[0]
                 
-                # Tratamento da tarifa: se for seguro, inicia vazio/aberto para digitação do percentual
                 cat_row_val = str(row.get("Categoria", titulo)).strip().lower()
                 if cat_row_val == "seguro":
                     tarifa_float = 0.0
@@ -251,4 +250,76 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_completos_fn=None, 
             df_servicos = carregar_dados_fn()
         except Exception:
             df_servicos = pd.DataFrame()
-    if df_servicos is
+    if df_servicos is None or not isinstance(df_servicos, pd.DataFrame):
+        df_servicos = pd.DataFrame()
+        
+    if st.session_state["rascunho_itens"]:
+        with st.expander("📈 **Ajuste Percentual Geral nas Tarifas do Rascunho**", expanded=True):
+            col_perc, col_apply, _ = st.columns([2, 2.5, 3.5])
+            
+            with col_perc:
+                percentual_ajuste = st.number_input(
+                    "Reajuste (%):",
+                    value=0.0,
+                    step=0.5,
+                    format="%.2f",
+                    key="input_reajuste_perc_global",
+                    help="Exemplo: 5.0 para +5% ou -5.0 para 5% de desconto"
+                )
+            with col_apply:
+                st.write("")
+                st.write("")
+                if st.button("⚡ Aplicar Reajuste", key="btn_aplicar_reajuste_global", use_container_width=True):
+                    if percentual_ajuste != 0.0:
+                        aplicar_reajuste_percentual_global(percentual_ajuste)
+                        st.success(f"Reajuste de {percentual_ajuste:.2f}% aplicado!")
+                        st.rerun()
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+    if df_servicos.empty or "Categoria" not in df_servicos.columns:
+        st.warning("Nenhum serviço ativo foi encontrado na base de dados do Google Sheets.")
+        return
+        
+    df_servicos["Cat_Upper"] = df_servicos["Categoria"].astype(str).str.strip().str.upper()
+    df_armazenagem = df_servicos[df_servicos["Cat_Upper"] == "ARMAZENAGEM"]
+    df_seguro = df_servicos[df_servicos["Cat_Upper"] == "SEGURO"]
+    df_servicos_handling = df_servicos[df_servicos["Cat_Upper"].isin(["SERVIÇO", "MOVIMENTAÇÃO (HANDLING)"])]
+    df_outros = df_servicos[~df_servicos["Cat_Upper"].isin(["ARMAZENAGEM", "SEGURO", "SERVIÇO", "MOVIMENTAÇÃO (HANDLING)"])]
+    
+    for item in st.session_state["rascunho_itens"]:
+        if not item.get("Cat_Code") or item.get("Cat_Code") == "GEN":
+            cat_up = str(item.get("Categoria", "")).strip().upper()
+            if cat_up == "ARMAZENAGEM":
+                item["Cat_Code"] = "ARM"
+            elif cat_up == "SEGURO":
+                item["Cat_Code"] = "SEG"
+            elif cat_up in ["SERVIÇO", "MOVIMENTAÇÃO (HANDLING)", "SERVIÇOS E MOVIMENTAÇÕES"]:
+                item["Cat_Code"] = "SER"
+            else:
+                item["Cat_Code"] = "OUT"
+                
+    renderizar_bloco_categoria("Armazenagem", "ARM", df_armazenagem, "🏬")
+    renderizar_bloco_categoria("Seguro", "SEG", df_seguro, "🛡️")
+    renderizar_bloco_categoria("Serviços e Movimentações", "SER", df_servicos_handling, "⚙️")
+    renderizar_bloco_categoria("Outros", "OUT", df_outros, "📦")
+    
+    todos_itens = st.session_state["rascunho_itens"]
+    col_res1, col_res2 = st.columns([2, 1])
+    with col_res1:
+        st.markdown(f"### Total de Itens no Rascunho: **{len(todos_itens)}**")
+        
+    with col_res2:
+        if st.button("➡️ Finalizar Lançamento e Ir para Proposta Cliente", use_container_width=True):
+            cli_val = str(st.session_state.get("input_cli_nome_tela2") or st.session_state.get("_safe_cliente_nome", "")).strip()
+            cnp_val = str(st.session_state.get("proposta_cliente_cnpj") or st.session_state.get("_safe_cnpj_val", "")).strip()
+            
+            if not cli_val:
+                st.error("⚠️ O campo 'Cliente *' é obrigatório!")
+            elif not todos_itens:
+                st.error("Adicione pelo menos um item antes de avançar.")
+            else:
+                st.session_state["_safe_cliente_nome"] = cli_val
+                st.session_state["_safe_cnpj_val"] = cnp_val
+                st.session_state["proposta_id_ativo"] = numero_proposta
+                st.session_state["aba_ativa"] = "cliente"
+                st.rerun()
