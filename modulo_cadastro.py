@@ -46,27 +46,28 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
 
     with col_form:
         st.markdown("### ➕ Novo Serviço")
-        with st.form("form_cad_servico_final_v10", clear_on_submit=True):
-            codigo_input = st.text_input("Código *", placeholder="Ex: 1, 2, A1...", key="in_cad_cod_v10")
-            descricao_input = st.text_input("Descrição *", placeholder="Ex: Armazenagem, Reembalagem...", key="in_cad_desc_v10")
+        with st.form("form_cad_servico_final_v13", clear_on_submit=True):
+            codigo_input = st.text_input("Código *", placeholder="Ex: 1, 2, A1...", key="in_cad_cod_v13")
+            descricao_input = st.text_input("Descrição *", placeholder="Ex: Armazenagem, Reembalagem...", key="in_cad_desc_v13")
             
             categoria_input = st.selectbox(
                 "Categoria *",
                 options=["", "Armazenagem", "Seguro", "Serviço", "Movimentação (Handling)", "Outros"],
-                key="sel_cad_cat_v10"
+                key="sel_cad_cat_v13"
             )
             
             unidade_opcoes = st.session_state.get("lista_unidades", ["", "Por caixa", "por unidade", "por pallet", "por hora/homem", "por etiqueta", "por volume", "por mês", "percentual"])
-            unidade_input = st.selectbox("Unidade *", options=unidade_opcoes, key="sel_cad_un_v10")
+            unidade_input = st.selectbox("Unidade *", options=unidade_opcoes, key="sel_cad_un_v13")
             
-            # Se for Seguro, oculta/iguala a tarifa no cadastro a 0.0 (o percentual será inserido na Proposta Rascunho)
-            if str(categoria_input).strip().lower() == "seguro":
+            # Trava para ocultar/definir tarifa automaticamente se for Seguro
+            is_seguro_form = str(categoria_input).strip().lower() == "seguro"
+            if is_seguro_form:
                 tarifa_input = 0.0
-                st.info("ℹ️ Para serviços de Seguro, a taxa/percentual será definida diretamente na Proposta Rascunho.")
+                st.info("ℹ️ Categoria 'Seguro' selecionada: o campo de tarifa está oculto e será preenchido dinamicamente na Proposta Rascunho.")
             else:
-                tarifa_input = st.number_input("Tarifa (R$) *", min_value=0.0, step=0.01, format="%.2f", key="num_cad_tar_v10")
+                tarifa_input = st.number_input("Tarifa (R$) *", min_value=0.0, step=0.0001, format="%.5f", key="num_cad_tar_v13")
 
-            obs_input = st.text_area("Observações e Premissas (Opcional)", placeholder="Ex: Faturamento mínimo...", key="area_cad_obs_v10")
+            obs_input = st.text_area("Observações e Premissas (Opcional)", placeholder="Ex: Faturamento mínimo...", key="area_cad_obs_v13")
 
             submitted = st.form_submit_button("💾 Salvar Serviço", use_container_width=True)
 
@@ -84,10 +85,7 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
                     else:
                         idx_existente = df_completo[df_completo["Código"] == codigo_limp].index
                         
-                        if str(categoria_input).strip().lower() == "seguro":
-                            tarifa_val = 0.0
-                        else:
-                            tarifa_val = formatar_tarifa_fn(tarifa_input) if formatar_tarifa_fn else tarifa_input
+                        tarifa_val = 0.0 if is_seguro_form else (formatar_tarifa_fn(tarifa_input) if formatar_tarifa_fn else tarifa_input)
 
                         novo_registro = {
                             "Código": codigo_limp,
@@ -138,7 +136,7 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
                 opcoes_select.append(label_opcao)
                 mapa_codigos[label_opcao] = c_val
 
-            selecao_completa = st.selectbox("Selecione o Serviço Ativo:", options=opcoes_select, key="select_servico_gerenciar_ativo_v10")
+            selecao_completa = st.selectbox("Selecione o Serviço Ativo:", options=opcoes_select, key="select_servico_gerenciar_ativo_v13")
             
             cod_selecionado = mapa_codigos.get(selecao_completa, "") if selecao_completa else ""
             
@@ -147,9 +145,9 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
                 
                 col_btn_edit, col_btn_exc = st.columns(2)
                 with col_btn_edit:
-                    btn_acao_editar = st.button("✏️ Editar", use_container_width=True, key="btn_edit_action_v10")
+                    btn_acao_editar = st.button("✏️ Editar", use_container_width=True, key="btn_edit_action_v13")
                 with col_btn_exc:
-                    btn_acao_excluir = st.button("🗑️ Excluir", use_container_width=True, key="btn_exc_action_v10")
+                    btn_acao_excluir = st.button("🗑️ Excluir", use_container_width=True, key="btn_exc_action_v13")
                 
                 if btn_acao_editar:
                     st.session_state["modo_acao_servico"] = "editar"
@@ -173,35 +171,34 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
                     st.markdown("---")
                     st.markdown(f"##### Editando Serviço (Código Fixo: `{cod_selecionado}`)")
                     
-                    edit_desc = st.text_input("Descrição *", value=str(row_sel["Descrição"]), key="edit_desc_txt_v10")
+                    edit_desc = st.text_input("Descrição *", value=str(row_sel["Descrição"]), key="edit_desc_txt_v13")
                     
                     cats = ["Armazenagem", "Seguro", "Serviço", "Movimentação (Handling)", "Outros"]
                     cat_atual = str(row_sel["Categoria"])
                     cat_idx = cats.index(cat_atual) if cat_atual in cats else 0
-                    edit_cat = st.selectbox("Categoria *", options=cats, index=cat_idx, key="edit_cat_sel_v10")
+                    edit_cat = st.selectbox("Categoria *", options=cats, index=cat_idx, key="edit_cat_sel_v13")
                     
                     unidades = st.session_state.get("lista_unidades", ["", "Por caixa", "por unidade", "por pallet", "por hora/homem", "por etiqueta", "por volume", "por mês", "percentual"])
                     un_atual = str(row_sel["Unidade"])
                     un_idx = unidades.index(un_atual) if un_atual in unidades else 0
-                    edit_un = st.selectbox("Unidade *", options=unidades, index=un_idx, key="edit_un_sel_v10")
+                    edit_un = st.selectbox("Unidade *", options=unidades, index=un_idx, key="edit_un_sel_v13")
                     
                     is_seguro_edit = str(edit_cat).strip().lower() == "seguro"
-                    
                     if is_seguro_edit:
                         edit_tarifa = 0.0
-                        st.info("ℹ️ Para serviços de Seguro, a taxa/percentual é informada na Proposta Rascunho.")
+                        st.info("ℹ️ Para serviços de Seguro, a tarifa é controlada diretamente na Proposta Rascunho.")
                     else:
                         try:
                             t_val_inicial = float(str(row_sel["Tarifa (R$)"]).replace(".", "").replace(",", "."))
                         except Exception:
                             t_val_inicial = 0.0
-                        edit_tarifa = st.number_input("Tarifa (R$) *", value=t_val_inicial, min_value=0.0, step=0.01, format="%.2f", key="edit_tar_num_v10")
+                        edit_tarifa = st.number_input("Tarifa (R$) *", value=t_val_inicial, min_value=0.0, step=0.0001, format="%.5f", key="edit_tar_num_v13")
                         
-                    edit_obs = st.text_area("Observações e Premissas (Opcional)", value=str(row_sel.get("Observações", "")), key="edit_obs_area_v10")
+                    edit_obs = st.text_area("Observações e Premissas (Opcional)", value=str(row_sel.get("Observações", "")), key="edit_obs_area_v13")
                     
                     col_salvar, col_cancelar = st.columns(2)
                     with col_salvar:
-                        if st.button("💾 Salvar Alterações", type="primary", use_container_width=True, key="btn_salvar_edicao_v10"):
+                        if st.button("💾 Salvar Alterações", type="primary", use_container_width=True, key="btn_salvar_edicao_v13"):
                             idx_antigo = df_completo[(df_completo["Código"] == cod_selecionado) & (df_completo["Status"].str.upper() != "INATIVO")].index
                             for i in idx_antigo:
                                 df_completo.loc[i, "Status"] = "Inativo"
@@ -214,7 +211,7 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
                                 "Tarifa (R$)": tarifa_val,
                                 "Unidade": edit_un,
                                 "Categoria": edit_cat,
-                                "Observações": edit_obs.strip() if edit_obs else "",
+                                "Observações": edit_obs.strip() if obs_input else "",
                                 "Status": "Ativo"
                             }
                             
@@ -228,7 +225,7 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
                             st.session_state.pop("codigo_em_edicao", None)
                             st.rerun()
                     with col_cancelar:
-                        if st.button("❌ Cancelar", use_container_width=True, key="btn_cancelar_edicao_v10"):
+                        if st.button("❌ Cancelar", use_container_width=True, key="btn_cancelar_edicao_v13"):
                             st.session_state.pop("modo_acao_servico", None)
                             st.session_state.pop("codigo_em_edicao", None)
                             st.rerun()
