@@ -81,19 +81,11 @@ def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_blo
         if st.button("➕ Adicionar", key=f"btn_add_{categoria_filtro}"):
             if item_selecionado != "":
                 row = df_categoria[df_categoria["Código"] == item_selecionado].iloc[0]
-                
-                cat_row_val = str(row.get("Categoria", titulo)).strip().lower()
-                if cat_row_val == "seguro":
-                    tarifa_float = 0.0
-                else:
-                    tarifa_raw = str(row["Tarifa (R$)"]).replace(".", "").replace(",", ".")
-                    try:
-                        tarifa_float = float(tarifa_raw)
-                    except ValueError:
-                        try:
-                            tarifa_float = float(row["Tarifa (R$)"])
-                        except Exception:
-                            tarifa_float = 0.0
+                tarifa_raw = str(row["Tarifa (R$)"]).replace(".", "").replace(",", ".")
+                try:
+                    tarifa_float = float(tarifa_raw)
+                except ValueError:
+                    tarifa_float = float(row["Tarifa (R$)"])
                 
                 obs_val = str(row["Observações"]) if "Observações" in row and pd.notna(row["Observações"]) else ""
                 
@@ -313,10 +305,25 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_completos_fn=None, 
             cli_val = str(st.session_state.get("input_cli_nome_tela2") or st.session_state.get("_safe_cliente_nome", "")).strip()
             cnp_val = str(st.session_state.get("proposta_cliente_cnpj") or st.session_state.get("_safe_cnpj_val", "")).strip()
             
+            # Validação obrigatória: impede avançar se houver itens de Seguro com tarifa igual a 0.0000
+            seguro_zerado = False
+            for item in todos_itens:
+                cat_item = str(item.get("Categoria", "")).strip().lower()
+                if cat_item == "seguro" or item.get("Cat_Code") == "SEG":
+                    try:
+                        t_val = float(item.get("Tarifa (R$)", 0))
+                    except Exception:
+                        t_val = 0.0
+                    if t_val == 0.0:
+                        seguro_zerado = True
+                        break
+
             if not cli_val:
                 st.error("⚠️ O campo 'Cliente *' é obrigatório!")
             elif not todos_itens:
                 st.error("Adicione pelo menos um item antes de avançar.")
+            elif seguro_zerado:
+                st.error("⚠️ Atenção: Há itens de **Seguro** com tarifa igual a 0,0000. O percentual do seguro deve ser preenchido obrigatoriamente e ser diferente de zero.")
             else:
                 st.session_state["_safe_cliente_nome"] = cli_val
                 st.session_state["_safe_cnpj_val"] = cnp_val
