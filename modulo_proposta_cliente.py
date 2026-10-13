@@ -187,6 +187,7 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
     st.markdown("## Visão Final da Proposta (Cliente)")
     st.caption("Visualização pronta para conferência, geração de PDF e salvamento.")
     st.markdown("<br>", unsafe_allow_html=True)
+    
     itens_rascunho = st.session_state.get("rascunho_itens", [])
     
     cliente_nome = str(st.session_state.get("_safe_cliente_nome") or st.session_state.get("input_cli_nome_tela2", "")).strip()
@@ -203,148 +204,148 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
         seq = st.session_state.get("sequencial_proposta", 1)
         numero_proposta_atual = mes_str + "/" + "{:05d}".format(seq) + "/" + ano_str
 
-    st.markdown("### Documento da Proposta")
-    if not itens_rascunho:
-        st.warning("Nenhum item pendente no rascunho. Monte os itens na Tela 2 (Proposta Rascunho).")
+    # Se a proposta acabou de ser salva e gerada, exibe o botão de download diretamente
+    if st.session_state.get("pdf_gerado_sucesso") and REPORTLAB_DISPONIVEL:
+        dados_cache = st.session_state.get("pdf_dados_cache", {})
+        pdf_bytes = gerar_pdf_proposta_completo(
+            dados_cache.get("numero"),
+            dados_cache.get("nome"),
+            dados_cache.get("cnpj"),
+            dados_cache.get("contato"),
+            dados_cache.get("objeto"),
+            dados_cache.get("itens")
+        )
+        nome_arquivo_pdf = "Proposta_" + str(dados_cache.get("numero")).replace("/", "_") + ".pdf"
+        
+        st.success("✅ Proposta salva com sucesso no Google Sheets e documento PDF gerado!")
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.download_button(
+            label="📥 Baixar / Visualizar Proposta em PDF",
+            data=pdf_bytes,
+            file_name=nome_arquivo_pdf,
+            mime="application/pdf",
+            use_container_width=True,
+            type="primary"
+        )
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("🔄 Iniciar Nova Proposta", use_container_width=True):
+            st.session_state["pdf_gerado_sucesso"] = False
+            st.session_state.pop("pdf_dados_cache", None)
+            st.rerun()
     else:
-        col_info1, col_info2, col_info3 = st.columns([2.5, 1.5, 1.5])
-        with col_info1:
-            lbl_cli = cliente_nome if cliente_nome else "Não Informado"
-            st.markdown("Cliente / Razão Social:\n### " + lbl_cli)
-        with col_info2:
-            lbl_cnpj = cnpj_val if cnpj_val else "Não Informado"
-            st.markdown("CNPJ:\n### " + lbl_cnpj)
-        with col_info3:
-            st.markdown("Número da Proposta:\n### " + numero_proposta_atual)
-        st.markdown("<br>", unsafe_allow_html=True)
-        
-        dados_estaticos = []
-        for item in itens_rascunho:
-            tarifa_val = item.get("Tarifa (R$)", 0.0)
-            try:
-                tarifa_float = float(tarifa_val)
-                tarifa_fmt = "R$ " + "{:,.5f}".format(tarifa_float).replace(",", "X").replace(".", ",").replace("X", ".")
-            except (ValueError, TypeError):
-                tarifa_fmt = str(tarifa_val)
-            
-            dados_estaticos.append({
-                "Proposta": numero_proposta_atual,
-                "Cliente": cliente_nome,
-                "CNPJ": cnpj_val,
-                "Código": item.get("Código", ""),
-                "Descrição": item.get("Descrição", ""),
-                "Categoria": item.get("Categoria", ""),
-                "Unidade": item.get("Unidade", ""),
-                "Tarifa": tarifa_fmt,
-                "Observações": item.get("Observações", "")
-            })
-        df_estatico = pd.DataFrame(dados_estaticos)
-        
-        st.dataframe(df_estatico, use_container_width=True, hide_index=True)
-        st.markdown("<br>", unsafe_allow_html=True)
-        
-        # FORMULÁRIO DEDICADO (POP-UP INTEGRADO) PARA OS PARÂMETROS DA PROPOSTA
-        st.markdown("---")
-        st.markdown("### ⚙️ Parâmetros da Proposta Comercial (PDF)")
-        
-        with st.form("form_parametros_proposta_pdf"):
-            col_pop1, col_pop2 = st.columns(2)
-            with col_pop1:
-                input_razao_social = st.text_input("Razão Social da Empresa Contratante (XXXXXXXX):", value=cliente_nome, key="input_popup_razao_social")
-                input_contato = st.text_input("Contato do Cliente (yyyyyyyyy):", placeholder="Ex: Nome do responsável", key="input_popup_contato")
-            with col_pop2:
-                input_objeto = st.text_input("Objeto da Proposta (ZZZZZZZ):", placeholder="Ex: Prestação de serviços logísticos", key="input_popup_objeto")
-                st.markdown(f"**Número da Proposta (WWWWW):** `{numero_proposta_atual}`")
-
+        st.markdown("### Documento da Proposta")
+        if not itens_rascunho:
+            st.warning("Nenhum item pendente no rascunho. Monte os itens na Tela 2 (Proposta Rascunho).")
+        else:
+            col_info1, col_info2, col_info3 = st.columns([2.5, 1.5, 1.5])
+            with col_info1:
+                lbl_cli = cliente_nome if cliente_nome else "Não Informado"
+                st.markdown("Cliente / Razão Social:\n### " + lbl_cli)
+            with col_info2:
+                lbl_cnpj = cnpj_val if cnpj_val else "Não Informado"
+                st.markdown("CNPJ:\n### " + lbl_cnpj)
+            with col_info3:
+                st.markdown("Número da Proposta:\n### " + numero_proposta_atual)
             st.markdown("<br>", unsafe_allow_html=True)
-            submitted_pdf = st.form_submit_button("💾 Salvar Proposta e Gerar PDF", use_container_width=True, type="primary")
-
-            if submitted_pdf:
-                c_nome = str(input_razao_social).strip()
-                c_cnpj = str(st.session_state.get("_safe_cnpj_val") or st.session_state.get("proposta_cliente_cnpj", "")).strip()
-                c_contato = str(input_contato).strip()
-                c_objeto = str(input_objeto).strip()
-                
-                if not c_nome:
-                    st.error("⚠️ O nome da Razão Social é obrigatório!")
-                elif not c_contato:
-                    st.error("⚠️ O Contato do cliente é obrigatório!")
-                elif not c_objeto:
-                    st.error("⚠️ O Objeto da proposta é obrigatório!")
-                elif salvar_proposta_sheets_fn:
-                    linhas_para_salvar = []
-                    data_hoje = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    for item in itens_rascunho:
-                        try:
-                            t_val = float(item.get("Tarifa (R$)", 0.0))
-                        except (ValueError, TypeError):
-                            t_val = 0.0
-                            
-                        linhas_para_salvar.append({
-                            "Proposta": numero_proposta_atual,
-                            "Data": data_hoje,
-                            "Cliente": c_nome,
-                            "CNPJ": c_cnpj,
-                            "Código": str(item.get("Código", "")),
-                            "Descrição": str(item.get("Descrição", "")),
-                            "Categoria": str(item.get("Categoria", "")),
-                            "Unidade": str(item.get("Unidade", "")),
-                            "Tarifa (R$)": t_val,
-                            "Observações": str(item.get("Observações", ""))
-                        })
-                    sucesso = salvar_proposta_sheets_fn(linhas_para_salvar)
-                    if sucesso:
-                        st.success("Proposta salva com sucesso no Google Sheets!")
-                        st.session_state["pdf_gerado_sucesso"] = True
-                        st.session_state["pdf_dados_cache"] = {
-                            "numero": numero_proposta_atual,
-                            "nome": c_nome,
-                            "cnpj": c_cnpj,
-                            "contato": c_contato,
-                            "objeto": c_objeto,
-                            "itens": list(itens_rascunho)
-                        }
-                        
-                        st.session_state["proposta_id_em_edicao"] = None
-                        st.session_state["proposta_id_ativo"] = None
-                        st.session_state["rascunho_itens"] = []
-                        st.session_state["_safe_cliente_nome"] = ""
-                        st.session_state["_safe_cnpj_val"] = ""
-                        
-                        for k in list(st.session_state.keys()):
-                            if k.startswith("input_tarifa_"):
-                                del st.session_state[k]
-                        st.rerun()
-                    else:
-                        st.error("Falha ao salvar no Google Sheets.")
-
-        # Se a proposta acabou de ser salva, exibe imediatamente o botão de download do PDF gerado
-        if st.session_state.get("pdf_gerado_sucesso") and REPORTLAB_DISPONIVEL:
-            dados_cache = st.session_state.get("pdf_dados_cache", {})
-            pdf_bytes = gerar_pdf_proposta_completo(
-                dados_cache.get("numero"),
-                dados_cache.get("nome"),
-                dados_cache.get("cnpj"),
-                dados_cache.get("contato"),
-                dados_cache.get("objeto"),
-                dados_cache.get("itens")
-            )
-            nome_arquivo_pdf = "Proposta_" + str(dados_cache.get("numero")).replace("/", "_") + ".pdf"
             
+            dados_estaticos = []
+            for item in itens_rascunho:
+                tarifa_val = item.get("Tarifa (R$)", 0.0)
+                try:
+                    tarifa_float = float(tarifa_val)
+                    tarifa_fmt = "R$ " + "{:,.5f}".format(tarifa_float).replace(",", "X").replace(".", ",").replace("X", ".")
+                except (ValueError, TypeError):
+                    tarifa_fmt = str(tarifa_val)
+                
+                dados_estaticos.append({
+                    "Proposta": numero_proposta_atual,
+                    "Cliente": cliente_nome,
+                    "CNPJ": cnpj_val,
+                    "Código": item.get("Código", ""),
+                    "Descrição": item.get("Descrição", ""),
+                    "Categoria": item.get("Categoria", ""),
+                    "Unidade": item.get("Unidade", ""),
+                    "Tarifa": tarifa_fmt,
+                    "Observações": item.get("Observações", "")
+                })
+            df_estatico = pd.DataFrame(dados_estaticos)
+            
+            st.dataframe(df_estatico, use_container_width=True, hide_index=True)
+            st.markdown("<br>", unsafe_allow_html=True)
+            
+            # FORMULÁRIO DE PARÂMETROS DA PROPOSTA COM RÓTULOS LIMPOS
             st.markdown("---")
-            st.success("✅ Documento PDF pronto para download!")
-            st.download_button(
-                label="📥 Baixar / Visualizar Proposta em PDF",
-                data=pdf_bytes,
-                file_name=nome_arquivo_pdf,
-                mime="application/pdf",
-                use_container_width=True,
-                type="primary"
-            )
-            if st.button("🔄 Limpar e Iniciar Nova Proposta", use_container_width=True):
-                st.session_state["pdf_gerado_sucesso"] = False
-                st.session_state.pop("pdf_dados_cache", None)
-                st.rerun()
+            st.markdown("### ⚙️ Parâmetros da Proposta Comercial (PDF)")
+            
+            with st.form("form_parametros_proposta_pdf"):
+                col_pop1, col_pop2 = st.columns(2)
+                with col_pop1:
+                    input_razao_social = st.text_input("Razão Social da Empresa Contratante:", value=cliente_nome, key="input_popup_razao_social")
+                    input_contato = st.text_input("Contato do Cliente:", placeholder="Ex: Nome do responsável", key="input_popup_contato")
+                with col_pop2:
+                    input_objeto = st.text_input("Objeto da Proposta:", placeholder="Ex: Prestação de serviços logísticos", key="input_popup_objeto")
+                    st.markdown(f"**Número da Proposta:** `{numero_proposta_atual}`")
+
+                st.markdown("<br>", unsafe_allow_html=True)
+                submitted_pdf = st.form_submit_button("💾 Salvar Proposta e Gerar PDF", use_container_width=True, type="primary")
+
+                if submitted_pdf:
+                    c_nome = str(input_razao_social).strip()
+                    c_cnpj = str(st.session_state.get("_safe_cnpj_val") or st.session_state.get("proposta_cliente_cnpj", "")).strip()
+                    c_contato = str(input_contato).strip()
+                    c_objeto = str(input_objeto).strip()
+                    
+                    if not c_nome:
+                        st.error("⚠️ O nome da Razão Social é obrigatório!")
+                    elif not c_contato:
+                        st.error("⚠️ O Contato do cliente é obrigatório!")
+                    elif not c_objeto:
+                        st.error("⚠️ O Objeto da proposta é obrigatório!")
+                    elif salvar_proposta_sheets_fn:
+                        linhas_para_salvar = []
+                        data_hoje = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        for item in itens_rascunho:
+                            try:
+                                t_val = float(item.get("Tarifa (R$)", 0.0))
+                            except (ValueError, TypeError):
+                                t_val = 0.0
+                                
+                            linhas_para_salvar.append({
+                                "Proposta": numero_proposta_atual,
+                                "Data": data_hoje,
+                                "Cliente": c_nome,
+                                "CNPJ": c_cnpj,
+                                "Código": str(item.get("Código", "")),
+                                "Descrição": str(item.get("Descrição", "")),
+                                "Categoria": str(item.get("Categoria", "")),
+                                "Unidade": str(item.get("Unidade", "")),
+                                "Tarifa (R$)": t_val,
+                                "Observações": str(item.get("Observações", ""))
+                            })
+                        sucesso = salvar_proposta_sheets_fn(linhas_para_salvar)
+                        if sucesso:
+                            st.session_state["pdf_gerado_sucesso"] = True
+                            st.session_state["pdf_dados_cache"] = {
+                                "numero": numero_proposta_atual,
+                                "nome": c_nome,
+                                "cnpj": c_cnpj,
+                                "contato": c_contato,
+                                "objeto": c_objeto,
+                                "itens": list(itens_rascunho)
+                            }
+                            
+                            st.session_state["proposta_id_em_edicao"] = None
+                            st.session_state["proposta_id_ativo"] = None
+                            st.session_state["rascunho_itens"] = []
+                            st.session_state["_safe_cliente_nome"] = ""
+                            st.session_state["_safe_cnpj_val"] = ""
+                            
+                            for k in list(st.session_state.keys()):
+                                if k.startswith("input_tarifa_"):
+                                    del st.session_state[k]
+                            st.rerun()
+                        else:
+                            st.error("Falha ao salvar no Google Sheets.")
 
     st.markdown("---")
     st.markdown("### Consulta Propostas Finalizadas")
