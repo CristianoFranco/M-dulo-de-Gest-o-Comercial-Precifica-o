@@ -64,6 +64,28 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
         unidade_opcoes = st.session_state.get("lista_unidades", ["", "Por caixa", "por unidade", "por pallet", "por hora/homem", "por etiqueta", "por volume", "por mês", "percentual"])
         unidade_input = st.selectbox("Unidade *", options=unidade_opcoes, key=f"cad_un_v16_{ver}")
         
+        # CONTROLO DE ADIÇÃO DE NOVA UNIDADE DIRETAMENTE ABAIXO DO CAMPO UNIDADE
+        with st.container():
+            col_add_un1, col_add_un2 = st.columns([2.5, 1])
+            with col_add_un1:
+                nova_unidade_txt = st.text_input("Cadastrar Nova Unidade:", placeholder="Ex: por container", key=f"input_nova_unidade_personalizada_{ver}", label_visibility="collapsed")
+            with col_add_un2:
+                if st.button("➕ Adicionar", key=f"btn_incluir_nova_unidade_{ver}", use_container_width=True):
+                    if nova_unidade_txt.strip():
+                        unidade_formatada = nova_unidade_txt.strip()
+                        lista_atual = st.session_state.get("lista_unidades", unidade_opcoes.copy())
+                        if unidade_formatada not in lista_atual:
+                            lista_atual.append(unidade_formatada)
+                            st.session_state["lista_unidades"] = lista_atual
+                            st.success(f"Adicionada!")
+                            st.rerun()
+                        else:
+                            st.warning("Já existe.")
+                    else:
+                        st.error("Digite o nome.")
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
         is_seguro_form = str(categoria_input).strip().lower() == "seguro"
         if is_seguro_form:
             tarifa_input = 0.0
@@ -72,23 +94,6 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
             tarifa_input = st.number_input("Tarifa (R$) *", min_value=0.0, step=0.0001, format="%.5f", key=f"cad_tar_v16_{ver}")
 
         obs_input = st.text_area("Observações e Premissas (Opcional)", placeholder="Ex: Faturamento mínimo...", key=f"cad_obs_v16_{ver}")
-
-        # Seção para gerir / incluir nova unidade antes do botão salvar
-        with st.expander("➕ Adicionar Nova Unidade Personalizada"):
-            nova_unidade_txt = st.text_input("Nome da Nova Unidade:", key="input_nova_unidade_personalizada")
-            if st.button("Incluir Unidade", key="btn_incluir_nova_unidade"):
-                if nova_unidade_txt.strip():
-                    unidade_formatada = nova_unidade_txt.strip()
-                    lista_atual = st.session_state.get("lista_unidades", unidade_opcoes)
-                    if unidade_formatada not in lista_atual:
-                        lista_atual.append(unidade_formatada)
-                        st.session_state["lista_unidades"] = lista_atual
-                        st.success(f"Unidade '{unidade_formatada}' adicionada com sucesso!")
-                        st.rerun()
-                    else:
-                        st.warning("Esta unidade já existe na lista.")
-                else:
-                    st.error("Digite um nome válido para a unidade.")
 
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("💾 Salvar Serviço", use_container_width=True, type="primary", key=f"btn_salvar_novo_servico_v16_{ver}"):
