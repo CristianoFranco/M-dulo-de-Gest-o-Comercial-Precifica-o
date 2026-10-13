@@ -21,7 +21,6 @@ def desenhar_cabecalho_rodape(canvas, doc):
     # CABEÇALHO - Logo centralizada
     logo_path = 'logo.png'
     if os.path.exists(logo_path):
-        # Página Letter = 612pt de largura. Centro X = 306pt. Largura da logo = 140pt -> X = 236
         canvas.drawImage(logo_path, x=236, y=730, width=140, height=45, preserveAspectRatio=True, mask='auto')
     
     # RODAPÉ - Endereço e Contato centralizados em todas as páginas
@@ -35,7 +34,6 @@ def desenhar_cabecalho_rodape(canvas, doc):
 
 def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato_cliente, objeto_proposta, iss_val, prazo_val, vigencia_val, itens_proposta):
     buffer = io.BytesIO()
-    # Margens ajustadas: topMargin=90 (para a logo) e bottomMargin=55 (para o rodapé)
     doc = SimpleDocTemplate(
         buffer,
         pagesize=letter,
@@ -55,7 +53,7 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato
     prazo_esc = html.escape(str(prazo_val))
     vigencia_esc = html.escape(str(vigencia_val))
     
-    # ESTILOS CUSTOMIZADOS
+    # ESTILOS DE PARÁGRAFO
     style_data_direita = ParagraphStyle(
         'DataDireita',
         parent=styles['Normal'],
@@ -144,14 +142,19 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato
         spaceAfter=10
     )
 
+    # ESTILOS DEDICADOS PARA AS CÉLULAS DAS TABELAS (Evita estourar colunas)
+    th_style = ParagraphStyle('TH', fontName='Helvetica-Bold', fontSize=9, leading=11, textColor=colors.white, alignment=TA_LEFT)
+    th_style_right = ParagraphStyle('THRight', fontName='Helvetica-Bold', fontSize=9, leading=11, textColor=colors.white, alignment=TA_RIGHT)
+    
+    td_style_left = ParagraphStyle('TDLeft', fontName='Helvetica', fontSize=8, leading=11, textColor=colors.HexColor('#222222'), alignment=TA_LEFT)
+    td_style_center = ParagraphStyle('TDCenter', fontName='Helvetica', fontSize=8, leading=11, textColor=colors.HexColor('#222222'), alignment=TA_CENTER)
+    td_style_right = ParagraphStyle('TDRight', fontName='Helvetica', fontSize=8, leading=11, textColor=colors.HexColor('#222222'), alignment=TA_RIGHT)
+
     meses = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"]
     agora = datetime.now()
     data_extenso = f"Indaiatuba - SP, {agora.day:02d} de {meses[agora.month - 1]} de {agora.year}."
     
-    # Data alinhada à direita
     story.append(Paragraph(data_extenso, style_data_direita))
-    
-    # Número da Proposta alinhado à direita
     story.append(Paragraph(f"PROPOSTA Nº {num_prop_esc}", style_proposta_direita))
     
     story.append(Paragraph(f"À<br/><b>{c_nome_esc}</b>", body_left_style))
@@ -161,7 +164,6 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato
     
     story.append(Paragraph("Prezados,", body_left_style))
     
-    # Texto da Página 1 justificado
     texto_intro = (
         f"Apresentamos a proposta comercial da Globex Multimodal para a gestão de armazenagem e movimentação de cargas da <b>{c_nome_esc}</b>. "
         "Sediada estrategicamente no polo logístico de Indaiatuba-SP, a Globex combina infraestrutura moderna, rigor técnico e agilidade operacional. "
@@ -171,7 +173,7 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato
     
     texto_intro2 = (
         f"Apresentamos a seguir nossa tabela de serviços e tarifas. Para facilitar a compreensão e o planejamento financeiro da <b>{c_nome_esc}</b>, "
-        "na apresentação da proposta haverá uma simulação prática da aplicação dessas tarifas para o período informado, calculada com base no volume "
+        "apresentaremos na apresentação da proposta uma simulação prática da aplicação dessas tarifas para o período informado, calculada com base no volume "
         "e nas premissas operacionais compartilhadas pela sua equipe. Trata-se de uma projeção ilustrativa desenhada para dar total visibilidade ao custo estimado da operação."
     )
     story.append(Paragraph(texto_intro2, body_justify_style))
@@ -182,11 +184,9 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato
     story.append(Paragraph("<b>Adonis Valias</b> – Diretor Comercial", body_left_style))
     story.append(Spacer(1, 14))
     
-    # Título antes do tarifário
     story.append(Paragraph("Tabela de Preços e Serviços", titulo_tabelas_style))
     story.append(Spacer(1, 4))
 
-    # Mapeamento de categorias em blocos separados
     blocos_dados = {
         "ARMAZENAGEM": [],
         "SEGURO": [],
@@ -216,41 +216,53 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato
         except (ValueError, TypeError):
             tarifa_str = str(tarifa_val)
 
-        blocos_dados[cat_chave].append([
-            html.escape(str(item.get("Código", ""))),
-            html.escape(str(item.get("Descrição", ""))),
-            html.escape(str(item.get("Unidade", ""))),
-            html.escape(tarifa_str),
-            html.escape(str(item.get("Observações", "")))
-        ])
+        # Envolvendo as células em Paragraphs para forçar a quebra de linha automatizada
+        p_cod = Paragraph(html.escape(str(item.get("Código", ""))), td_style_center)
+        p_desc = Paragraph(html.escape(str(item.get("Descrição", ""))), td_style_left)
+        p_und = Paragraph(html.escape(str(item.get("Unidade", ""))), td_style_left)
+        p_tar = Paragraph(html.escape(tarifa_str), td_style_right)
+        p_obs = Paragraph(html.escape(str(item.get("Observações", ""))), td_style_left)
+
+        blocos_dados[cat_chave].append([p_cod, p_desc, p_und, p_tar, p_obs])
 
     primeiro_bloco = True
     for nome_bloco, linhas in blocos_dados.items():
         if linhas:
             if not primeiro_bloco:
-                story.append(Spacer(1, 42)) # Espaçamento de 3 linhas entre os blocos
+                story.append(Spacer(1, 14))
             
             story.append(Paragraph(nome_bloco, titulo_bloco_style))
             story.append(Spacer(1, 4))
             
-            tabela_conteudo = [["Código", "Descrição", "Unidade", "Tarifa", "Observações"]] + linhas
-            tabela = Table(tabela_conteudo, colWidths=[50, 150, 90, 80, 130])
+            # Cabeçalho da tabela formatado com Paragraph
+            cabecalho = [
+                Paragraph("Código", th_style),
+                Paragraph("Descrição", th_style),
+                Paragraph("Unidade", th_style),
+                Paragraph("Tarifa", th_style_right),
+                Paragraph("Observações", th_style)
+            ]
+            
+            tabela_conteudo = [cabecalho] + linhas
+            
+            # Larguras ajustadas das colunas (Total = 540pt -> Margens 36pt de cada lado)
+            # Colunas: Código (45pt), Descrição (165pt), Unidade (125pt), Tarifa (85pt), Observações (120pt)
+            tabela = Table(tabela_conteudo, colWidths=[45, 165, 125, 85, 120])
             tabela.setStyle(TableStyle([
                 ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0052B4')),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('FONTSIZE', (0, 0), (-1, 0), 9),
                 ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-                ('ALIGN', (3, 0), (3, -1), 'RIGHT'),
+                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
                 ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#CCCCCC')),
                 ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F8FAFC')]),
-                ('TOPPADDING', (0, 0), (-1, -1), 4),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+                ('TOPPADDING', (0, 0), (-1, -1), 5),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+                ('LEFTPADDING', (0, 0), (-1, -1), 4),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 4),
             ]))
             story.append(tabela)
             primeiro_bloco = False
 
-    # Bloco de Premissas (Tamanho 08) abaixo do tarifário
+    # Bloco de Premissas
     story.append(Spacer(1, 10))
     story.append(Paragraph("<b>Premissas:</b>", premissas_style))
     texto_premissas = (
@@ -269,11 +281,9 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato
     # TERMO DE ACEITE
     story.append(PageBreak())
     
-    # Título do Termo centralizado
     story.append(Paragraph("<b>TERMO DE ACEITE PARA PRESTAÇÃO DE SERVIÇOS</b>", titulo_termo_center))
     story.append(Spacer(1, 6))
     
-    # Texto do Termo justificado
     termo_p1 = (
         f"Com a assinatura do presente termo, a empresa cliente, por meio de seu representante, responsável pelo fechamento da venda, "
         f"declara que aceita todas as condições dispostas na proposta <b>{num_prop_esc}</b> apresentada pela <b>GLOBEX MULTIMODAL</b>, "
@@ -421,11 +431,11 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
             with col_pop1:
                 input_razao_social = st.text_input("Razão Social da Empresa Contratante:", value=cliente_nome, key="input_popup_razao_social")
                 input_contato = st.text_input("Contato do Cliente:", placeholder="Ex: Nome do responsável", key="input_popup_contato")
-                input_iss = st.text_input("% I.S.S sobre o faturamento:", value="2.5", key="input_popup_iss")
+                input_iss = st.text_input("% I.S.S sobre o faturamento (VVVV):", value="5.0", key="input_popup_iss")
             with col_pop2:
                 input_objeto = st.text_input("Objeto da Proposta:", placeholder="Ex: Prestação de serviços logísticos", key="input_popup_objeto")
-                input_prazo = st.text_input("Prazo de pagamento em dias:", value="30", key="input_popup_prazo")
-                input_vigencia = st.text_input("Vigência mínima em meses:", value="12", key="input_popup_vigencia")
+                input_prazo = st.text_input("Prazo de pagamento em dias (ZZZZ):", value="30", key="input_popup_prazo")
+                input_vigencia = st.text_input("Vigência mínima em meses (ZZZZ):", value="12", key="input_popup_vigencia")
                 st.markdown(f"**Número da Proposta:** `{numero_proposta_atual}`")
 
             st.markdown("<br>", unsafe_allow_html=True)
@@ -559,50 +569,3 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                     prop_escolhida_completa = st.selectbox(
                         "Selecione uma proposta para editar:",
                         options=propostas_unicas,
-                        key="select_proposta_para_editar"
-                    )
-                
-                prop_escolhida = prop_escolhida_completa.split(" - ")[0].strip() if prop_escolhida_completa else ""
-
-                with col_btn_carregar:
-                    st.write("")
-                    st.write("")
-                    if st.button("Carregar Proposta", type="primary", use_container_width=True):
-                        if prop_escolhida:
-                            df_prop_sel = df_historico[df_historico["Proposta"].astype(str).str.strip() == prop_escolhida.strip()]
-                            
-                            if not df_prop_sel.empty:
-                                st.session_state["proposta_id_em_edicao"] = prop_escolhida.strip()
-                                st.session_state["proposta_id_ativo"] = prop_escolhida.strip()
-                                
-                                primeiro_reg = df_prop_sel.iloc[0]
-                                c_nome_carregado = str(primeiro_reg.get("Cliente", ""))
-                                c_cnpj_carregado = str(primeiro_reg.get("CNPJ", "")) if "CNPJ" in primeiro_reg else ""
-                                
-                                st.session_state["_safe_cliente_nome"] = c_nome_carregado
-                                st.session_state["_safe_cnpj_val"] = c_cnpj_carregado
-                                
-                                novos_itens = []
-                                for _, row in df_prop_sel.iterrows():
-                                    try:
-                                        tarifa_val = float(row.get("Tarifa (R$)", 0.0))
-                                    except (ValueError, TypeError):
-                                        tarifa_val = 0.0
-                                        
-                                    novos_itens.append({
-                                        "Código": str(row.get("Código", "")),
-                                        "Descrição": str(row.get("Descrição", "")),
-                                        "Tarifa (R$)": tarifa_val,
-                                        "Unidade": str(row.get("Unidade", "")),
-                                        "Observações": str(row.get("Observações", "")),
-                                        "Categoria": str(row.get("Categoria", "")),
-                                        "Cat_Code": "GEN"
-                                    })
-                                    
-                                st.session_state["rascunho_itens"] = novos_itens
-                                st.success("Proposta carregada com sucesso!")
-                                st.rerun()
-                        else:
-                            st.warning("Selecione uma proposta válida na lista.")
-            else:
-                st.info("Nenhuma proposta gravada na folha Propostas_Salvas.")
