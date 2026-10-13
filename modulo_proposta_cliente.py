@@ -171,7 +171,7 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato
     
     texto_intro2 = (
         f"Apresentamos a seguir nossa tabela de serviços e tarifas. Para facilitar a compreensão e o planejamento financeiro da <b>{c_nome_esc}</b>, "
-        "apresentaremos na apresentação da proposta uma simulação prática da aplicação dessas tarifas para o período informado, calculada com base no volume "
+        "na apresentação da proposta haverá uma simulação prática da aplicação dessas tarifas para o período informado, calculada com base no volume "
         "e nas premissas operacionais compartilhadas pela sua equipe. Trata-se de uma projeção ilustrativa desenhada para dar total visibilidade ao custo estimado da operação."
     )
     story.append(Paragraph(texto_intro2, body_justify_style))
@@ -261,7 +261,7 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato
         "5. Os serviços não discriminados nesta tabela serão acordados entre as partes;<br/>"
         "6. O faturamento e cobrança dos serviços serão MENSAIS;<br/>"
         "7. Mão de obra inclusa para prestação dos serviços: Ajudante, Separador, Conferente, Líder e Operador. Não dedicadas.<br/>"
-        "8. Cubagem padrão: posição palete: 1,74m³ / position gaveta: 0,72m³<br/>"
+        "8. Cubagem padrão: posição palete: 1,74m³ / posição gaveta: 0,72m³<br/>"
         "9. Dimensões padrão: posição palete: 1,00 x 1,20 x 1,45 / posição gaveta: 1,00 x 1,20 x 0,60"
     )
     story.append(Paragraph(texto_premissas, premissas_style))
@@ -421,11 +421,11 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
             with col_pop1:
                 input_razao_social = st.text_input("Razão Social da Empresa Contratante:", value=cliente_nome, key="input_popup_razao_social")
                 input_contato = st.text_input("Contato do Cliente:", placeholder="Ex: Nome do responsável", key="input_popup_contato")
-                input_iss = st.text_input("% I.S.S sobre o faturamento (VVVV):", value="5.0", key="input_popup_iss")
+                input_iss = st.text_input("% I.S.S sobre o faturamento:", value="2.5", key="input_popup_iss")
             with col_pop2:
                 input_objeto = st.text_input("Objeto da Proposta:", placeholder="Ex: Prestação de serviços logísticos", key="input_popup_objeto")
-                input_prazo = st.text_input("Prazo de pagamento em dias (ZZZZ):", value="30", key="input_popup_prazo")
-                input_vigencia = st.text_input("Vigência mínima em meses (ZZZZ):", value="12", key="input_popup_vigencia")
+                input_prazo = st.text_input("Prazo de pagamento em dias:", value="30", key="input_popup_prazo")
+                input_vigencia = st.text_input("Vigência mínima em meses:", value="12", key="input_popup_vigencia")
                 st.markdown(f"**Número da Proposta:** `{numero_proposta_atual}`")
 
             st.markdown("<br>", unsafe_allow_html=True)
