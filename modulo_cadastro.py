@@ -73,6 +73,23 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
 
         obs_input = st.text_area("Observações e Premissas (Opcional)", placeholder="Ex: Faturamento mínimo...", key=f"cad_obs_v16_{ver}")
 
+        # Seção para gerir / incluir nova unidade antes do botão salvar
+        with st.expander("➕ Adicionar Nova Unidade Personalizada"):
+            nova_unidade_txt = st.text_input("Nome da Nova Unidade:", key="input_nova_unidade_personalizada")
+            if st.button("Incluir Unidade", key="btn_incluir_nova_unidade"):
+                if nova_unidade_txt.strip():
+                    unidade_formatada = nova_unidade_txt.strip()
+                    lista_atual = st.session_state.get("lista_unidades", unidade_opcoes)
+                    if unidade_formatada not in lista_atual:
+                        lista_atual.append(unidade_formatada)
+                        st.session_state["lista_unidades"] = lista_atual
+                        st.success(f"Unidade '{unidade_formatada}' adicionada com sucesso!")
+                        st.rerun()
+                    else:
+                        st.warning("Esta unidade já existe na lista.")
+                else:
+                    st.error("Digite um nome válido para a unidade.")
+
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("💾 Salvar Serviço", use_container_width=True, type="primary", key=f"btn_salvar_novo_servico_v16_{ver}"):
             codigo_limp = normalizar_codigo_fn(codigo_input) if normalizar_codigo_fn else str(codigo_input).strip()
