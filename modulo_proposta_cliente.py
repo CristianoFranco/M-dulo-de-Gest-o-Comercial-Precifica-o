@@ -23,32 +23,32 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato
         fontSize=10,
         leading=14,
         textColor=colors.HexColor('#222222'),
-        spaceAfter=10
+        spaceAfter=8
     )
     
-    titulo_style = ParagraphStyle(
-        'TituloSecao',
+    titulo_bloco_style = ParagraphStyle(
+        'TituloBlocoCategoria',
         parent=styles['Heading2'],
-        fontSize=12,
-        leading=16,
+        fontSize=11,
+        leading=15,
         fontName='Helvetica-Bold',
         textColor=colors.HexColor('#0052B4'),
-        spaceBefore=12,
-        spaceAfter=6
+        spaceBefore=10,
+        spaceAfter=4
     )
 
-    meses = ["janeiro", "fevereiro", "marco", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"]
+    meses = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"]
     agora = datetime.now()
     data_extenso = f"Indaiatuba - SP, {agora.day:02d} de {meses[agora.month - 1]} de {agora.year}."
     
     story.append(Paragraph(data_extenso, body_style))
-    story.append(Spacer(1, 8))
+    story.append(Spacer(1, 6))
     
     story.append(Paragraph(f"<b>PROPOSTA Nº {numero_proposta}</b>", body_style))
     story.append(Paragraph(f"À<br/><b>{cliente_nome}</b>", body_style))
     story.append(Paragraph(f"<b>REF:</b> {objeto_proposta}", body_style))
     story.append(Paragraph(f"<b>Contato:</b> {contato_cliente}", body_style))
-    story.append(Spacer(1, 8))
+    story.append(Spacer(1, 6))
     
     story.append(Paragraph("Prezados,", body_style))
     texto_intro = (
@@ -64,33 +64,35 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato
         "e nas premissas operacionais compartilhadas pela sua equipe. Trata-se de uma projeção ilustrativa desenhada para dar total visibilidade ao custo estimado da operação."
     )
     story.append(Paragraph(texto_intro2, body_style))
-    story.append(Spacer(1, 10))
+    story.append(Spacer(1, 8))
     
     story.append(Paragraph("<b>Wilson Santos</b> – Gerente Comercial &nbsp;&nbsp;|&nbsp;&nbsp; Tel.: (19) 99888-2855", body_style))
     story.append(Paragraph("<b>Richarlles Nascimento</b> – Executivo de Contas &nbsp;&nbsp;|&nbsp;&nbsp; Tel.: (19) 3936-8520", body_style))
     story.append(Paragraph("<b>Adonis Valias</b> – Diretor Comercial", body_style))
-    story.append(Spacer(1, 15))
+    story.append(Spacer(1, 12))
     
-    categorias_map = {
-        "Armazenagem": "ARMAZENAGEM",
-        "Seguro": "SEGURO",
-        "Serviço": "SERVIÇOS",
-        "Serviços e Movimentações": "SERVIÇOS",
-        "Movimentação (Handling)": "MOVIMENTAÇÃO",
-        "Outros": "TARIFÁRIO DE SERVIÇOS CONEXOS"
-    }
-
+    # Mapeamento estrito das categorias solicitadas
     blocos_dados = {
         "ARMAZENAGEM": [],
         "SEGURO": [],
         "SERVIÇOS": [],
-        "MOVIMENTAÇÃO": [],
+        "MOVIMENTAÇÃO (HANDLING)": [],
         "TARIFÁRIO DE SERVIÇOS CONEXOS": []
     }
 
     for item in itens_proposta:
-        cat_original = str(item.get("Categoria", "")).strip()
-        cat_chave = categorias_map.get(cat_original, "TARIFÁRIO DE SERVIÇOS CONEXOS")
+        cat_original = str(item.get("Categoria", "")).strip().lower()
+        
+        if "armazenagem" in cat_original:
+            cat_chave = "ARMAZENAGEM"
+        elif "seguro" in cat_original:
+            cat_chave = "SEGURO"
+        elif "movimentação" in cat_original or "handling" in cat_original or "movimentacao" in cat_original:
+            cat_chave = "MOVIMENTAÇÃO (HANDLING)"
+        elif "serviço" in cat_original or "servico" in cat_original:
+            cat_chave = "SERVIÇOS"
+        else:
+            cat_chave = "TARIFÁRIO DE SERVIÇOS CONEXOS"
         
         tarifa_val = item.get("Tarifa (R$)", 0.0)
         try:
@@ -107,9 +109,14 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato
             str(item.get("Observações", ""))
         ])
 
+    # Renderizar blocos com espaçamento exato de 3 linhas entre eles (42 pontos)
+    primeiro_bloco = True
     for nome_bloco, linhas in blocos_dados.items():
         if linhas:
-            story.append(Paragraph(nome_bloco, titulo_style))
+            if not primeiro_bloco:
+                story.append(Spacer(1, 42)) # Espaçamento de 3 linhas entre os blocos
+            
+            story.append(Paragraph(nome_bloco, titulo_bloco_style))
             story.append(Spacer(1, 4))
             
             tabela_conteudo = [["Código", "Descrição", "Unidade", "Tarifa", "Observações"]] + linhas
@@ -123,14 +130,15 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato
                 ('ALIGN', (3, 0), (3, -1), 'RIGHT'),
                 ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#CCCCCC')),
                 ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F8FAFC')]),
-                ('TOPPADDING', (0, 0), (-1, -1), 5),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+                ('TOPPADDING', (0, 0), (-1, -1), 4),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
             ]))
             story.append(tabela)
-            story.append(Spacer(1, 36))
+            primeiro_bloco = False
 
+    # Termo de Aceite
     story.append(PageBreak())
-    story.append(Paragraph("TERMO DE ACEITE PARA PRESTAÇÃO DE SERVIÇOS", titulo_style))
+    story.append(Paragraph("<b>TERMO DE ACEITE PARA PRESTAÇÃO DE SERVIÇOS</b>", titulo_bloco_style))
     story.append(Spacer(1, 6))
     
     termo_p1 = (
@@ -154,7 +162,7 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato
     for c in clausulas:
         story.append(Paragraph(c, body_style))
     
-    story.append(Spacer(1, 8))
+    story.append(Spacer(1, 6))
     
     campos_cadastro = [
         "<b>NOME/RAZÃO SOCIAL:</b> ____________________________________________________________________",
@@ -173,10 +181,10 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato
     for campo in campos_cadastro:
         story.append(Paragraph(campo, body_style))
         
-    story.append(Spacer(1, 10))
+    story.append(Spacer(1, 6))
     story.append(Paragraph(f"Indaiatuba - SP, _____ de ______________________ de {agora.year}.", body_style))
-    story.append(Spacer(1, 20))
-    story.append(Paragraph("________________________________________________──────", body_style))
+    story.append(Spacer(1, 15))
+    story.append(Paragraph("______________________________________________________", body_style))
     story.append(Paragraph("<b>Nome:</b><br/><b>Função:</b><br/><b>RG:</b>", body_style))
 
     doc.build(story)
@@ -204,7 +212,6 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
         seq = st.session_state.get("sequencial_proposta", 1)
         numero_proposta_atual = mes_str + "/" + "{:05d}".format(seq) + "/" + ano_str
 
-    # Se a proposta acabou de ser salva e gerada, exibe o botão de download diretamente
     if st.session_state.get("pdf_gerado_sucesso") and REPORTLAB_DISPONIVEL:
         dados_cache = st.session_state.get("pdf_dados_cache", {})
         pdf_bytes = gerar_pdf_proposta_completo(
