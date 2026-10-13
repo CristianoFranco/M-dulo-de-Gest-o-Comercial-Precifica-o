@@ -32,7 +32,7 @@ def desenhar_cabecalho_rodape(canvas, doc):
     
     canvas.restoreState()
 
-def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato_cliente, objeto_proposta, iss_val, prazo_val, vigencia_val, fat_minimo_val, itens_proposta):
+def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato_cliente, objeto_proposta, iss_val, prazo_val, vigencia_val, fat_minimo_val, outras_premissas_val, itens_proposta):
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
         buffer,
@@ -53,6 +53,7 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato
     prazo_esc = html.escape(str(prazo_val))
     vigencia_esc = html.escape(str(vigencia_val))
     fat_minimo_esc = html.escape(str(fat_minimo_val)).strip()
+    outras_premissas_esc = html.escape(str(outras_premissas_val)).strip()
     
     # ESTILOS DE PARÁGRAFO
     style_data_direita = ParagraphStyle(
@@ -315,6 +316,9 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato
         "8. Cubagem padrão: posição palete: 1,74m³ / posição gaveta: 0,72m³<br/>"
         "9. Dimensões padrão: posição palete: 1,00 x 1,20 x 1,45 / posição gaveta: 1,00 x 1,20 x 0,60"
     )
+    if outras_premissas_esc:
+        texto_premissas += f"<br/>10. {outras_premissas_esc}"
+
     story.append(Paragraph(texto_premissas, premissas_style))
 
     # ==========================================
@@ -462,208 +466,4 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
         df_estatico = pd.DataFrame(dados_estaticos)
         
         st.dataframe(df_estatico, use_container_width=True, hide_index=True)
-        st.markdown("<br>", unsafe_allow_html=True)
-        
-        st.markdown("---")
-        st.markdown("### ⚙️ Parâmetros da Proposta Comercial (PDF)")
-        
-        with st.form("form_parametros_proposta_pdf"):
-            col_pop1, col_pop2 = st.columns(2)
-            with col_pop1:
-                input_razao_social = st.text_input("Razão Social da Empresa Contratante:", value=cliente_nome, key="input_popup_razao_social")
-                input_contato = st.text_input("Contato do Cliente:", placeholder="Ex: Nome do responsável", key="input_popup_contato")
-                input_iss = st.text_input("% I.S.S sobre o faturamento:", value="2.5", key="input_popup_iss")
-            with col_pop2:
-                input_objeto = st.text_input("Objeto da Proposta:", placeholder="Ex: Prestação de serviços logísticos", key="input_popup_objeto")
-                input_prazo = st.text_input("Prazo de pagamento em dias:", value="30", key="input_popup_prazo")
-                input_vigencia = st.text_input("Vigência mínima em meses:", value="12", key="input_popup_vigencia")
-
-            st.markdown("<br>", unsafe_allow_html=True)
-            input_fat_minimo = st.text_area(
-                "Faturamento Mínimo Mensal:",
-                placeholder="Ex: Faturamento mínimo mensal fixado em R$ 10.000,00, aplicável independentemente do volume utilizado no mês.",
-                key="input_popup_fat_minimo",
-                help="Texto/condição de faturamento mínimo a ser exibido em destaque abaixo do tarifário."
-            )
-            st.markdown(f"**Número da Proposta:** `{numero_proposta_atual}`")
-
-            st.markdown("<br>", unsafe_allow_html=True)
-            submitted_pdf = st.form_submit_button("💾 Salvar Proposta e Gerar PDF", use_container_width=True, type="primary")
-
-            if submitted_pdf:
-                c_nome = str(input_razao_social).strip()
-                c_cnpj = str(st.session_state.get("_safe_cnpj_val") or st.session_state.get("proposta_cliente_cnpj", "")).strip()
-                c_contato = str(input_contato).strip()
-                c_objeto = str(input_objeto).strip()
-                c_iss = str(input_iss).strip()
-                c_prazo = str(input_prazo).strip()
-                c_vigencia = str(input_vigencia).strip()
-                c_fat_minimo = str(input_fat_minimo).strip()
-                
-                if not c_nome:
-                    st.error("⚠️ O nome da Razão Social é obrigatório!")
-                elif not c_contato:
-                    st.error("⚠️ O Contato do cliente é obrigatório!")
-                elif not c_objeto:
-                    st.error("⚠️ O Objeto da proposta é obrigatório!")
-                elif not itens_rascunho:
-                    st.error("⚠️ Não há itens no rascunho para salvar.")
-                elif salvar_proposta_sheets_fn:
-                    linhas_para_salvar = []
-                    data_hoje = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    for item in itens_rascunho:
-                        try:
-                            t_val = float(item.get("Tarifa (R$)", 0.0))
-                        except (ValueError, TypeError):
-                            t_val = 0.0
-                            
-                        linhas_para_salvar.append({
-                            "Proposta": numero_proposta_atual,
-                            "Data": data_hoje,
-                            "Cliente": c_nome,
-                            "CNPJ": c_cnpj,
-                            "Código": str(item.get("Código", "")),
-                            "Descrição": str(item.get("Descrição", "")),
-                            "Categoria": str(item.get("Categoria", "")),
-                            "Unidade": str(item.get("Unidade", "")),
-                            "Tarifa (R$)": t_val,
-                            "Observações": str(item.get("Observações", ""))
-                        })
-                    sucesso = salvar_proposta_sheets_fn(linhas_para_salvar)
-                    if sucesso:
-                        pdf_bytes = gerar_pdf_proposta_completo(
-                            numero_proposta_atual,
-                            c_nome,
-                            c_cnpj,
-                            c_contato,
-                            c_objeto,
-                            c_iss,
-                            c_prazo,
-                            c_vigencia,
-                            c_fat_minimo,
-                            itens_rascunho
-                        )
-                        nome_arquivo_pdf = "Proposta_" + str(numero_proposta_atual).replace("/", "_") + ".pdf"
-                        
-                        st.session_state["ultimo_pdf_bytes"] = pdf_bytes
-                        st.session_state["ultimo_pdf_nome"] = nome_arquivo_pdf
-                        
-                        st.session_state["proposta_id_em_edicao"] = None
-                        st.session_state["proposta_id_ativo"] = None
-                        st.session_state["rascunho_itens"] = []
-                        st.session_state["_safe_cliente_nome"] = ""
-                        st.session_state["_safe_cnpj_val"] = ""
-                        
-                        for k in list(st.session_state.keys()):
-                            if k.startswith("input_tarifa_"):
-                                del st.session_state[k]
-                        st.rerun()
-                    else:
-                        st.error("Falha ao salvar no Google Sheets.")
-
-    st.markdown("---")
-    st.markdown("### Consulta Propostas Finalizadas")
-    with st.expander("Filtrar e Consultar Propostas Salvas", expanded=True):
-        col_filtro_m, col_filtro_a = st.columns(2)
-        with col_filtro_m:
-            mes_consulta = st.selectbox(
-                "Filtrar por Mês:",
-                options=["Todos", "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"],
-                index=0
-            )
-            
-        with col_filtro_a:
-            ano_consulta = st.text_input("Filtrar por Ano (Ex: 2026):", value="")
-        if carregar_propostas_salvas_fn:
-            df_historico = carregar_propostas_salvas_fn()
-            if isinstance(df_historico, pd.DataFrame) and not df_historico.empty:
-                df_filtrado = df_historico.copy()
-                if "Proposta" in df_filtrado.columns:
-                    if mes_consulta != "Todos":
-                        prefixo = str(mes_consulta) + "/"
-                        df_filtrado = df_filtrado[df_filtrado["Proposta"].astype(str).str.startswith(prefixo)]
-                    if ano_consulta.strip():
-                        sufixo = "/" + ano_consulta.strip()
-                        df_filtrado = df_filtrado[df_filtrado["Proposta"].astype(str).str.endswith(sufixo)]
-                
-                colunas_resumo = [c for c in ["Proposta", "Data", "Cliente"] if c in df_filtrado.columns]
-                df_resumido = df_filtrado[colunas_resumo].drop_duplicates(subset=["Proposta"]).reset_index(drop=True)
-                
-                if "Data" in df_resumido.columns:
-                    df_resumido["Data"] = df_resumido["Data"].astype(str).str.split().str[0]
-
-                def parse_ordenacao_proposta(prop_str):
-                    try:
-                        partes = str(prop_str).split('/')
-                        if len(partes) == 3:
-                            mes_val = int(partes[0])
-                            cod_val = int(partes[1])
-                            ano_val = int(partes[2])
-                            return (ano_val, mes_val, cod_val)
-                    except ValueError:
-                        pass
-                    return (9999, 12, 99999)
-
-                if not df_resumido.empty and "Proposta" in df_resumido.columns:
-                    df_resumido["_sort_key"] = df_resumido["Proposta"].apply(parse_ordenacao_proposta)
-                    df_resumido = df_resumido.sort_values(by="_sort_key", ascending=True).drop(columns=["_sort_key"]).reset_index(drop=True)
-
-                st.markdown("Propostas Encontradas: " + str(len(df_resumido)))
-                st.dataframe(df_resumido, use_container_width=True, hide_index=True)
-                st.markdown("<br>", unsafe_allow_html=True)
-                
-                df_resumido["Opcao_Select"] = df_resumido["Proposta"].astype(str) + " - " + df_resumido["Cliente"].astype(str)
-                propostas_unicas = [""] + df_resumido["Opcao_Select"].tolist()
-                
-                col_sel_prop, col_btn_carregar = st.columns([3, 1])
-                with col_sel_prop:
-                    prop_escolhida_completa = st.selectbox(
-                        "Selecione uma proposta para editar:",
-                        options=propostas_unicas,
-                        key="select_proposta_para_editar"
-                    )
-                
-                prop_escolhida = prop_escolhida_completa.split(" - ")[0].strip() if prop_escolhida_completa else ""
-
-                with col_btn_carregar:
-                    st.write("")
-                    st.write("")
-                    if st.button("Carregar Proposta", type="primary", use_container_width=True):
-                        if prop_escolhida:
-                            df_prop_sel = df_historico[df_historico["Proposta"].astype(str).str.strip() == prop_escolhida.strip()]
-                            
-                            if not df_prop_sel.empty:
-                                st.session_state["proposta_id_em_edicao"] = prop_escolhida.strip()
-                                st.session_state["proposta_id_ativo"] = prop_escolhida.strip()
-                                
-                                primeiro_reg = df_prop_sel.iloc[0]
-                                c_nome_carregado = str(primeiro_reg.get("Cliente", ""))
-                                c_cnpj_carregado = str(primeiro_reg.get("CNPJ", "")) if "CNPJ" in primeiro_reg else ""
-                                
-                                st.session_state["_safe_cliente_nome"] = c_nome_carregado
-                                st.session_state["_safe_cnpj_val"] = c_cnpj_carregado
-                                
-                                novos_itens = []
-                                for _, row in df_prop_sel.iterrows():
-                                    try:
-                                        tarifa_val = float(row.get("Tarifa (R$)", 0.0))
-                                    except (ValueError, TypeError):
-                                        tarifa_val = 0.0
-                                        
-                                    novos_itens.append({
-                                        "Código": str(row.get("Código", "")),
-                                        "Descrição": str(row.get("Descrição", "")),
-                                        "Tarifa (R$)": tarifa_val,
-                                        "Unidade": str(row.get("Unidade", "")),
-                                        "Observações": str(row.get("Observações", "")),
-                                        "Categoria": str(row.get("Categoria", "")),
-                                        "Cat_Code": "GEN"
-                                    })
-                                    
-                                st.session_state["rascunho_itens"] = novos_itens
-                                st.success("Proposta carregada com sucesso!")
-                                st.rerun()
-                        else:
-                            st.warning("Selecione uma proposta válida na lista.")
-            else:
-                st.info("Nenhuma proposta gravada na folha Propostas_Salvas.")
+        st.markdown("<br>", unsafe_allow
