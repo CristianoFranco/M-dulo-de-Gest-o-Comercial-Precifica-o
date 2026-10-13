@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 import io
+import html
+
 try:
     from reportlab.lib.pagesizes import letter
     from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
@@ -16,6 +18,12 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato
     doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=36)
     story = []
     styles = getSampleStyleSheet()
+    
+    # Tratamento e escape de caracteres especiais para evitar falhas no ReportLab
+    num_prop_esc = html.escape(str(numero_proposta))
+    c_nome_esc = html.escape(str(cliente_nome))
+    c_objeto_esc = html.escape(str(objeto_proposta))
+    c_contato_esc = html.escape(str(contato_cliente))
     
     body_style = ParagraphStyle(
         'CorpoTexto',
@@ -44,22 +52,22 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato
     story.append(Paragraph(data_extenso, body_style))
     story.append(Spacer(1, 6))
     
-    story.append(Paragraph(f"<b>PROPOSTA Nº {numero_proposta}</b>", body_style))
-    story.append(Paragraph(f"À<br/><b>{cliente_nome}</b>", body_style))
-    story.append(Paragraph(f"<b>REF:</b> {objeto_proposta}", body_style))
-    story.append(Paragraph(f"<b>Contato:</b> {contato_cliente}", body_style))
+    story.append(Paragraph(f"<b>PROPOSTA Nº {num_prop_esc}</b>", body_style))
+    story.append(Paragraph(f"À<br/><b>{c_nome_esc}</b>", body_style))
+    story.append(Paragraph(f"<b>REF:</b> {c_objeto_esc}", body_style))
+    story.append(Paragraph(f"<b>Contato:</b> {c_contato_esc}", body_style))
     story.append(Spacer(1, 6))
     
     story.append(Paragraph("Prezados,", body_style))
     texto_intro = (
-        f"Apresentamos a proposta comercial da Globex Multimodal para a gestão de armazenagem e movimentação de cargas da <b>{cliente_nome}</b>. "
+        f"Apresentamos a proposta comercial da Globex Multimodal para a gestão de armazenagem e movimentação de cargas da <b>{c_nome_esc}</b>. "
         "Sediada estrategicamente no polo logístico de Indaiatuba-SP, a Globex combina infraestrutura moderna, rigor técnico e agilidade operacional. "
         "Desenvolvemos operações sob medida para cadeias de suprimentos exigentes, assegurando controle de ponta a ponta, total conformidade regulatória e integridade máxima dos seus produtos."
     )
     story.append(Paragraph(texto_intro, body_style))
     
     texto_intro2 = (
-        f"Apresentamos a seguir nossa tabela de serviços e tarifas. Para facilitar a compreensão e o planejamento financeiro da <b>{cliente_nome}</b>, "
+        f"Apresentamos a seguir nossa tabela de serviços e tarifas. Para facilitar a compreensão e o planejamento financeiro da <b>{c_nome_esc}</b>, "
         "apresentaremos na apresentação da proposta uma simulação prática da aplicação dessas tarifas para o período informado, calculada com base no volume "
         "e nas premissas operacionais compartilhadas pela sua equipe. Trata-se de uma projeção ilustrativa desenhada para dar total visibilidade ao custo estimado da operação."
     )
@@ -102,11 +110,11 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato
             tarifa_str = str(tarifa_val)
 
         blocos_dados[cat_chave].append([
-            str(item.get("Código", "")),
-            str(item.get("Descrição", "")),
-            str(item.get("Unidade", "")),
-            tarifa_str,
-            str(item.get("Observações", ""))
+            html.escape(str(item.get("Código", ""))),
+            html.escape(str(item.get("Descrição", ""))),
+            html.escape(str(item.get("Unidade", ""))),
+            html.escape(tarifa_str),
+            html.escape(str(item.get("Observações", "")))
         ])
 
     # Renderizar blocos com espaçamento exato de 3 linhas entre eles (42 pontos)
@@ -143,7 +151,7 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato
     
     termo_p1 = (
         f"Com a assinatura do presente termo, a empresa cliente, por meio de seu representante, responsável pelo fechamento da venda, "
-        f"declara que aceita todas as condições dispostas na proposta <b>{numero_proposta}</b> apresentada pela <b>GLOBEX MULTIMODAL</b>, "
+        f"declara que aceita todas as condições dispostas na proposta <b>{num_prop_esc}</b> apresentada pela <b>GLOBEX MULTIMODAL</b>, "
         "ficando ciente que: A prestação dos serviços inicia-se na data expressa no presente termo."
     )
     story.append(Paragraph(termo_p1, body_style))
@@ -187,7 +195,12 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato
     story.append(Paragraph("______________________________________________________", body_style))
     story.append(Paragraph("<b>Nome:</b><br/><b>Função:</b><br/><b>RG:</b>", body_style))
 
-    doc.build(story)
+    try:
+        doc.build(story)
+    except Exception as e:
+        st.error(f"Erro ao gerar o PDF via ReportLab: {e}")
+        return None
+
     buffer.seek(0)
     return buffer
 
@@ -226,14 +239,15 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
         
         st.success("✅ Proposta salva com sucesso no Google Sheets e documento PDF gerado!")
         st.markdown("<br>", unsafe_allow_html=True)
-        st.download_button(
-            label="📥 Baixar / Visualizar Proposta em PDF",
-            data=pdf_bytes,
-            file_name=nome_arquivo_pdf,
-            mime="application/pdf",
-            use_container_width=True,
-            type="primary"
-        )
+        if pdf_bytes:
+            st.download_button(
+                label="📥 Baixar / Visualizar Proposta em PDF",
+                data=pdf_bytes,
+                file_name=nome_arquivo_pdf,
+                mime="application/pdf",
+                use_container_width=True,
+                type="primary"
+            )
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("🔄 Iniciar Nova Proposta", use_container_width=True):
             st.session_state["pdf_gerado_sucesso"] = False
