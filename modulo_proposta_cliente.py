@@ -269,7 +269,6 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
     cliente_nome = str(st.session_state.get("_safe_cliente_nome") or st.session_state.get("input_cli_nome_tela2", "")).strip()
     cnpj_val = str(st.session_state.get("_safe_cnpj_val") or st.session_state.get("proposta_cliente_cnpj", "")).strip()
     
-    # Inicialização ou limpeza dos campos do formulário no session_state
     if "input_popup_razao_social" not in st.session_state:
         st.session_state["input_popup_razao_social"] = cliente_nome
     if "input_popup_contato" not in st.session_state:
@@ -561,7 +560,6 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                                         st.session_state["_safe_cliente_nome"] = c_nome_carregado
                                         st.session_state["_safe_cnpj_val"] = c_cnpj_carregado
                                         
-                                        # Atualiza a Razão Social no state ao carregar
                                         st.session_state["input_popup_razao_social"] = c_nome_carregado
                                         st.session_state["input_popup_contato"] = ""
                                         st.session_state["input_popup_objeto"] = ""
@@ -590,3 +588,9 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                                         st.rerun()
                                 else:
                                     st.warning("Selecione uma proposta válida na lista.")
+                    else:
+                        st.info("Nenhuma proposta encontrada para o filtro selecionado.")
+                else:
+                    st.info("Nenhuma proposta gravada na folha Propostas_Salvas.")
+            except Exception as e:
+                st.error(f"Erro ao carregar propostas salvas do Google Sheets: {e}")
