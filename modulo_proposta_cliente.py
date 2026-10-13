@@ -3,19 +3,39 @@ import pandas as pd
 from datetime import datetime
 import io
 import html
+import os
 
 try:
     from reportlab.lib.pagesizes import letter
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, Image
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.enums import TA_RIGHT, TA_JUSTIFY, TA_CENTER, TA_LEFT
     from reportlab.lib import colors
     REPORTLAB_DISPONIVEL = True
 except ImportError:
     REPORTLAB_DISPONIVEL = False
 
+def adicionar_cabecalho_logo(canvas, doc):
+    canvas.saveState()
+    logo_path = 'logo.png'
+    if os.path.exists(logo_path):
+        # Desenha a logo centralizada no topo da página
+        # Largura da página Letter = 612pt, Margem = 36pt. Centro X = 306pt.
+        # Imagem com largura de 140pt e altura de 45pt
+        canvas.drawImage(logo_path, x=236, y=730, width=140, height=45, preserveAspectRatio=True, mask='auto')
+    canvas.restoreState()
+
 def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato_cliente, objeto_proposta, itens_proposta):
     buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=36)
+    # Aumentamos a margem superior para 90pt para acomodar a logo centralizada no cabeçalho
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=letter,
+        rightMargin=36,
+        leftMargin=36,
+        topMargin=90,
+        bottomMargin=36
+    )
     story = []
     styles = getSampleStyleSheet()
     
@@ -24,60 +44,112 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato
     c_objeto_esc = html.escape(str(objeto_proposta))
     c_contato_esc = html.escape(str(contato_cliente))
     
-    body_style = ParagraphStyle(
-        'CorpoTexto',
+    # ESTILOS CUSTOMIZADOS
+    style_data_direita = ParagraphStyle(
+        'DataDireita',
         parent=styles['Normal'],
         fontSize=10,
         leading=14,
+        alignment=TA_RIGHT,
+        textColor=colors.HexColor('#222222'),
+        spaceAfter=6
+    )
+
+    style_proposta_direita = ParagraphStyle(
+        'PropostaNumDireita',
+        parent=styles['Normal'],
+        fontSize=11,
+        fontName='Helvetica-Bold',
+        leading=15,
+        alignment=TA_RIGHT,
+        textColor=colors.HexColor('#0052B4'),
+        spaceAfter=12
+    )
+    
+    body_left_style = ParagraphStyle(
+        'CorpoTextoEsquerda',
+        parent=styles['Normal'],
+        fontSize=10,
+        leading=14,
+        alignment=TA_LEFT,
+        textColor=colors.HexColor('#222222'),
+        spaceAfter=6
+    )
+
+    body_justify_style = ParagraphStyle(
+        'CorpoTextoJustificado',
+        parent=styles['Normal'],
+        fontSize=10,
+        leading=14,
+        alignment=TA_JUSTIFY,
         textColor=colors.HexColor('#222222'),
         spaceAfter=8
     )
-    
+
     titulo_bloco_style = ParagraphStyle(
         'TituloBlocoCategoria',
         parent=styles['Heading2'],
         fontSize=11,
         leading=15,
         fontName='Helvetica-Bold',
+        alignment=TA_LEFT,
         textColor=colors.HexColor('#0052B4'),
         spaceBefore=10,
         spaceAfter=4
+    )
+
+    titulo_termo_center = ParagraphStyle(
+        'TituloTermoCentralizado',
+        parent=styles['Heading2'],
+        fontSize=12,
+        leading=16,
+        fontName='Helvetica-Bold',
+        alignment=TA_CENTER,
+        textColor=colors.HexColor('#0052B4'),
+        spaceBefore=10,
+        spaceAfter=12
     )
 
     meses = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"]
     agora = datetime.now()
     data_extenso = f"Indaiatuba - SP, {agora.day:02d} de {meses[agora.month - 1]} de {agora.year}."
     
-    story.append(Paragraph(data_extenso, body_style))
-    story.append(Spacer(1, 6))
+    # 1. Data alinhada à direita
+    story.append(Paragraph(data_extenso, style_data_direita))
     
-    story.append(Paragraph(f"<b>PROPOSTA Nº {num_prop_esc}</b>", body_style))
-    story.append(Paragraph(f"À<br/><b>{c_nome_esc}</b>", body_style))
-    story.append(Paragraph(f"<b>REF:</b> {c_objeto_esc}", body_style))
-    story.append(Paragraph(f"<b>Contato:</b> {c_contato_esc}", body_style))
-    story.append(Spacer(1, 6))
+    # 2. Número da Proposta alinhado à direita
+    story.append(Paragraph(f"PROPOSTA Nº {num_prop_esc}", style_proposta_direita))
     
-    story.append(Paragraph("Prezados,", body_style))
+    # Informações do Cliente e Referência
+    story.append(Paragraph(f"À<br/><b>{c_nome_esc}</b>", body_left_style))
+    story.append(Paragraph(f"<b>REF:</b> {c_objeto_esc}", body_left_style))
+    story.append(Paragraph(f"<b>Contato:</b> {c_contato_esc}", body_left_style))
+    story.append(Spacer(1, 8))
+    
+    story.append(Paragraph("Prezados,", body_left_style))
+    
+    # 3. Texto da Página 1 com alinhamento JUSTIFICADO
     texto_intro = (
         f"Apresentamos a proposta comercial da Globex Multimodal para a gestão de armazenagem e movimentação de cargas da <b>{c_nome_esc}</b>. "
         "Sediada estrategicamente no polo logístico de Indaiatuba-SP, a Globex combina infraestrutura moderna, rigor técnico e agilidade operacional. "
         "Desenvolvemos operações sob medida para cadeias de suprimentos exigentes, assegurando controle de ponta a ponta, total conformidade regulatória e integridade máxima dos seus produtos."
     )
-    story.append(Paragraph(texto_intro, body_style))
+    story.append(Paragraph(texto_intro, body_justify_style))
     
     texto_intro2 = (
         f"Apresentamos a seguir nossa tabela de serviços e tarifas. Para facilitar a compreensão e o planejamento financeiro da <b>{c_nome_esc}</b>, "
         "apresentaremos na apresentação da proposta uma simulação prática da aplicação dessas tarifas para o período informado, calculada com base no volume "
         "e nas premissas operacionais compartilhadas pela sua equipe. Trata-se de uma projeção ilustrativa desenhada para dar total visibilidade ao custo estimado da operação."
     )
-    story.append(Paragraph(texto_intro2, body_style))
-    story.append(Spacer(1, 8))
+    story.append(Paragraph(texto_intro2, body_justify_style))
+    story.append(Spacer(1, 10))
     
-    story.append(Paragraph("<b>Wilson Santos</b> – Gerente Comercial &nbsp;&nbsp;|&nbsp;&nbsp; Tel.: (19) 99888-2855", body_style))
-    story.append(Paragraph("<b>Richarlles Nascimento</b> – Executivo de Contas &nbsp;&nbsp;|&nbsp;&nbsp; Tel.: (19) 3936-8520", body_style))
-    story.append(Paragraph("<b>Adonis Valias</b> – Diretor Comercial", body_style))
-    story.append(Spacer(1, 12))
+    story.append(Paragraph("<b>Wilson Santos</b> – Gerente Comercial &nbsp;&nbsp;|&nbsp;&nbsp; Tel.: (19) 99888-2855", body_left_style))
+    story.append(Paragraph("<b>Richarlles Nascimento</b> – Executivo de Contas &nbsp;&nbsp;|&nbsp;&nbsp; Tel.: (19) 3936-8520", body_left_style))
+    story.append(Paragraph("<b>Adonis Valias</b> – Diretor Comercial", body_left_style))
+    story.append(Spacer(1, 14))
     
+    # Mapeamento de categorias em blocos separados
     blocos_dados = {
         "ARMAZENAGEM": [],
         "SEGURO": [],
@@ -119,7 +191,7 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato
     for nome_bloco, linhas in blocos_dados.items():
         if linhas:
             if not primeiro_bloco:
-                story.append(Spacer(1, 42))
+                story.append(Spacer(1, 42)) # Espaçamento de 3 linhas entre os blocos
             
             story.append(Paragraph(nome_bloco, titulo_bloco_style))
             story.append(Spacer(1, 4))
@@ -141,22 +213,26 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato
             story.append(tabela)
             primeiro_bloco = False
 
+    # TERMO DE ACEITE
     story.append(PageBreak())
-    story.append(Paragraph("<b>TERMO DE ACEITE PARA PRESTAÇÃO DE SERVIÇOS</b>", titulo_bloco_style))
+    
+    # 4. Título da Página 3 CENTRALIZADO
+    story.append(Paragraph("<b>TERMO DE ACEITE PARA PRESTAÇÃO DE SERVIÇOS</b>", titulo_termo_center))
     story.append(Spacer(1, 6))
     
+    # 5. Texto da Página 3 com alinhamento JUSTIFICADO
     termo_p1 = (
         f"Com a assinatura do presente termo, a empresa cliente, por meio de seu representante, responsável pelo fechamento da venda, "
         f"declara que aceita todas as condições dispostas na proposta <b>{num_prop_esc}</b> apresentada pela <b>GLOBEX MULTIMODAL</b>, "
         "ficando ciente que: A prestação dos serviços inicia-se na data expressa no presente termo."
     )
-    story.append(Paragraph(termo_p1, body_style))
+    story.append(Paragraph(termo_p1, body_justify_style))
     
     termo_p2 = (
         "A assinatura do presente termo autoriza a GLOBEX MULTIMODAL a iniciar a prestação dos serviços e consequente faturamento, "
         "seguindo os valores e condições descritas na proposta comercial ora aceita."
     )
-    story.append(Paragraph(termo_p2, body_style))
+    story.append(Paragraph(termo_p2, body_justify_style))
     
     clausulas = [
         "1) Caso seja detectado o inadimplemento da empresa cliente em efetuar os pagamentos, fica permitida a cobrança do débito atualizado pelo IPCA/IBGE, acrescido de multa de mora de 2% e juros de 1% ao mês, pro rata tempore.",
@@ -164,9 +240,9 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato
         "3) Os dados cadastrais abaixo especificados poderão ser utilizados pela GLOBEX MULTIMODAL para emissão dos documentos fiscais correspondentes."
     ]
     for c in clausulas:
-        story.append(Paragraph(c, body_style))
+        story.append(Paragraph(c, body_justify_style))
     
-    story.append(Spacer(1, 6))
+    story.append(Spacer(1, 8))
     
     campos_cadastro = [
         "<b>NOME/RAZÃO SOCIAL:</b> ____________________________________________________________________",
@@ -183,16 +259,20 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato
         "<b>CONTATO:</b> ________________________________________________________________________________"
     ]
     for campo in campos_cadastro:
-        story.append(Paragraph(campo, body_style))
+        story.append(Paragraph(campo, body_left_style))
         
-    story.append(Spacer(1, 6))
-    story.append(Paragraph(f"Indaiatuba - SP, _____ de ______________________ de {agora.year}.", body_style))
-    story.append(Spacer(1, 15))
-    story.append(Paragraph("______________________________________________________", body_style))
-    story.append(Paragraph("<b>Nome:</b><br/><b>Função:</b><br/><b>RG:</b>", body_style))
+    story.append(Spacer(1, 8))
+    
+    # 6. Data final alterada conforme solicitado
+    data_final_termo = "Indaiatuba - SP, _____ de ______________________ de ___________. "
+    story.append(Paragraph(data_final_termo, body_left_style))
+    story.append(Spacer(1, 18))
+    story.append(Paragraph("______________________________________________________", body_left_style))
+    story.append(Paragraph("<b>Nome:</b><br/><b>Função:</b><br/><b>RG:</b>", body_left_style))
 
     try:
-        doc.build(story)
+        # doc.build renderizando a logo do cabeçalho em todas as páginas
+        doc.build(story, onFirstPage=adicionar_cabecalho_logo, onLaterPages=adicionar_cabecalho_logo)
     except Exception as e:
         st.error(f"Erro ao compilar o PDF no ReportLab: {e}")
         return None
@@ -225,7 +305,6 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
         st.error("⚠️ A biblioteca 'reportlab' não está instalada ou disponível no ambiente. O PDF não pode ser gerado.")
         return
 
-    # Se houver um PDF recém gerado na sessão, exibe o botão de download no topo
     if st.session_state.get("ultimo_pdf_bytes"):
         st.success("✅ Proposta salva com sucesso no Google Sheets e documento PDF gerado!")
         st.markdown("<br>", unsafe_allow_html=True)
