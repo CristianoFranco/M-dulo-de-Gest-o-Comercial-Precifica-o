@@ -64,11 +64,12 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
         unidade_opcoes = st.session_state.get("lista_unidades", ["", "Por caixa", "por unidade", "por pallet", "por hora/homem", "por etiqueta", "por volume", "por mês", "percentual"])
         unidade_input = st.selectbox("Unidade *", options=unidade_opcoes, key=f"cad_un_v16_{ver}")
         
-        # CONTROLO DE ADIÇÃO DE NOVA UNIDADE DIRETAMENTE ABAIXO DO CAMPO UNIDADE
+        # CONTROLO DE ADIÇÃO DE NOVA UNIDADE COM LIMPEZA DO CAMPO
+        chave_input_nova_unidade = f"input_nova_unidade_personalizada_{ver}"
         with st.container():
             col_add_un1, col_add_un2 = st.columns([2.5, 1])
             with col_add_un1:
-                nova_unidade_txt = st.text_input("Cadastrar Nova Unidade:", placeholder="Ex: por container", key=f"input_nova_unidade_personalizada_{ver}", label_visibility="collapsed")
+                nova_unidade_txt = st.text_input("Cadastrar Nova Unidade:", placeholder="Ex: por container", key=chave_input_nova_unidade, label_visibility="collapsed")
             with col_add_un2:
                 if st.button("➕ Adicionar", key=f"btn_incluir_nova_unidade_{ver}", use_container_width=True):
                     if nova_unidade_txt.strip():
@@ -77,6 +78,7 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
                         if unidade_formatada not in lista_atual:
                             lista_atual.append(unidade_formatada)
                             st.session_state["lista_unidades"] = lista_atual
+                            st.session_state[chave_input_nova_unidade] = ""
                             st.success(f"Adicionada!")
                             st.rerun()
                         else:
