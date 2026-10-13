@@ -154,6 +154,9 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato
     agora = datetime.now()
     data_extenso = f"Indaiatuba - SP, {agora.day:02d} de {meses[agora.month - 1]} de {agora.year}."
     
+    # ==========================================
+    # PÁGINA 1: APENAS TEXTO INTRODUTÓRIO E CONTATOS
+    # ==========================================
     story.append(Paragraph(data_extenso, style_data_direita))
     story.append(Paragraph(f"PROPOSTA Nº {num_prop_esc}", style_proposta_direita))
     
@@ -177,13 +180,18 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato
         "e nas premissas operacionais compartilhadas pela sua equipe. Trata-se de uma projeção ilustrativa desenhada para dar total visibilidade ao custo estimado da operação."
     )
     story.append(Paragraph(texto_intro2, body_justify_style))
-    story.append(Spacer(1, 10))
+    story.append(Spacer(1, 15))
     
+    # Contatos atualizados (Sem o Adonis)
+    story.append(Paragraph("<b>Richarlles Nascimento</b> – Executivo de Contas &nbsp;&nbsp;|&nbsp;&nbsp; Tel.: (19) 99959-9894", body_left_style))
     story.append(Paragraph("<b>Wilson Santos</b> – Gerente Comercial &nbsp;&nbsp;|&nbsp;&nbsp; Tel.: (19) 99888-2855", body_left_style))
-    story.append(Paragraph("<b>Richarlles Nascimento</b> – Executivo de Contas &nbsp;&nbsp;|&nbsp;&nbsp; Tel.: (19) 3936-8520", body_left_style))
-    story.append(Paragraph("<b>Adonis Valias</b> – Diretor Comercial", body_left_style))
-    story.append(Spacer(1, 14))
     
+    # Força a quebra para garantir que a Página 1 contenha exclusivamente o texto introdutório
+    story.append(PageBreak())
+
+    # ==========================================
+    # PÁGINA 2: TARIFÁRIO E PREMISSAS
+    # ==========================================
     story.append(Paragraph("Tabela de Preços e Serviços", titulo_tabelas_style))
     story.append(Spacer(1, 4))
 
@@ -272,6 +280,9 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato
     )
     story.append(Paragraph(texto_premissas, premissas_style))
 
+    # ==========================================
+    # PÁGINA POSTERIOR: TERMO DE ACEITE EM PÁGINA ÚNICA ISOLADA
+    # ==========================================
     story.append(PageBreak())
     
     story.append(Paragraph("<b>TERMO DE ACEITE PARA PRESTAÇÃO DE SERVIÇOS</b>", titulo_termo_center))
@@ -424,7 +435,7 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
             with col_pop1:
                 input_razao_social = st.text_input("Razão Social da Empresa Contratante:", value=cliente_nome, key="input_popup_razao_social")
                 input_contato = st.text_input("Contato do Cliente:", placeholder="Ex: Nome do responsável", key="input_popup_contato")
-                input_iss = st.text_input("% I.S.S sobre o faturamento:", value="2.5", key="input_popup_iss")
+                input_iss = st.text_input("% I.S.S sobre o faturamento:", value="5.0", key="input_popup_iss")
             with col_pop2:
                 input_objeto = st.text_input("Objeto da Proposta:", placeholder="Ex: Prestação de serviços logísticos", key="input_popup_objeto")
                 input_prazo = st.text_input("Prazo de pagamento em dias:", value="30", key="input_popup_prazo")
