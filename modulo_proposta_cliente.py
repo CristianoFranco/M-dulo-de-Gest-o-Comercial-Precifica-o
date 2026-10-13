@@ -424,7 +424,7 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
             with col_pop1:
                 input_razao_social = st.text_input("Razão Social da Empresa Contratante:", value=cliente_nome, key="input_popup_razao_social")
                 input_contato = st.text_input("Contato do Cliente:", placeholder="Ex: Nome do responsável", key="input_popup_contato")
-                input_iss = st.text_input("% I.S.S sobre o faturamento:", value="5.0", key="input_popup_iss")
+                input_iss = st.text_input("% I.S.S sobre o faturamento:", value="2.5", key="input_popup_iss")
             with col_pop2:
                 input_objeto = st.text_input("Objeto da Proposta:", placeholder="Ex: Prestação de serviços logísticos", key="input_popup_objeto")
                 input_prazo = st.text_input("Prazo de pagamento em dias:", value="30", key="input_popup_prazo")
