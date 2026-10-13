@@ -17,19 +17,14 @@ except ImportError:
 
 def desenhar_cabecalho_rodape(canvas, doc):
     canvas.saveState()
-    
-    # CABEÇALHO - Logo centralizada
     logo_path = 'logo.png'
     if os.path.exists(logo_path):
         canvas.drawImage(logo_path, x=236, y=730, width=140, height=45, preserveAspectRatio=True, mask='auto')
-    
-    # RODAPÉ - Endereço e Contato centralizados em todas as páginas
     canvas.setFont('Helvetica', 8)
     canvas.setFillColor(colors.HexColor('#555555'))
     canvas.drawCentredString(612 / 2.0, 35, "Avenida Vitoria Rossi Martini, 31")
     canvas.drawCentredString(612 / 2.0, 25, "Distrito Industrial Indaiatuba - SP - CEP: 13.347-613")
     canvas.drawCentredString(612 / 2.0, 15, "+55 19 3936-8520 / www.globexmultimodal.com.br")
-    
     canvas.restoreState()
 
 def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato_cliente, objeto_proposta, iss_val, prazo_val, vigencia_val, fat_minimo_val, outras_premissas_val, itens_proposta):
@@ -55,118 +50,20 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato
     fat_minimo_esc = html.escape(str(fat_minimo_val)).strip()
     outras_premissas_esc = html.escape(str(outras_premissas_val)).strip()
     
-    # ESTILOS DE PARÁGRAFO
-    style_data_direita = ParagraphStyle(
-        'DataDireita',
-        parent=styles['Normal'],
-        fontSize=10,
-        leading=14,
-        alignment=TA_RIGHT,
-        textColor=colors.HexColor('#222222'),
-        spaceAfter=6
-    )
+    style_data_direita = ParagraphStyle('DataDireita', parent=styles['Normal'], fontSize=10, leading=14, alignment=TA_RIGHT, textColor=colors.HexColor('#222222'), spaceAfter=6)
+    style_proposta_direita = ParagraphStyle('PropostaNumDireita', parent=styles['Normal'], fontSize=11, fontName='Helvetica-Bold', leading=15, alignment=TA_RIGHT, textColor=colors.HexColor('#0052B4'), spaceAfter=12)
+    body_left_style = ParagraphStyle('CorpoTextoEsquerda', parent=styles['Normal'], fontSize=10, leading=14, alignment=TA_LEFT, textColor=colors.HexColor('#222222'), spaceAfter=6)
+    body_justify_style = ParagraphStyle('CorpoTextoJustificado', parent=styles['Normal'], fontSize=10, leading=14, alignment=TA_JUSTIFY, textColor=colors.HexColor('#222222'), spaceAfter=8)
+    titulo_bloco_style = ParagraphStyle('TituloBlocoCategoria', parent=styles['Heading2'], fontSize=11, leading=15, fontName='Helvetica-Bold', alignment=TA_LEFT, textColor=colors.HexColor('#0052B4'), spaceBefore=10, spaceAfter=4)
+    titulo_tabelas_style = ParagraphStyle('TituloTabelasServicos', parent=styles['Heading2'], fontSize=13, leading=17, fontName='Helvetica-Bold', alignment=TA_LEFT, textColor=colors.HexColor('#0052B4'), spaceBefore=14, spaceAfter=8)
+    titulo_termo_center = ParagraphStyle('TituloTermoCentralizado', parent=styles['Heading2'], fontSize=12, leading=16, fontName='Helvetica-Bold', alignment=TA_CENTER, textColor=colors.HexColor('#0052B4'), spaceBefore=10, spaceAfter=12)
+    premissas_style = ParagraphStyle('PremissasStyle', parent=styles['Normal'], fontSize=8, leading=11, alignment=TA_JUSTIFY, textColor=colors.HexColor('#333333'), spaceBefore=10, spaceAfter=10)
 
-    style_proposta_direita = ParagraphStyle(
-        'PropostaNumDireita',
-        parent=styles['Normal'],
-        fontSize=11,
-        fontName='Helvetica-Bold',
-        leading=15,
-        alignment=TA_RIGHT,
-        textColor=colors.HexColor('#0052B4'),
-        spaceAfter=12
-    )
-    
-    body_left_style = ParagraphStyle(
-        'CorpoTextoEsquerda',
-        parent=styles['Normal'],
-        fontSize=10,
-        leading=14,
-        alignment=TA_LEFT,
-        textColor=colors.HexColor('#222222'),
-        spaceAfter=6
-    )
+    fat_min_title_style = ParagraphStyle('FatMinTitle', fontName='Helvetica-Bold', fontSize=9, leading=12, textColor=colors.HexColor('#0052B4'), alignment=TA_LEFT)
+    fat_min_text_style = ParagraphStyle('FatMinText', fontName='Helvetica', fontSize=8.5, leading=12, textColor=colors.HexColor('#222222'), alignment=TA_LEFT)
 
-    body_justify_style = ParagraphStyle(
-        'CorpoTextoJustificado',
-        parent=styles['Normal'],
-        fontSize=10,
-        leading=14,
-        alignment=TA_JUSTIFY,
-        textColor=colors.HexColor('#222222'),
-        spaceAfter=8
-    )
-
-    titulo_bloco_style = ParagraphStyle(
-        'TituloBlocoCategoria',
-        parent=styles['Heading2'],
-        fontSize=11,
-        leading=15,
-        fontName='Helvetica-Bold',
-        alignment=TA_LEFT,
-        textColor=colors.HexColor('#0052B4'),
-        spaceBefore=10,
-        spaceAfter=4
-    )
-
-    titulo_tabelas_style = ParagraphStyle(
-        'TituloTabelasServicos',
-        parent=styles['Heading2'],
-        fontSize=13,
-        leading=17,
-        fontName='Helvetica-Bold',
-        alignment=TA_LEFT,
-        textColor=colors.HexColor('#0052B4'),
-        spaceBefore=14,
-        spaceAfter=8
-    )
-
-    titulo_termo_center = ParagraphStyle(
-        'TituloTermoCentralizado',
-        parent=styles['Heading2'],
-        fontSize=12,
-        leading=16,
-        fontName='Helvetica-Bold',
-        alignment=TA_CENTER,
-        textColor=colors.HexColor('#0052B4'),
-        spaceBefore=10,
-        spaceAfter=12
-    )
-
-    premissas_style = ParagraphStyle(
-        'PremissasStyle',
-        parent=styles['Normal'],
-        fontSize=8,
-        leading=11,
-        alignment=TA_JUSTIFY,
-        textColor=colors.HexColor('#333333'),
-        spaceBefore=10,
-        spaceAfter=10
-    )
-
-    # ESTILOS DEDICADOS PARA O DESTAQUE DO FATURAMENTO MÍNIMO
-    fat_min_title_style = ParagraphStyle(
-        'FatMinTitle',
-        fontName='Helvetica-Bold',
-        fontSize=9,
-        leading=12,
-        textColor=colors.HexColor('#0052B4'),
-        alignment=TA_LEFT
-    )
-    
-    fat_min_text_style = ParagraphStyle(
-        'FatMinText',
-        fontName='Helvetica',
-        fontSize=8.5,
-        leading=12,
-        textColor=colors.HexColor('#222222'),
-        alignment=TA_LEFT
-    )
-
-    # ESTILOS DEDICADOS PARA AS CÉLULAS DAS TABELAS
     th_style = ParagraphStyle('TH', fontName='Helvetica-Bold', fontSize=9, leading=11, textColor=colors.white, alignment=TA_LEFT)
     th_style_right = ParagraphStyle('THRight', fontName='Helvetica-Bold', fontSize=9, leading=11, textColor=colors.white, alignment=TA_RIGHT)
-    
     td_style_left = ParagraphStyle('TDLeft', fontName='Helvetica', fontSize=8, leading=11, textColor=colors.HexColor('#222222'), alignment=TA_LEFT)
     td_style_center = ParagraphStyle('TDCenter', fontName='Helvetica', fontSize=8, leading=11, textColor=colors.HexColor('#222222'), alignment=TA_CENTER)
     td_style_right = ParagraphStyle('TDRight', fontName='Helvetica', fontSize=8, leading=11, textColor=colors.HexColor('#222222'), alignment=TA_RIGHT)
@@ -175,17 +72,12 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato
     agora = datetime.now()
     data_extenso = f"Indaiatuba - SP, {agora.day:02d} de {meses[agora.month - 1]} de {agora.year}."
     
-    # ==========================================
-    # PÁGINA 1: APENAS TEXTO INTRODUTÓRIO E CONTATOS
-    # ==========================================
     story.append(Paragraph(data_extenso, style_data_direita))
     story.append(Paragraph(f"PROPOSTA Nº {num_prop_esc}", style_proposta_direita))
-    
     story.append(Paragraph(f"À<br/><b>{c_nome_esc}</b>", body_left_style))
     story.append(Paragraph(f"<b>REF:</b> {c_objeto_esc}", body_left_style))
     story.append(Paragraph(f"<b>Contato:</b> {c_contato_esc}", body_left_style))
     story.append(Spacer(1, 8))
-    
     story.append(Paragraph("Prezados,", body_left_style))
     
     texto_intro = (
@@ -202,15 +94,10 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato
     )
     story.append(Paragraph(texto_intro2, body_justify_style))
     story.append(Spacer(1, 15))
-    
     story.append(Paragraph("<b>Richarlles Nascimento</b> – Executivo de Contas &nbsp;&nbsp;|&nbsp;&nbsp; Tel.: (19) 99959-9894", body_left_style))
     story.append(Paragraph("<b>Wilson Santos</b> – Gerente Comercial &nbsp;&nbsp;|&nbsp;&nbsp; Tel.: (19) 99888-2855", body_left_style))
-    
     story.append(PageBreak())
 
-    # ==========================================
-    # PÁGINA 2: TARIFÁRIO, FATURAMENTO MÍNIMO E PREMISSAS
-    # ==========================================
     story.append(Paragraph("Tabela de Preços e Serviços", titulo_tabelas_style))
     story.append(Spacer(1, 4))
 
@@ -224,7 +111,6 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato
 
     for item in itens_proposta:
         cat_original = str(item.get("Categoria", "")).strip().lower()
-        
         if "armazenagem" in cat_original:
             cat_chave = "ARMAZENAGEM"
         elif "seguro" in cat_original:
@@ -256,10 +142,8 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato
         if linhas:
             if not primeiro_bloco:
                 story.append(Spacer(1, 14))
-            
             story.append(Paragraph(nome_bloco, titulo_bloco_style))
             story.append(Spacer(1, 4))
-            
             cabecalho = [
                 Paragraph("Código", th_style),
                 Paragraph("Descrição", th_style),
@@ -267,9 +151,7 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato
                 Paragraph("Tarifa", th_style_right),
                 Paragraph("Observações", th_style)
             ]
-            
-            tabela_conteudo = [cabecalho] + linhas
-            tabela = Table(tabela_conteudo, colWidths=[45, 165, 125, 85, 120])
+            tabela = Table([cabecalho] + linhas, colWidths=[45, 165, 125, 85, 120])
             tabela.setStyle(TableStyle([
                 ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0052B4')),
                 ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
@@ -284,7 +166,6 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato
             story.append(tabela)
             primeiro_bloco = False
 
-    # BLOCO EM DESTAQUE: FATURAMENTO MÍNIMO MENSAL (se preenchido)
     if fat_minimo_esc:
         story.append(Spacer(1, 12))
         conteudo_fat_min = [
@@ -302,7 +183,6 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato
         ]))
         story.append(tabela_fat_min)
 
-    # BLOCO DE PREMISSAS
     story.append(Spacer(1, 10))
     story.append(Paragraph("<b>Premissas:</b>", premissas_style))
     texto_premissas = (
@@ -320,10 +200,6 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato
         texto_premissas += f"<br/>10. {outras_premissas_esc}"
 
     story.append(Paragraph(texto_premissas, premissas_style))
-
-    # ==========================================
-    # PÁGINA POSTERIOR: TERMO DE ACEITE EM PÁGINA ÚNICA ISOLADA
-    # ==========================================
     story.append(PageBreak())
     
     story.append(Paragraph("<b>TERMO DE ACEITE PARA PRESTAÇÃO DE SERVIÇOS</b>", titulo_termo_center))
@@ -331,4 +207,358 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato
     
     termo_p1 = (
         f"Com a assinatura do presente termo, a empresa cliente, por meio de seu representante, responsável pelo fechamento da venda, "
-        f"declara que aceita todas as condições dis
+        f"declara que aceita todas as condições dispostas na proposta <b>{num_prop_esc}</b> apresentada pela <b>GLOBEX MULTIMODAL</b>, "
+        "ficando ciente que: A prestação dos serviços inicia-se na data expressa no presente termo."
+    )
+    story.append(Paragraph(termo_p1, body_justify_style))
+    
+    termo_p2 = (
+        "A assinatura do presente termo autoriza a GLOBEX MULTIMODAL a iniciar a prestação dos serviços e consequente faturamento, "
+        "seguindo os valores e condições descritas na proposta comercial ora aceita."
+    )
+    story.append(Paragraph(termo_p2, body_justify_style))
+    
+    clausulas = [
+        "1) Caso seja detectado o inadimplemento da empresa cliente em efetuar os pagamentos, fica permitida a cobrança do débito atualizado pelo IPCA/IBGE, acrescido de multa de mora de 2% e juros de 1% ao mês, pro rata tempore.",
+        "2) O presente termo é parte integrante e acessória do contrato de prestação de serviços, prevalecendo como documento principal até a assinatura do mesmo.",
+        "3) Os dados cadastrais abaixo especificados poderão ser utilizados pela GLOBEX MULTIMODAL para emissão dos documentos fiscais correspondentes."
+    ]
+    for c in clausulas:
+        story.append(Paragraph(c, body_justify_style))
+    
+    story.append(Spacer(1, 8))
+    
+    campos_cadastro = [
+        "<b>NOME/RAZÃO SOCIAL:</b> ____________________________________________________________________",
+        "<b>CPF/CNPJ:</b> ____________________________________________________________________________",
+        "<b>RG/INSCRIÇÃO ESTADUAL:</b> ________________________________________________________________",
+        "<b>DATA DE CONSTITUIÇÃO DA EMPRESA:</b> ____________________________________________________",
+        "<b>RAMO DE ATIVIDADE:</b> ____________________________________________________________________",
+        "<b>E-MAIL:</b> ________________________________________________________________________________",
+        "<b>ENDEREÇO:</b> ______________________________________________________________________________",
+        "<b>BAIRRO:</b> ________________________________________________________________________________",
+        "<b>CIDADE:</b> ________________________________________________________________________________",
+        "<b>CEP:</b> ____________________________________________________________________________________",
+        "<b>TELEFONE:</b> ______________________________________________________________________________",
+        "<b>CONTATO:</b> ________________________________________________________________________________"
+    ]
+    for campo in campos_cadastro:
+        story.append(Paragraph(campo, body_left_style))
+        
+    story.append(Spacer(1, 8))
+    story.append(Paragraph("Indaiatuba - SP, _____ de ______________________ de ___________. ", body_left_style))
+    story.append(Spacer(1, 18))
+    story.append(Paragraph("______________________________________________________", body_left_style))
+    story.append(Paragraph("<b>Nome:</b><br/><b>Função:</b><br/><b>RG:</b>", body_left_style))
+
+    try:
+        doc.build(story, onFirstPage=desenhar_cabecalho_rodape, onLaterPages=desenhar_cabecalho_rodape)
+    except Exception as e:
+        st.error(f"Erro ao compilar o PDF no ReportLab: {e}")
+        return None
+
+    buffer.seek(0)
+    return buffer
+
+def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_propostas_salvas_fn=None):
+    st.markdown("## Visão Final da Proposta (Cliente)")
+    st.caption("Visualização pronta para conferência, geração de PDF e salvamento.")
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    itens_rascunho = st.session_state.get("rascunho_itens", [])
+    cliente_nome = str(st.session_state.get("_safe_cliente_nome") or st.session_state.get("input_cli_nome_tela2", "")).strip()
+    cnpj_val = str(st.session_state.get("_safe_cnpj_val") or st.session_state.get("proposta_cliente_cnpj", "")).strip()
+    
+    if st.session_state.get("proposta_id_em_edicao"):
+        numero_proposta_atual = str(st.session_state["proposta_id_em_edicao"])
+    elif st.session_state.get("proposta_id_ativo"):
+        numero_proposta_atual = str(st.session_state["proposta_id_ativo"])
+    else:
+        agora = datetime.now()
+        mes_str = agora.strftime("%m")
+        ano_str = agora.strftime("%Y")
+        seq = st.session_state.get("sequencial_proposta", 1)
+        numero_proposta_atual = mes_str + "/" + "{:05d}".format(seq) + "/" + ano_str
+
+    if not REPORTLAB_DISPONIVEL:
+        st.error("⚠️ A biblioteca 'reportlab' não está instalada ou disponível no ambiente. O PDF não pode ser gerado.")
+        return
+
+    if st.session_state.get("ultimo_pdf_bytes"):
+        st.success("✅ Proposta salva com sucesso no Google Sheets e documento PDF gerado!")
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.download_button(
+            label="📥 Baixar / Visualizar Proposta em PDF",
+            data=st.session_state["ultimo_pdf_bytes"],
+            file_name=st.session_state.get("ultimo_pdf_nome", "Proposta.pdf"),
+            mime="application/pdf",
+            use_container_width=True,
+            type="primary"
+        )
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("🔄 Iniciar Nova Proposta", use_container_width=True):
+            st.session_state.pop("ultimo_pdf_bytes", None)
+            st.session_state.pop("ultimo_pdf_nome", None)
+            st.rerun()
+
+    st.markdown("### Documento da Proposta")
+    if not itens_rascunho:
+        st.warning("Nenhum item pendente no rascunho. Monte os itens na Tela 2 (Proposta Rascunho).")
+    else:
+        col_info1, col_info2, col_info3 = st.columns([2.5, 1.5, 1.5])
+        with col_info1:
+            lbl_cli = cliente_nome if cliente_nome else "Não Informado"
+            st.markdown("Cliente / Razão Social:\n### " + lbl_cli)
+        with col_info2:
+            lbl_cnpj = cnpj_val if cnpj_val else "Não Informado"
+            st.markdown("CNPJ:\n### " + lbl_cnpj)
+        with col_info3:
+            st.markdown("Número da Proposta:\n### " + numero_proposta_atual)
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        dados_estaticos = []
+        for item in itens_rascunho:
+            tarifa_val = item.get("Tarifa (R$)", 0.0)
+            try:
+                tarifa_float = float(tarifa_val)
+                tarifa_fmt = "R$ " + "{:,.5f}".format(tarifa_float).replace(",", "X").replace(".", ",").replace("X", ".")
+            except (ValueError, TypeError):
+                tarifa_fmt = str(tarifa_val)
+            
+            dados_estaticos.append({
+                "Proposta": numero_proposta_atual,
+                "Cliente": cliente_nome,
+                "CNPJ": cnpj_val,
+                "Código": item.get("Código", ""),
+                "Descrição": item.get("Descrição", ""),
+                "Categoria": item.get("Categoria", ""),
+                "Unidade": item.get("Unidade", ""),
+                "Tarifa": tarifa_fmt,
+                "Observações": item.get("Observações", "")
+            })
+        df_estatico = pd.DataFrame(dados_estaticos)
+        
+        st.dataframe(df_estatico, use_container_width=True, hide_index=True)
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+    st.markdown("---")
+    st.markdown("### ⚙️ Parâmetros da Proposta Comercial (PDF)")
+    
+    with st.form("form_parametros_proposta_pdf"):
+        col_pop1, col_pop2 = st.columns(2)
+        with col_pop1:
+            input_razao_social = st.text_input("Razão Social da Empresa Contratante:", value=cliente_nome, key="input_popup_razao_social")
+            input_contato = st.text_input("Contato do Cliente:", placeholder="Ex: Nome do responsável", key="input_popup_contato")
+            input_iss = st.text_input("% I.S.S sobre o faturamento:", value="2.5", key="input_popup_iss")
+        with col_pop2:
+            input_objeto = st.text_input("Objeto da Proposta:", placeholder="Ex: Prestação de serviços logísticos", key="input_popup_objeto")
+            input_prazo = st.text_input("Prazo de pagamento em dias:", value="30", key="input_popup_prazo")
+            input_vigencia = st.text_input("Vigência mínima em meses:", value="12", key="input_popup_vigencia")
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        input_fat_minimo = st.text_area(
+            "Faturamento Mínimo Mensal:",
+            placeholder="Ex: Faturamento mínimo mensal fixado em R$ 10.000,00, aplicável independentemente do volume utilizado no mês.",
+            key="input_popup_fat_minimo",
+            help="Texto/condição de faturamento mínimo a ser exibido em destaque abaixo do tarifário."
+        )
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        input_outras_premissas = st.text_area(
+            "Outras Premissas:",
+            placeholder="Ex: Condições adicionais ou observações específicas aplicáveis à operação...",
+            key="input_popup_outras_premissas",
+            help="Informações adicionais que serão adicionadas como item 10 logo abaixo das premissas padrões no PDF."
+        )
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown(f"**Número da Proposta:** `{numero_proposta_atual}`")
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        submitted_pdf = st.form_submit_button("💾 Salvar Proposta e Gerar PDF", use_container_width=True, type="primary")
+
+        if submitted_pdf:
+            c_nome = str(input_razao_social).strip()
+            c_cnpj = str(st.session_state.get("_safe_cnpj_val") or st.session_state.get("proposta_cliente_cnpj", "")).strip()
+            c_contato = str(input_contato).strip()
+            c_objeto = str(input_objeto).strip()
+            c_iss = str(input_iss).strip()
+            c_prazo = str(input_prazo).strip()
+            c_vigencia = str(input_vigencia).strip()
+            c_fat_minimo = str(input_fat_minimo).strip()
+            c_outras_premissas = str(input_outras_premissas).strip()
+            
+            if not c_nome:
+                st.error("⚠️ O nome da Razão Social é obrigatório!")
+            elif not c_contato:
+                st.error("⚠️ O Contato do cliente é obrigatório!")
+            elif not c_objeto:
+                st.error("⚠️ O Objeto da proposta é obrigatório!")
+            elif not itens_rascunho:
+                st.error("⚠️ Não há itens no rascunho para salvar.")
+            elif salvar_proposta_sheets_fn:
+                linhas_para_salvar = []
+                data_hoje = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                for item in itens_rascunho:
+                    try:
+                        t_val = float(item.get("Tarifa (R$)", 0.0))
+                    except (ValueError, TypeError):
+                        t_val = 0.0
+                        
+                    linhas_para_salvar.append({
+                        "Proposta": numero_proposta_atual,
+                        "Data": data_hoje,
+                        "Cliente": c_nome,
+                        "CNPJ": c_cnpj,
+                        "Código": str(item.get("Código", "")),
+                        "Descrição": str(item.get("Descrição", "")),
+                        "Categoria": str(item.get("Categoria", "")),
+                        "Unidade": str(item.get("Unidade", "")),
+                        "Tarifa (R$)": t_val,
+                        "Observações": str(item.get("Observações", ""))
+                    })
+                sucesso = salvar_proposta_sheets_fn(linhas_para_salvar)
+                if sucesso:
+                    pdf_bytes = gerar_pdf_proposta_completo(
+                        numero_proposta_atual,
+                        c_nome,
+                        c_cnpj,
+                        c_contato,
+                        c_objeto,
+                        c_iss,
+                        c_prazo,
+                        c_vigencia,
+                        c_fat_minimo,
+                        c_outras_premissas,
+                        itens_rascunho
+                    )
+                    nome_arquivo_pdf = "Proposta_" + str(numero_proposta_atual).replace("/", "_") + ".pdf"
+                    
+                    st.session_state["ultimo_pdf_bytes"] = pdf_bytes
+                    st.session_state["ultimo_pdf_nome"] = nome_arquivo_pdf
+                    
+                    st.session_state["proposta_id_em_edicao"] = None
+                    st.session_state["proposta_id_ativo"] = None
+                    st.session_state["rascunho_itens"] = []
+                    st.session_state["_safe_cliente_nome"] = ""
+                    st.session_state["_safe_cnpj_val"] = ""
+                    
+                    for k in list(st.session_state.keys()):
+                        if k.startswith("input_tarifa_"):
+                            del st.session_state[k]
+                    st.rerun()
+                else:
+                    st.error("Falha ao salvar no Google Sheets.")
+
+    st.markdown("---")
+    st.markdown("### Consulta Propostas Finalizadas")
+    with st.expander("Filtrar e Consultar Propostas Salvas", expanded=True):
+        col_filtro_m, col_filtro_a = st.columns(2)
+        with col_filtro_m:
+            mes_consulta = st.selectbox(
+                "Filtrar por Mês:",
+                options=["Todos", "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"],
+                index=0
+            )
+            
+        with col_filtro_a:
+            ano_consulta = st.text_input("Filtrar por Ano (Ex: 2026):", value="")
+            
+        if carregar_propostas_salvas_fn:
+            try:
+                df_historico = carregar_propostas_salvas_fn()
+                if isinstance(df_historico, pd.DataFrame) and not df_historico.empty:
+                    df_filtrado = df_historico.copy()
+                    if "Proposta" in df_filtrado.columns:
+                        if mes_consulta != "Todos":
+                            prefixo = str(mes_consulta) + "/"
+                            df_filtrado = df_filtrado[df_filtrado["Proposta"].astype(str).str.startswith(prefixo)]
+                        if ano_consulta.strip():
+                            sufixo = "/" + ano_consulta.strip()
+                            df_filtrado = df_filtrado[df_filtrado["Proposta"].astype(str).str.endswith(sufixo)]
+                    
+                    colunas_resumo = [c for c in ["Proposta", "Data", "Cliente"] if c in df_filtrado.columns]
+                    df_resumido = df_filtrado[colunas_resumo].drop_duplicates(subset=["Proposta"]).reset_index(drop=True)
+                    
+                    if "Data" in df_resumido.columns:
+                        df_resumido["Data"] = df_resumido["Data"].astype(str).str.split().str[0]
+
+                    def parse_ordenacao_proposta(prop_str):
+                        try:
+                            partes = str(prop_str).split('/')
+                            if len(partes) == 3:
+                                mes_val = int(partes[0])
+                                cod_val = int(partes[1])
+                                ano_val = int(partes[2])
+                                return (ano_val, mes_val, cod_val)
+                        except ValueError:
+                            pass
+                        return (9999, 12, 99999)
+
+                    if not df_resumido.empty and "Proposta" in df_resumido.columns:
+                        df_resumido["_sort_key"] = df_resumido["Proposta"].apply(parse_ordenacao_proposta)
+                        df_resumido = df_resumido.sort_values(by="_sort_key", ascending=True).drop(columns=["_sort_key"]).reset_index(drop=True)
+
+                        st.markdown("Propostas Encontradas: " + str(len(df_resumido)))
+                        st.dataframe(df_resumido, use_container_width=True, hide_index=True)
+                        st.markdown("<br>", unsafe_allow_html=True)
+                        
+                        df_resumido["Opcao_Select"] = df_resumido["Proposta"].astype(str) + " - " + df_resumido["Cliente"].astype(str)
+                        propostas_unicas = [""] + df_resumido["Opcao_Select"].tolist()
+                        
+                        col_sel_prop, col_btn_carregar = st.columns([3, 1])
+                        with col_sel_prop:
+                            prop_escolhida_completa = st.selectbox(
+                                "Selecione uma proposta para editar:",
+                                options=propostas_unicas,
+                                key="select_proposta_para_editar"
+                            )
+                        
+                        prop_escolhida = prop_escolhida_completa.split(" - ")[0].strip() if prop_escolhida_completa else ""
+
+                        with col_btn_carregar:
+                            st.write("")
+                            st.write("")
+                            if st.button("Carregar Proposta", type="primary", use_container_width=True):
+                                if prop_escolhida:
+                                    df_prop_sel = df_historico[df_historico["Proposta"].astype(str).str.strip() == prop_escolhida.strip()]
+                                    
+                                    if not df_prop_sel.empty:
+                                        st.session_state["proposta_id_em_edicao"] = prop_escolhida.strip()
+                                        st.session_state["proposta_id_ativo"] = prop_escolhida.strip()
+                                        
+                                        primeiro_reg = df_prop_sel.iloc[0]
+                                        c_nome_carregado = str(primeiro_reg.get("Cliente", ""))
+                                        c_cnpj_carregado = str(primeiro_reg.get("CNPJ", "")) if "CNPJ" in primeiro_reg else ""
+                                        
+                                        st.session_state["_safe_cliente_nome"] = c_nome_carregado
+                                        st.session_state["_safe_cnpj_val"] = c_cnpj_carregado
+                                        
+                                        novos_itens = []
+                                        for _, row in df_prop_sel.iterrows():
+                                            try:
+                                                tarifa_val = float(row.get("Tarifa (R$)", 0.0))
+                                            except (ValueError, TypeError):
+                                                tarifa_val = 0.0
+                                                
+                                            novos_itens.append({
+                                                "Código": str(row.get("Código", "")),
+                                                "Descrição": str(row.get("Descrição", "")),
+                                                "Tarifa (R$)": tarifa_val,
+                                                "Unidade": str(row.get("Unidade", "")),
+                                                "Observações": str(row.get("Observações", "")),
+                                                "Categoria": str(row.get("Categoria", "")),
+                                                "Cat_Code": "GEN"
+                                            })
+                                            
+                                        st.session_state["rascunho_itens"] = novos_itens
+                                        st.success("Proposta carregada com sucesso!")
+                                        st.rerun()
+                                else:
+                                    st.warning("Selecione uma proposta válida na lista.")
+                    else:
+                        st.info("Nenhuma proposta encontrada para o filtro selecionado.")
+                else:
+                    st.info("Nenhuma proposta gravada na folha Propostas_Salvas.")
+            except Exception as e:
+                st.error(f"Erro ao carregar propostas salvas do Google Sheets: {e}")
