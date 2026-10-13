@@ -269,6 +269,18 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
     cliente_nome = str(st.session_state.get("_safe_cliente_nome") or st.session_state.get("input_cli_nome_tela2", "")).strip()
     cnpj_val = str(st.session_state.get("_safe_cnpj_val") or st.session_state.get("proposta_cliente_cnpj", "")).strip()
     
+    # Inicialização ou limpeza dos campos do formulário no session_state
+    if "input_popup_razao_social" not in st.session_state:
+        st.session_state["input_popup_razao_social"] = cliente_nome
+    if "input_popup_contato" not in st.session_state:
+        st.session_state["input_popup_contato"] = ""
+    if "input_popup_objeto" not in st.session_state:
+        st.session_state["input_popup_objeto"] = ""
+    if "input_popup_fat_minimo" not in st.session_state:
+        st.session_state["input_popup_fat_minimo"] = ""
+    if "input_popup_outras_premissas" not in st.session_state:
+        st.session_state["input_popup_outras_premissas"] = ""
+
     if st.session_state.get("proposta_id_em_edicao"):
         numero_proposta_atual = str(st.session_state["proposta_id_em_edicao"])
     elif st.session_state.get("proposta_id_ativo"):
@@ -299,6 +311,16 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
         if st.button("🔄 Iniciar Nova Proposta", use_container_width=True):
             st.session_state.pop("ultimo_pdf_bytes", None)
             st.session_state.pop("ultimo_pdf_nome", None)
+            st.session_state["proposta_id_em_edicao"] = None
+            st.session_state["proposta_id_ativo"] = None
+            st.session_state["rascunho_itens"] = []
+            st.session_state["_safe_cliente_nome"] = ""
+            st.session_state["_safe_cnpj_val"] = ""
+            st.session_state["input_popup_razao_social"] = ""
+            st.session_state["input_popup_contato"] = ""
+            st.session_state["input_popup_objeto"] = ""
+            st.session_state["input_popup_fat_minimo"] = ""
+            st.session_state["input_popup_outras_premissas"] = ""
             st.rerun()
 
     st.markdown("### Documento da Proposta")
@@ -347,7 +369,7 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
     with st.form("form_parametros_proposta_pdf"):
         col_pop1, col_pop2 = st.columns(2)
         with col_pop1:
-            input_razao_social = st.text_input("Razão Social da Empresa Contratante:", value=cliente_nome, key="input_popup_razao_social")
+            input_razao_social = st.text_input("Razão Social da Empresa Contratante:", key="input_popup_razao_social")
             input_contato = st.text_input("Contato do Cliente:", placeholder="Ex: Nome do responsável", key="input_popup_contato")
             input_iss = st.text_input("% I.S.S sobre o faturamento:", value="2.5", key="input_popup_iss")
         with col_pop2:
@@ -442,6 +464,11 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                     st.session_state["rascunho_itens"] = []
                     st.session_state["_safe_cliente_nome"] = ""
                     st.session_state["_safe_cnpj_val"] = ""
+                    st.session_state["input_popup_razao_social"] = ""
+                    st.session_state["input_popup_contato"] = ""
+                    st.session_state["input_popup_objeto"] = ""
+                    st.session_state["input_popup_fat_minimo"] = ""
+                    st.session_state["input_popup_outras_premissas"] = ""
                     
                     for k in list(st.session_state.keys()):
                         if k.startswith("input_tarifa_"):
@@ -534,6 +561,13 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                                         st.session_state["_safe_cliente_nome"] = c_nome_carregado
                                         st.session_state["_safe_cnpj_val"] = c_cnpj_carregado
                                         
+                                        # Atualiza a Razão Social no state ao carregar
+                                        st.session_state["input_popup_razao_social"] = c_nome_carregado
+                                        st.session_state["input_popup_contato"] = ""
+                                        st.session_state["input_popup_objeto"] = ""
+                                        st.session_state["input_popup_fat_minimo"] = ""
+                                        st.session_state["input_popup_outras_premissas"] = ""
+                                        
                                         novos_itens = []
                                         for _, row in df_prop_sel.iterrows():
                                             try:
@@ -556,9 +590,3 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                                         st.rerun()
                                 else:
                                     st.warning("Selecione uma proposta válida na lista.")
-                    else:
-                        st.info("Nenhuma proposta encontrada para o filtro selecionado.")
-                else:
-                    st.info("Nenhuma proposta gravada na folha Propostas_Salvas.")
-            except Exception as e:
-                st.error(f"Erro ao carregar propostas salvas do Google Sheets: {e}")
