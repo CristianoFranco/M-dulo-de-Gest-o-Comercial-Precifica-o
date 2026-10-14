@@ -66,7 +66,6 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato
     fat_min_text_style = ParagraphStyle('FatMinText', fontName='Helvetica', fontSize=8.5, leading=12, textColor=colors.HexColor('#222222'), alignment=TA_LEFT)
 
     th_style = ParagraphStyle('TH', fontName='Helvetica-Bold', fontSize=9, leading=11, textColor=colors.white, alignment=TA_LEFT)
-    th_style_right = ParagraphStyle('THRight', fontName='Helvetica-Bold', fontSize=9, leading=11, textColor=colors.white, alignment=TA_RIGHT)
     td_style_left = ParagraphStyle('TDLeft', fontName='Helvetica', fontSize=8, leading=11, textColor=colors.HexColor('#222222'), alignment=TA_LEFT)
     td_style_center = ParagraphStyle('TDCenter', fontName='Helvetica', fontSize=8, leading=11, textColor=colors.HexColor('#222222'), alignment=TA_CENTER)
     td_style_right = ParagraphStyle('TDRight', fontName='Helvetica', fontSize=8, leading=11, textColor=colors.HexColor('#222222'), alignment=TA_RIGHT)
@@ -151,7 +150,7 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato
                 Paragraph("Código", th_style),
                 Paragraph("Descrição", th_style),
                 Paragraph("Unidade", th_style),
-                Paragraph("Tarifa", th_style_right),
+                Paragraph("Tarifa", td_style_right),
                 Paragraph("Observações", th_style)
             ]
             tabela = Table([cabecalho] + linhas, colWidths=[45, 165, 125, 85, 120])
@@ -351,4 +350,266 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
         st.download_button(
             label="📥 Baixar / Visualizar Proposta em PDF",
             data=st.session_state["ultimo_pdf_bytes"],
-            file_name=st.session_state.get
+            file_name=st.session_state.get("ultimo_pdf_nome", "Proposta.pdf"),
+            mime="application/pdf",
+            use_container_width=True,
+            type="primary"
+        )
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("🔄 Iniciar Nova Proposta", use_container_width=True):
+            st.session_state.pop("ultimo_pdf_bytes", None)
+            st.session_state.pop("ultimo_pdf_nome", None)
+            st.session_state["proposta_id_em_edicao"] = None
+            st.session_state["proposta_id_ativo"] = None
+            st.session_state["rascunho_itens"] = []
+            st.session_state["_safe_cliente_nome"] = ""
+            st.session_state["_safe_cnpj_val"] = ""
+            st.session_state["form_prop_cliente_version"] += 1
+            st.rerun()
+        
+        st.markdown("---")
+        return
+
+    itens_rascunho = st.session_state.get("rascunho_itens", [])
+    cliente_nome = str(st.session_state.get("_safe_cliente_nome") or st.session_state.get("input_cli_nome_tela2", "")).strip()
+    cnpj_val = str(st.session_state.get("_safe_cnpj_val") or st.session_state.get("proposta_cliente_cnpj", "")).strip()
+    
+    key_rz = f"input_popup_razao_social_{ver_form}"
+    key_ct = f"input_popup_contato_{ver_form}"
+    key_is = f"input_popup_iss_{ver_form}"
+    key_obj = f"input_popup_objeto_{ver_form}"
+    key_pz = f"input_popup_prazo_{ver_form}"
+    key_vg = f"input_popup_vigencia_{ver_form}"
+    key_fm = f"input_popup_fat_minimo_{ver_form}"
+    key_op = f"input_popup_outras_premissas_{ver_form}"
+
+    if key_rz not in st.session_state:
+        st.session_state[key_rz] = cliente_nome
+    if key_ct not in st.session_state:
+        st.session_state[key_ct] = ""
+    if key_is not in st.session_state:
+        st.session_state[key_is] = "2.5"
+    if key_obj not in st.session_state:
+        st.session_state[key_obj] = ""
+    if key_pz not in st.session_state:
+        st.session_state[key_pz] = "30"
+    if key_vg not in st.session_state:
+        st.session_state[key_vg] = "12"
+    if key_fm not in st.session_state:
+        st.session_state[key_fm] = ""
+    if key_op not in st.session_state:
+        st.session_state[key_op] = ""
+
+    if st.session_state.get("proposta_id_em_edicao"):
+        numero_proposta_atual = str(st.session_state["proposta_id_em_edicao"])
+    elif st.session_state.get("proposta_id_ativo"):
+        numero_proposta_atual = str(st.session_state["proposta_id_ativo"])
+    else:
+        agora = datetime.now()
+        mes_str = agora.strftime("%m")
+        ano_str = agora.strftime("%Y")
+        seq = st.session_state.get("sequencial_proposta", 1)
+        numero_proposta_atual = mes_str + "/" + "{:05d}".format(seq) + "/" + ano_str
+
+    if not REPORTLAB_DISPONIVEL:
+        st.error("⚠️ A biblioteca 'reportlab' não está instalada ou disponível no ambiente. O PDF não pode ser gerado.")
+        return
+
+    if st.session_state.get("mensagem_sucesso_carregar"):
+        st.success(st.session_state.pop("mensagem_sucesso_carregar"))
+
+    st.markdown("### Documento da Proposta")
+    if not itens_rascunho:
+        st.warning("Nenhum item pendente no rascunho. Monte os itens na Tela 2 (Proposta Rascunho).")
+    else:
+        col_info1, col_info2, col_info3 = st.columns([2.5, 1.5, 1.5])
+        with col_info1:
+            lbl_cli = cliente_nome if cliente_nome else "Não Informado"
+            st.markdown("Cliente / Razão Social:\n### " + lbl_cli)
+        with col_info2:
+            lbl_cnpj = cnpj_val if cnpj_val else "Não Informado"
+            st.markdown("CNPJ:\n### " + lbl_cnpj)
+        with col_info3:
+            st.markdown("Número da Proposta:\n### " + numero_proposta_atual)
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        dados_estaticos = []
+        for item in itens_rascunho:
+            tarifa_val = item.get("Tarifa (R$)", 0.0)
+            try:
+                tarifa_float = float(tarifa_val)
+                tarifa_fmt = "R$ " + "{:,.5f}".format(tarifa_float).replace(",", "X").replace(".", ",").replace("X", ".")
+            except (ValueError, TypeError):
+                tarifa_fmt = str(tarifa_val)
+            
+            dados_estaticos.append({
+                "Proposta": numero_proposta_atual,
+                "Cliente": cliente_nome,
+                "CNPJ": cnpj_val,
+                "Código": item.get("Código", ""),
+                "Descrição": item.get("Descrição", ""),
+                "Categoria": item.get("Categoria", ""),
+                "Unidade": item.get("Unidade", ""),
+                "Tarifa": tarifa_fmt,
+                "Observações": item.get("Observações", "")
+            })
+        df_estatico = pd.DataFrame(dados_estaticos)
+        
+        st.dataframe(df_estatico, use_container_width=True, hide_index=True)
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+    st.markdown("---")
+    st.markdown("### ⚙️ Parâmetros da Proposta Comercial (PDF)")
+    
+    with st.form(f"form_parametros_proposta_pdf_{ver_form}"):
+        col_pop1, col_pop2 = st.columns(2)
+        with col_pop1:
+            input_razao_social = st.text_input("Razão Social da Empresa Contratante:", key=key_rz)
+            input_contato = st.text_input("Contato do Cliente:", placeholder="Ex: Nome do responsável", key=key_ct)
+            input_iss = st.text_input("% I.S.S sobre o faturamento:", key=key_is)
+        with col_pop2:
+            input_objeto = st.text_input("Objeto da Proposta:", placeholder="Ex: Prestação de serviços logísticos", key=key_obj)
+            input_prazo = st.text_input("Prazo de pagamento em dias:", key=key_pz)
+            input_vigencia = st.text_input("Vigência mínima em meses:", key=key_vg)
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        input_fat_minimo = st.text_area(
+            "Faturamento Mínimo Mensal:",
+            placeholder="Ex: Faturamento mínimo mensal fixado em R$ 10.000,00, aplicável independentemente do volume utilizado no mês.",
+            key=key_fm,
+            help="Texto/condição de faturamento mínimo a ser exibido em destaque abaixo do tarifário."
+        )
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        input_outras_premissas = st.text_area(
+            "Outras Premissas:",
+            placeholder="Ex: Condições adicionais ou observações específicas aplicáveis à operação...",
+            key=key_op,
+            help="Informações adicionais que serão adicionadas como item 10 logo abaixo das premissas padrões no PDF."
+        )
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown(f"**Número da Proposta:** `{numero_proposta_atual}`")
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        submitted_pdf = st.form_submit_button("💾 Salvar Proposta e Gerar PDF", use_container_width=True, type="primary")
+
+        if submitted_pdf:
+            c_nome = str(input_razao_social).strip()
+            c_cnpj = str(st.session_state.get("_safe_cnpj_val") or st.session_state.get("proposta_cliente_cnpj", "")).strip()
+            c_contato = str(input_contato).strip()
+            c_objeto = str(input_objeto).strip()
+            c_iss = str(input_iss).strip()
+            c_prazo = str(input_prazo).strip()
+            c_vigencia = str(input_vigencia).strip()
+            c_fat_minimo = str(input_fat_minimo).strip()
+            c_outras_premissas = str(input_outras_premissas).strip()
+            
+            if not c_nome:
+                st.error("⚠️ O nome da Razão Social é obrigatório!")
+            elif not c_contato:
+                st.error("⚠️ O Contato do cliente é obrigatório!")
+            elif not c_objeto:
+                st.error("⚠️ O Objeto da proposta é obrigatório!")
+            elif not itens_rascunho:
+                st.error("⚠️ Não há itens no rascunho para salvar.")
+            elif salvar_proposta_sheets_fn:
+                linhas_para_salvar = []
+                data_hoje = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                for item in itens_rascunho:
+                    try:
+                        t_val = float(item.get("Tarifa (R$)", 0.0))
+                    except (ValueError, TypeError):
+                        t_val = 0.0
+                        
+                    linhas_para_salvar.append({
+                        "Proposta": numero_proposta_atual,
+                        "Data": data_hoje,
+                        "Cliente": c_nome,
+                        "CNPJ": c_cnpj,
+                        "Código": str(item.get("Código", "")),
+                        "Descrição": str(item.get("Descrição", "")),
+                        "Categoria": str(item.get("Categoria", "")),
+                        "Unidade": str(item.get("Unidade", "")),
+                        "Tarifa (R$)": t_val,
+                        "Observações": str(item.get("Observações", ""))
+                    })
+                sucesso = salvar_proposta_sheets_fn(linhas_para_salvar)
+                if sucesso:
+                    pdf_bytes = gerar_pdf_proposta_completo(
+                        numero_proposta_atual,
+                        c_nome,
+                        c_cnpj,
+                        c_contato,
+                        c_objeto,
+                        c_iss,
+                        c_prazo,
+                        c_vigencia,
+                        c_fat_minimo,
+                        c_outras_premissas,
+                        itens_rascunho
+                    )
+                    nome_arquivo_pdf = "Proposta_" + str(numero_proposta_atual).replace("/", "_") + ".pdf"
+                    
+                    st.session_state["ultimo_pdf_bytes"] = pdf_bytes
+                    st.session_state["ultimo_pdf_nome"] = nome_arquivo_pdf
+                    
+                    st.session_state["proposta_id_em_edicao"] = None
+                    st.session_state["proposta_id_ativo"] = None
+                    st.session_state["rascunho_itens"] = []
+                    st.session_state["_safe_cliente_nome"] = ""
+                    st.session_state["_safe_cnpj_val"] = ""
+                    
+                    for k in list(st.session_state.keys()):
+                        if k.startswith("input_tarifa_"):
+                            del st.session_state[k]
+                    st.rerun()
+                else:
+                    st.error("Falha ao salvar no Google Sheets.")
+
+    st.markdown("---")
+    st.markdown("### Consulta Propostas Finalizadas")
+    with st.expander("Filtrar e Consultar Propostas Salvas", expanded=True):
+        col_filtro_m, col_filtro_a = st.columns(2)
+        with col_filtro_m:
+            mes_consulta = st.selectbox(
+                "Filtrar por Mês:",
+                options=["Todos", "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"],
+                index=0,
+                key="select_mes_consulta_cli"
+            )
+            
+        with col_filtro_a:
+            ano_consulta = st.text_input("Filtrar por Ano (Ex: 2026):", value="", key="input_ano_consulta_cli")
+            
+        if carregar_propostas_salvas_fn:
+            try:
+                df_historico = carregar_propostas_salvas_fn()
+                if isinstance(df_historico, pd.DataFrame) and not df_historico.empty:
+                    df_filtrado = df_historico.copy()
+                    if "Proposta" in df_filtrado.columns:
+                        if mes_consulta != "Todos":
+                            prefixo = str(mes_consulta) + "/"
+                            df_filtrado = df_filtrado[df_filtrado["Proposta"].astype(str).str.startswith(prefixo)]
+                        if ano_consulta.strip():
+                            sufixo = "/" + ano_consulta.strip()
+                            df_filtrado = df_filtrado[df_filtrado["Proposta"].astype(str).str.endswith(sufixo)]
+                        
+                        opcoes_propostas_formatadas = []
+                        for prop_num, grupo in df_filtrado.groupby("Proposta"):
+                            p_str = str(prop_num).strip()
+                            if p_str and p_str != "nan":
+                                cli_val = str(grupo["Cliente"].iloc[0]).strip() if "Cliente" in grupo.columns and not grupo.empty else "Cliente não informado"
+                                rotulo_opcao = f"{p_str} - {cli_val}"
+                                opcoes_propostas_formatadas.append(rotulo_opcao)
+                        
+                        if opcoes_propostas_formatadas:
+                            sel_p = st.selectbox("Selecione a Proposta Salva:", options=[""] + opcoes_propostas_formatadas, key="proposta_selecionada_temp")
+                            if sel_p:
+                                if st.button("📂 Carregar Proposta para Edição / Reimpressão", key="btn_disparar_carga_prop_cli", use_container_width=True):
+                                    st.session_state["btn_carregar_proposta_clicado"] = True
+                                    st.rerun()
+                        else:
+                            st.info("Nenhuma proposta encontrada com os filtros selecionados.")
+            except Exception as e:
+                st.warning(f"Não foi possível carregar as propostas salvas: {e}")
