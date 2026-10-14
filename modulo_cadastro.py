@@ -64,7 +64,6 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
         unidade_opcoes = st.session_state.get("lista_unidades", ["", "Por caixa", "por unidade", "por pallet", "por hora/homem", "por etiqueta", "por volume", "por mês", "percentual"])
         unidade_input = st.selectbox("Unidade *", options=unidade_opcoes, key=f"cad_un_v16_{ver}")
         
-        # CONTROLO DE ADIÇÃO DE NOVA UNIDADE COM CHAVE DINÂMICA PARA LIMPEZA SEGURA
         if f"limpar_input_unidade_{ver}" not in st.session_state:
             st.session_state[f"limpar_input_unidade_{ver}"] = False
 
@@ -138,7 +137,7 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
                     else:
                         df_novo = pd.DataFrame([novo_registro])
                         df_completo = pd.concat([df_completo, df_novo], ignore_index=True)
-                        st.success(f"Servício '{descricao_input}' cadastrado com sucesso!")
+                        st.success(f"Serviço '{descricao_input}' cadastrado com sucesso!")
 
                     if salvar_dados_completos_fn:
                         salvar_dados_completos_fn(df_completo)
@@ -247,7 +246,7 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
                                 "Tarifa (R$)": tarifa_val,
                                 "Unidade": edit_un,
                                 "Categoria": edit_cat,
-                                "Observações": edit_obs.strip() if obs_input else "",
+                                "Observações": edit_obs.strip() if edit_obs else "",
                                 "Status": "Ativo"
                             }
                             
