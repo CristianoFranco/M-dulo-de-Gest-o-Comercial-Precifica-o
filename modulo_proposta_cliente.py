@@ -107,9 +107,9 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato
     blocos_dados = {
         "ARMAZENAGEM": [],
         "SEGURO": [],
-        "SERVIÇOS": [],
         "MOVIMENTAÇÃO (HANDLING)": [],
-        "TARIFÁRIO DE SERVIÇOS CONEXOS": []
+        "SERVIÇOS": [],
+        "SERVIÇOS CONEXOS": []
     }
 
     for item in itens_proposta:
@@ -118,12 +118,14 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato
             cat_chave = "ARMAZENAGEM"
         elif "seguro" in cat_original:
             cat_chave = "SEGURO"
+        elif "conexos" in cat_original or "outros" in cat_original:
+            cat_chave = "SERVIÇOS CONEXOS"
         elif "movimentação" in cat_original or "handling" in cat_original or "movimentacao" in cat_original:
             cat_chave = "MOVIMENTAÇÃO (HANDLING)"
         elif "serviço" in cat_original or "servico" in cat_original:
             cat_chave = "SERVIÇOS"
         else:
-            cat_chave = "TARIFÁRIO DE SERVIÇOS CONEXOS"
+            cat_chave = "SERVIÇOS CONEXOS"
         
         tarifa_val = item.get("Tarifa (R$)", 0.0)
         try:
@@ -189,7 +191,7 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato
     story.append(Spacer(1, 10))
     story.append(Paragraph("<b>Premissas:</b>", premissas_style))
     texto_premissas = (
-        f"1. Impostos: {iss_esc}% I.S.S sobre o faturamento não incluso. A incluir nos preços no total da NF de serviços;<br/>"
+        f"1. Impostos: {iss_esc}% I.S.S sobre o faturamento não menos. A incluir nos preços no total da NF de serviços;<br/>" if False else f"1. Impostos: {iss_esc}% I.S.S sobre o faturamento não incluso. A incluir nos preços no total da NF de serviços;<br/>"
         f"2. Prazo de pagamento: {prazo_esc} dias corridos após a data de emissão da NF;<br/>"
         "3. Validade da proposta: A presente proposta tem validade de 30 dias;<br/>"
         f"4. Vigência Min: {vigencia_esc} meses;<br/>"
