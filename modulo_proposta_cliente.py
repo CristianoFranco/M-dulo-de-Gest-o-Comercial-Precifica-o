@@ -265,7 +265,12 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
     st.caption("Visualização pronta para conferência, geração de PDF e salvamento.")
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # 1. PROCESSAR AÇÃO DE CARREGAR PROPOSTA ANTES DE INSTANCIAR QUALQUER WIDGET COM CHAVE
+    if "form_prop_cliente_version" not in st.session_state:
+        st.session_state["form_prop_cliente_version"] = 1
+
+    ver_form = st.session_state["form_prop_cliente_version"]
+
+    # 1. PROCESSAR AÇÃO DE CARREGAR PROPOSTA ANTES DE INSTANCIAR QUALQUER WIDGET
     if carregar_propostas_salvas_fn and st.session_state.get("btn_carregar_proposta_clicado"):
         st.session_state["btn_carregar_proposta_clicado"] = False
         prop_escolhida = str(st.session_state.get("proposta_selecionada_temp", "")).strip()
@@ -285,12 +290,18 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                         st.session_state["_safe_cliente_nome"] = c_nome_carregado
                         st.session_state["_safe_cnpj_val"] = c_cnpj_carregado
                         
-                        # Atualizações do state que rodam antes da criação do form
-                        st.session_state["input_popup_razao_social"] = c_nome_carregado
-                        st.session_state["input_popup_contato"] = ""
-                        st.session_state["input_popup_objeto"] = ""
-                        st.session_state["input_popup_fat_minimo"] = ""
-                        st.session_state["input_popup_outras_premissas"] = ""
+                        # Incrementa a versão para forçar a recriação limpa do formulário com os novos dados
+                        st.session_state["form_prop_cliente_version"] += 1
+                        ver_form = st.session_state["form_prop_cliente_version"]
+
+                        st.session_state[f"input_popup_razao_social_{ver_form}"] = c_nome_carregado
+                        st.session_state[f"input_popup_contato_{ver_form}"] = ""
+                        st.session_state[f"input_popup_objeto_{ver_form}"] = ""
+                        st.session_state[f"input_popup_iss_{ver_form}"] = "2.5"
+                        st.session_state[f"input_popup_prazo_{ver_form}"] = "30"
+                        st.session_state[f"input_popup_vigencia_{ver_form}"] = "12"
+                        st.session_state[f"input_popup_fat_minimo_{ver_form}"] = ""
+                        st.session_state[f"input_popup_outras_premissas_{ver_form}"] = ""
                         
                         novos_itens = []
                         for _, row in df_prop_sel.iterrows():
@@ -311,24 +322,40 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                             
                         st.session_state["rascunho_itens"] = novos_itens
                         st.session_state["mensagem_sucesso_carregar"] = f"Proposta '{prop_escolhida}' carregada com sucesso!"
+                        st.rerun()
             except Exception as e:
                 st.error(f"Erro ao carregar proposta: {e}")
 
-    # 2. INICIALIZAÇÃO DE ESTADO DAS VARIÁVEIS DO FORMULÁRIO
+    # 2. INICIALIZAÇÃO DE ESTADO DAS VARIÁVEIS DO FORMULÁRIO COM VERSÃO DINÂMICA
     itens_rascunho = st.session_state.get("rascunho_itens", [])
     cliente_nome = str(st.session_state.get("_safe_cliente_nome") or st.session_state.get("input_cli_nome_tela2", "")).strip()
     cnpj_val = str(st.session_state.get("_safe_cnpj_val") or st.session_state.get("proposta_cliente_cnpj", "")).strip()
     
-    if "input_popup_razao_social" not in st.session_state:
-        st.session_state["input_popup_razao_social"] = cliente_nome
-    if "input_popup_contato" not in st.session_state:
-        st.session_state["input_popup_contato"] = ""
-    if "input_popup_objeto" not in st.session_state:
-        st.session_state["input_popup_objeto"] = ""
-    if "input_popup_fat_minimo" not in st.session_state:
-        st.session_state["input_popup_fat_minimo"] = ""
-    if "input_popup_outras_premissas" not in st.session_state:
-        st.session_state["input_popup_outras_premissas"] = ""
+    key_rz = f"input_popup_razao_social_{ver_form}"
+    key_ct = f"input_popup_contato_{ver_form}"
+    key_is = f"input_popup_iss_{ver_form}"
+    key_obj = f"input_popup_objeto_{ver_form}"
+    key_pz = f"input_popup_prazo_{ver_form}"
+    key_vg = f"input_popup_vigencia_{ver_form}"
+    key_fm = f"input_popup_fat_minimo_{ver_form}"
+    key_op = f"input_popup_outras_premissas_{ver_form}"
+
+    if key_rz not in st.session_state:
+        st.session_state[key_rz] = cliente_nome
+    if key_ct not in st.session_state:
+        st.session_state[key_ct] = ""
+    if key_is not in st.session_state:
+        st.session_state[key_is] = "2.5"
+    if key_obj not in st.session_state:
+        st.session_state[key_obj] = ""
+    if key_pz not in st.session_state:
+        st.session_state[key_pz] = "30"
+    if key_vg not in st.session_state:
+        st.session_state[key_vg] = "12"
+    if key_fm not in st.session_state:
+        st.session_state[key_fm] = ""
+    if key_op not in st.session_state:
+        st.session_state[key_op] = ""
 
     if st.session_state.get("proposta_id_em_edicao"):
         numero_proposta_atual = str(st.session_state["proposta_id_em_edicao"])
@@ -368,11 +395,7 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
             st.session_state["rascunho_itens"] = []
             st.session_state["_safe_cliente_nome"] = ""
             st.session_state["_safe_cnpj_val"] = ""
-            st.session_state["input_popup_razao_social"] = ""
-            st.session_state["input_popup_contato"] = ""
-            st.session_state["input_popup_objeto"] = ""
-            st.session_state["input_popup_fat_minimo"] = ""
-            st.session_state["input_popup_outras_premissas"] = ""
+            st.session_state["form_prop_cliente_version"] += 1
             st.rerun()
 
     # 3. EXIBIÇÃO RESUMIDA DO DOCUMENTO
@@ -419,23 +442,23 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
     st.markdown("---")
     st.markdown("### ⚙️ Parâmetros da Proposta Comercial (PDF)")
     
-    # 4. FORMULÁRIO DE PARÂMETROS
-    with st.form("form_parametros_proposta_pdf"):
+    # 4. FORMULÁRIO DE PARÂMETROS COM CHAVES DINÂMICAS DE VERSÃO
+    with st.form(f"form_parametros_proposta_pdf_{ver_form}"):
         col_pop1, col_pop2 = st.columns(2)
         with col_pop1:
-            input_razao_social = st.text_input("Razão Social da Empresa Contratante:", key="input_popup_razao_social")
-            input_contato = st.text_input("Contato do Cliente:", placeholder="Ex: Nome do responsável", key="input_popup_contato")
-            input_iss = st.text_input("% I.S.S sobre o faturamento:", value="2.5", key="input_popup_iss")
+            input_razao_social = st.text_input("Razão Social da Empresa Contratante:", key=key_rz)
+            input_contato = st.text_input("Contato do Cliente:", placeholder="Ex: Nome do responsável", key=key_ct)
+            input_iss = st.text_input("% I.S.S sobre o faturamento:", key=key_is)
         with col_pop2:
-            input_objeto = st.text_input("Objeto da Proposta:", placeholder="Ex: Prestação de serviços logísticos", key="input_popup_objeto")
-            input_prazo = st.text_input("Prazo de pagamento em dias:", value="30", key="input_popup_prazo")
-            input_vigencia = st.text_input("Vigência mínima em meses:", value="12", key="input_popup_vigencia")
+            input_objeto = st.text_input("Objeto da Proposta:", placeholder="Ex: Prestação de serviços logísticos", key=key_obj)
+            input_prazo = st.text_input("Prazo de pagamento em dias:", key=key_pz)
+            input_vigencia = st.text_input("Vigência mínima em meses:", key=key_vg)
 
         st.markdown("<br>", unsafe_allow_html=True)
         input_fat_minimo = st.text_area(
             "Faturamento Mínimo Mensal:",
             placeholder="Ex: Faturamento mínimo mensal fixado em R$ 10.000,00, aplicável independentemente do volume utilizado no mês.",
-            key="input_popup_fat_minimo",
+            key=key_fm,
             help="Texto/condição de faturamento mínimo a ser exibido em destaque abaixo do tarifário."
         )
         
@@ -443,7 +466,7 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
         input_outras_premissas = st.text_area(
             "Outras Premissas:",
             placeholder="Ex: Condições adicionais ou observações específicas aplicáveis à operação...",
-            key="input_popup_outras_premissas",
+            key=key_op,
             help="Informações adicionais que serão adicionadas como item 10 logo abaixo das premissas padrões no PDF."
         )
 
@@ -518,11 +541,7 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                     st.session_state["rascunho_itens"] = []
                     st.session_state["_safe_cliente_nome"] = ""
                     st.session_state["_safe_cnpj_val"] = ""
-                    st.session_state["input_popup_razao_social"] = ""
-                    st.session_state["input_popup_contato"] = ""
-                    st.session_state["input_popup_objeto"] = ""
-                    st.session_state["input_popup_fat_minimo"] = ""
-                    st.session_state["input_popup_outras_premissas"] = ""
+                    st.session_state["form_prop_cliente_version"] += 1
                     
                     for k in list(st.session_state.keys()):
                         if k.startswith("input_tarifa_"):
