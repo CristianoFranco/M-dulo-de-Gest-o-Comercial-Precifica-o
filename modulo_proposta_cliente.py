@@ -118,7 +118,7 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato
             cat_chave = "ARMAZENAGEM"
         elif "seguro" in cat_original:
             cat_chave = "SEGURO"
-        elif "conexos" in cat_original or "outros" in cat_original:
+        elif "conexos" in cat_original or "outros" in cat_original or "serviços conexos" in cat_original:
             cat_chave = "SERVIÇOS CONEXOS"
         elif "movimentação" in cat_original or "handling" in cat_original or "movimentacao" in cat_original:
             cat_chave = "MOVIMENTAÇÃO (HANDLING)"
@@ -591,3 +591,28 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                 if isinstance(df_historico, pd.DataFrame) and not df_historico.empty:
                     df_filtrado = df_historico.copy()
                     if "Proposta" in df_filtrado.columns:
+                        if mes_consulta != "Todos":
+                            prefixo = str(mes_consulta) + "/"
+                            df_filtrado = df_filtrado[df_filtrado["Proposta"].astype(str).str.startswith(prefixo)]
+                        if ano_consulta.strip():
+                            sufixo = "/" + ano_consulta.strip()
+                            df_filtrado = df_filtrado[df_filtrado["Proposta"].astype(str).str.endswith(sufixo)]
+                        
+                        opcoes_propostas_formatadas = []
+                        for prop_num, grupo in df_filtrado.groupby("Proposta"):
+                            p_str = str(prop_num).strip()
+                            if p_str and p_str != "nan":
+                                cli_val = str(grupo["Cliente"].iloc[0]).strip() if "Cliente" in grupo.columns and not grupo.empty else "Cliente não informado"
+                                rotulo_opcao = f"{p_str} - {cli_val}"
+                                opcoes_propostas_formatadas.append(rotulo_opcao)
+                        
+                        if opcoes_propostas_formatadas:
+                            sel_p = st.selectbox("Selecione a Proposta Salva:", options=[""] + opcoes_propostas_formatadas, key="proposta_selecionada_temp")
+                            if sel_p:
+                                if st.button("📂 Carregar Proposta para Edição / Reimpressão", key="btn_disparar_carga_prop_cli", use_container_width=True):
+                                    st.session_state["btn_carregar_proposta_clicado"] = True
+                                    st.rerun()
+                        else:
+                            st.info("Nenhuma proposta encontrada com os filtros selecionados.")
+            except Exception as e:
+                st.warning(f"Não foi possível carregar as propostas salvas: {e}")
