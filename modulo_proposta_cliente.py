@@ -264,12 +264,61 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
     st.markdown("## Visão Final da Proposta (Cliente)")
     st.caption("Visualização pronta para conferência, geração de PDF e salvamento.")
     st.markdown("<br>", unsafe_allow_html=True)
-    
+
+    # 1. PROCESSAR AÇÃO DE CARREGAR PROPOSTA ANTES DE INSTANCIAR QUALQUER WIDGET COM CHAVE
+    if carregar_propostas_salvas_fn and st.session_state.get("btn_carregar_proposta_clicado"):
+        st.session_state["btn_carregar_proposta_clicado"] = False
+        prop_escolhida = str(st.session_state.get("proposta_selecionada_temp", "")).strip()
+        if prop_escolhida:
+            try:
+                df_historico_tmp = carregar_propostas_salvas_fn()
+                if isinstance(df_historico_tmp, pd.DataFrame) and not df_historico_tmp.empty:
+                    df_prop_sel = df_historico_tmp[df_historico_tmp["Proposta"].astype(str).str.strip() == prop_escolhida]
+                    if not df_prop_sel.empty:
+                        st.session_state["proposta_id_em_edicao"] = prop_escolhida
+                        st.session_state["proposta_id_ativo"] = prop_escolhida
+                        
+                        primeiro_reg = df_prop_sel.iloc[0]
+                        c_nome_carregado = str(primeiro_reg.get("Cliente", ""))
+                        c_cnpj_carregado = str(primeiro_reg.get("CNPJ", "")) if "CNPJ" in primeiro_reg else ""
+                        
+                        st.session_state["_safe_cliente_nome"] = c_nome_carregado
+                        st.session_state["_safe_cnpj_val"] = c_cnpj_carregado
+                        
+                        # Atualizações do state que rodam antes da criação do form
+                        st.session_state["input_popup_razao_social"] = c_nome_carregado
+                        st.session_state["input_popup_contato"] = ""
+                        st.session_state["input_popup_objeto"] = ""
+                        st.session_state["input_popup_fat_minimo"] = ""
+                        st.session_state["input_popup_outras_premissas"] = ""
+                        
+                        novos_itens = []
+                        for _, row in df_prop_sel.iterrows():
+                            try:
+                                tarifa_val = float(row.get("Tarifa (R$)", 0.0))
+                            except (ValueError, TypeError):
+                                tarifa_val = 0.0
+                                
+                            novos_itens.append({
+                                "Código": str(row.get("Código", "")),
+                                "Descrição": str(row.get("Descrição", "")),
+                                "Tarifa (R$)": tarifa_val,
+                                "Unidade": str(row.get("Unidade", "")),
+                                "Observações": str(row.get("Observações", "")),
+                                "Categoria": str(row.get("Categoria", "")),
+                                "Cat_Code": "GEN"
+                            })
+                            
+                        st.session_state["rascunho_itens"] = novos_itens
+                        st.session_state["mensagem_sucesso_carregar"] = f"Proposta '{prop_escolhida}' carregada com sucesso!"
+            except Exception as e:
+                st.error(f"Erro ao carregar proposta: {e}")
+
+    # 2. INICIALIZAÇÃO DE ESTADO DAS VARIÁVEIS DO FORMULÁRIO
     itens_rascunho = st.session_state.get("rascunho_itens", [])
     cliente_nome = str(st.session_state.get("_safe_cliente_nome") or st.session_state.get("input_cli_nome_tela2", "")).strip()
     cnpj_val = str(st.session_state.get("_safe_cnpj_val") or st.session_state.get("proposta_cliente_cnpj", "")).strip()
     
-    # Inicialização ou limpeza dos campos do formulário no session_state
     if "input_popup_razao_social" not in st.session_state:
         st.session_state["input_popup_razao_social"] = cliente_nome
     if "input_popup_contato" not in st.session_state:
@@ -295,6 +344,9 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
     if not REPORTLAB_DISPONIVEL:
         st.error("⚠️ A biblioteca 'reportlab' não está instalada ou disponível no ambiente. O PDF não pode ser gerado.")
         return
+
+    if st.session_state.get("mensagem_sucesso_carregar"):
+        st.success(st.session_state.pop("mensagem_sucesso_carregar"))
 
     if st.session_state.get("ultimo_pdf_bytes"):
         st.success("✅ Proposta salva com sucesso no Google Sheets e documento PDF gerado!")
@@ -323,6 +375,7 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
             st.session_state["input_popup_outras_premissas"] = ""
             st.rerun()
 
+    # 3. EXIBIÇÃO RESUMIDA DO DOCUMENTO
     st.markdown("### Documento da Proposta")
     if not itens_rascunho:
         st.warning("Nenhum item pendente no rascunho. Monte os itens na Tela 2 (Proposta Rascunho).")
@@ -366,6 +419,7 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
     st.markdown("---")
     st.markdown("### ⚙️ Parâmetros da Proposta Comercial (PDF)")
     
+    # 4. FORMULÁRIO DE PARÂMETROS
     with st.form("form_parametros_proposta_pdf"):
         col_pop1, col_pop2 = st.columns(2)
         with col_pop1:
@@ -477,6 +531,7 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                 else:
                     st.error("Falha ao salvar no Google Sheets.")
 
+    # 5. CONSULTA PROPOSTAS FINALIZADAS
     st.markdown("---")
     st.markdown("### Consulta Propostas Finalizadas")
     with st.expander("Filtrar e Consultar Propostas Salvas", expanded=True):
@@ -485,11 +540,12 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
             mes_consulta = st.selectbox(
                 "Filtrar por Mês:",
                 options=["Todos", "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"],
-                index=0
+                index=0,
+                key="select_mes_consulta_cli"
             )
             
         with col_filtro_a:
-            ano_consulta = st.text_input("Filtrar por Ano (Ex: 2026):", value="")
+            ano_consulta = st.text_input("Filtrar por Ano (Ex: 2026):", value="", key="input_ano_consulta_cli")
             
         if carregar_propostas_salvas_fn:
             try:
@@ -546,48 +602,11 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                         with col_btn_carregar:
                             st.write("")
                             st.write("")
-                            if st.button("Carregar Proposta", type="primary", use_container_width=True):
+                            if st.button("Carregar Proposta", type="primary", use_container_width=True, key="btn_trigger_carregar_prop"):
                                 if prop_escolhida:
-                                    df_prop_sel = df_historico[df_historico["Proposta"].astype(str).str.strip() == prop_escolhida.strip()]
-                                    
-                                    if not df_prop_sel.empty:
-                                        st.session_state["proposta_id_em_edicao"] = prop_escolhida.strip()
-                                        st.session_state["proposta_id_ativo"] = prop_escolhida.strip()
-                                        
-                                        primeiro_reg = df_prop_sel.iloc[0]
-                                        c_nome_carregado = str(primeiro_reg.get("Cliente", ""))
-                                        c_cnpj_carregado = str(primeiro_reg.get("CNPJ", "")) if "CNPJ" in primeiro_reg else ""
-                                        
-                                        st.session_state["_safe_cliente_nome"] = c_nome_carregado
-                                        st.session_state["_safe_cnpj_val"] = c_cnpj_carregado
-                                        
-                                        # Atualiza a Razão Social no state ao carregar
-                                        st.session_state["input_popup_razao_social"] = c_nome_carregado
-                                        st.session_state["input_popup_contato"] = ""
-                                        st.session_state["input_popup_objeto"] = ""
-                                        st.session_state["input_popup_fat_minimo"] = ""
-                                        st.session_state["input_popup_outras_premissas"] = ""
-                                        
-                                        novos_itens = []
-                                        for _, row in df_prop_sel.iterrows():
-                                            try:
-                                                tarifa_val = float(row.get("Tarifa (R$)", 0.0))
-                                            except (ValueError, TypeError):
-                                                tarifa_val = 0.0
-                                                
-                                            novos_itens.append({
-                                                "Código": str(row.get("Código", "")),
-                                                "Descrição": str(row.get("Descrição", "")),
-                                                "Tarifa (R$)": tarifa_val,
-                                                "Unidade": str(row.get("Unidade", "")),
-                                                "Observações": str(row.get("Observações", "")),
-                                                "Categoria": str(row.get("Categoria", "")),
-                                                "Cat_Code": "GEN"
-                                            })
-                                            
-                                        st.session_state["rascunho_itens"] = novos_itens
-                                        st.success("Proposta carregada com sucesso!")
-                                        st.rerun()
+                                    st.session_state["proposta_selecionada_temp"] = prop_escolhida
+                                    st.session_state["btn_carregar_proposta_clicado"] = True
+                                    st.rerun()
                                 else:
                                     st.warning("Selecione uma proposta válida na lista.")
                     else:
