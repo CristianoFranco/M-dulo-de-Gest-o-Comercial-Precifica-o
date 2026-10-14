@@ -19,10 +19,8 @@ def desenhar_cabecalho_rodape(canvas, doc):
     canvas.saveState()
     diretorio_atual = os.path.dirname(os.path.abspath(__file__))
     logo_path = os.path.join(diretorio_atual, 'Logo.png')
-    
     if os.path.exists(logo_path):
         canvas.drawImage(logo_path, x=236, y=730, width=140, height=45, preserveAspectRatio=True, mask='auto')
-
     canvas.setFont('Helvetica', 8)
     canvas.setFillColor(colors.HexColor('#555555'))
     canvas.drawCentredString(612 / 2.0, 35, "Avenida Vitoria Rossi Martini, 31")
@@ -32,14 +30,7 @@ def desenhar_cabecalho_rodape(canvas, doc):
 
 def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato_cliente, objeto_proposta, iss_val, prazo_val, vigencia_val, fat_minimo_val, outras_premissas_val, itens_proposta):
     buffer = io.BytesIO()
-    doc = SimpleDocTemplate(
-        buffer,
-        pagesize=letter,
-        rightMargin=36,
-        leftMargin=36,
-        topMargin=90,
-        bottomMargin=55
-    )
+    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=36, leftMargin=36, topMargin=90, bottomMargin=55)
     story = []
     styles = getSampleStyleSheet()
     
@@ -83,18 +74,10 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato
     story.append(Spacer(1, 8))
     story.append(Paragraph("Prezados,", body_left_style))
     
-    texto_intro = (
-        f"Apresentamos a proposta comercial da Globex Multimodal para a gestão de armazenagem e movimentação de cargas da <b>{c_nome_esc}</b>. "
-        "Sediada estrategicamente no polo logístico de Indaiatuba-SP, a Globex combina infraestrutura moderna, rigor técnico e agilidade operacional. "
-        "Desenvolvemos operações sob medida para cadeias de suprimentos exigentes, assegurando controle de ponta a ponta, total conformidade regulatória e integridade máxima dos seus produtos."
-    )
+    texto_intro = f"Apresentamos a proposta comercial da Globex Multimodal para a gestão de armazenagem e movimentação de cargas da <b>{c_nome_esc}</b>. Sediada estrategicamente no polo logístico de Indaiatuba-SP, a Globex combina infraestrutura moderna, rigor técnico e agilidade operacional. Desenvolvemos operações sob medida para cadeias de suprimentos exigentes, assegurando controle de ponta a ponta, total conformidade regulatória e integridade máxima dos seus produtos."
     story.append(Paragraph(texto_intro, body_justify_style))
     
-    texto_intro2 = (
-        f"Apresentamos a seguir nossa tabela de serviços e tarifas. Para facilitar a compreensão e o planejamento financeiro da <b>{c_nome_esc}</b>, "
-        "na apresentação da proposta haverá uma simulação prática da aplicação dessas tarifas para o período informado, calculada com base no volume "
-        "e nas premissas operacionais compartilhadas pela sua equipe. Trata-se de uma projeção ilustrativa desenhada para dar total visibilidade ao custo estimado da operação."
-    )
+    texto_intro2 = f"Apresentamos a seguir nossa tabela de serviços e tarifas. Para facilitar a compreensão e o planejamento financeiro da <b>{c_nome_esc}</b>, na apresentação da proposta haverá uma simulação prática da aplicação dessas tarifas para o período informado, calculada com base no volume e nas premissas operacionais compartilhadas pela sua equipe. Trata-se de uma projeção ilustrativa desenhada para dar total visibilidade ao custo estimado da operação."
     story.append(Paragraph(texto_intro2, body_justify_style))
     story.append(Spacer(1, 15))
     story.append(Paragraph("<b>Richarlles Nascimento</b> – Executivo de Contas &nbsp;&nbsp;|&nbsp;&nbsp; Tel.: (19) 99959-9894", body_left_style))
@@ -208,17 +191,10 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato
     story.append(Paragraph("<b>TERMO DE ACEITE PARA PRESTAÇÃO DE SERVIÇOS</b>", titulo_termo_center))
     story.append(Spacer(1, 6))
     
-    termo_p1 = (
-        f"Com a assinatura do presente termo, a empresa cliente, por meio de seu representante, responsável pelo fechamento da venda, "
-        f"declara que aceita todas as condições dispostas na proposta <b>{num_prop_esc}</b> apresentada pela <b>GLOBEX MULTIMODAL</b>, "
-        "ficando ciente que: A prestação dos serviços inicia-se na data expressa no presente termo."
-    )
+    termo_p1 = f"Com a assinatura do presente termo, a empresa cliente, por meio de seu representante, responsável pelo fechamento da venda, declara que aceita todas as condições dispostas na proposta <b>{num_prop_esc}</b> apresentada pela <b>GLOBEX MULTIMODAL</b>, ficando ciente que: A prestação dos serviços inicia-se na data expressa no presente termo."
     story.append(Paragraph(termo_p1, body_justify_style))
     
-    termo_p2 = (
-        "A assinatura do presente termo autoriza a GLOBEX MULTIMODAL a iniciar a prestação dos serviços e consequente faturamento, "
-        "seguindo os valores e condições descritas na proposta comercial ora aceita."
-    )
+    termo_p2 = "A assinatura do presente termo autoriza a GLOBEX MULTIMODAL a iniciar a prestação dos serviços e consequente faturamento, seguindo os valores e condições descritas na proposta comercial ora aceita."
     story.append(Paragraph(termo_p2, body_justify_style))
     
     clausulas = [
@@ -343,4 +319,123 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                         st.session_state["mensagem_sucesso_carregar"] = f"Proposta '{prop_escolhida}' carregada com sucesso!"
                         st.rerun()
             except Exception as e:
-                st.error(f"Erro ao carregar proposta: {
+                st.error(f"Erro ao carregar proposta: {e}")
+
+    if st.session_state.get("ultimo_pdf_bytes"):
+        st.success("✅ Proposta salva com sucesso no Google Sheets e documento PDF gerado!")
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.download_button(
+            label="📥 Baixar / Visualizar Proposta em PDF",
+            data=st.session_state["ultimo_pdf_bytes"],
+            file_name=st.session_state.get("ultimo_pdf_nome", "Proposta.pdf"),
+            mime="application/pdf",
+            use_container_width=True,
+            type="primary"
+        )
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("🔄 Iniciar Nova Proposta", use_container_width=True):
+            st.session_state.pop("ultimo_pdf_bytes", None)
+            st.session_state.pop("ultimo_pdf_nome", None)
+            st.session_state["proposta_id_em_edicao"] = None
+            st.session_state["proposta_id_ativo"] = None
+            st.session_state["rascunho_itens"] = []
+            st.session_state["_safe_cliente_nome"] = ""
+            st.session_state["_safe_cnpj_val"] = ""
+            st.session_state["form_prop_cliente_version"] += 1
+            st.rerun()
+        
+        st.markdown("---")
+        return
+
+    itens_rascunho = st.session_state.get("rascunho_itens", [])
+    cliente_nome = str(st.session_state.get("_safe_cliente_nome") or st.session_state.get("input_cli_nome_tela2", "")).strip()
+    cnpj_val = str(st.session_state.get("_safe_cnpj_val") or st.session_state.get("proposta_cliente_cnpj", "")).strip()
+    
+    key_rz = f"input_popup_razao_social_{ver_form}"
+    key_ct = f"input_popup_contato_{ver_form}"
+    key_is = f"input_popup_iss_{ver_form}"
+    key_obj = f"input_popup_objeto_{ver_form}"
+    key_pz = f"input_popup_prazo_{ver_form}"
+    key_vg = f"input_popup_vigencia_{ver_form}"
+    key_fm = f"input_popup_fat_minimo_{ver_form}"
+    key_op = f"input_popup_outras_premissas_{ver_form}"
+
+    if key_rz not in st.session_state:
+        st.session_state[key_rz] = cliente_nome
+    if key_ct not in st.session_state:
+        st.session_state[key_ct] = ""
+    if key_is not in st.session_state:
+        st.session_state[key_is] = "2.5"
+    if key_obj not in st.session_state:
+        st.session_state[key_obj] = ""
+    if key_pz not in st.session_state:
+        st.session_state[key_pz] = "30"
+    if key_vg not in st.session_state:
+        st.session_state[key_vg] = "12"
+    if key_fm not in st.session_state:
+        st.session_state[key_fm] = ""
+    if key_op not in st.session_state:
+        st.session_state[key_op] = ""
+
+    if st.session_state.get("proposta_id_em_edicao"):
+        numero_proposta_atual = str(st.session_state["proposta_id_em_edicao"])
+    elif st.session_state.get("proposta_id_ativo"):
+        numero_proposta_atual = str(st.session_state["proposta_id_ativo"])
+    else:
+        agora = datetime.now()
+        mes_str = agora.strftime("%m")
+        ano_str = agora.strftime("%Y")
+        seq = st.session_state.get("sequencial_proposta", 1)
+        numero_proposta_atual = mes_str + "/" + "{:05d}".format(seq) + "/" + ano_str
+
+    if not REPORTLAB_DISPONIVEL:
+        st.error("⚠️ A biblioteca 'reportlab' não está instalada ou disponível no ambiente. O PDF não pode ser gerado.")
+        return
+
+    if st.session_state.get("mensagem_sucesso_carregar"):
+        st.success(st.session_state.pop("mensagem_sucesso_carregar"))
+
+    st.markdown("### Documento da Proposta")
+    if not itens_rascunho:
+        st.warning("Nenhum item pendente no rascunho. Monte os itens na Tela 2 (Proposta Rascunho).")
+    else:
+        col_info1, col_info2, col_info3 = st.columns([2.5, 1.5, 1.5])
+        with col_info1:
+            lbl_cli = cliente_nome if cliente_nome else "Não Informado"
+            st.markdown("Cliente / Razão Social:\n### " + lbl_cli)
+        with col_info2:
+            lbl_cnpj = cnpj_val if cnpj_val else "Não Informado"
+            st.markdown("CNPJ:\n### " + lbl_cnpj)
+        with col_info3:
+            st.markdown("Número da Proposta:\n### " + numero_proposta_atual)
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        dados_estaticos = []
+        for item in itens_rascunho:
+            tarifa_val = item.get("Tarifa (R$)", 0.0)
+            try:
+                tarifa_float = float(tarifa_val)
+                tarifa_fmt = "R$ " + "{:,.5f}".format(tarifa_float).replace(",", "X").replace(".", ",").replace("X", ".")
+            except (ValueError, TypeError):
+                tarifa_fmt = str(tarifa_val)
+            
+            dados_estaticos.append({
+                "Proposta": numero_proposta_atual,
+                "Cliente": cliente_nome,
+                "CNPJ": cnpj_val,
+                "Código": item.get("Código", ""),
+                "Descrição": item.get("Descrição", ""),
+                "Categoria": item.get("Categoria", ""),
+                "Unidade": item.get("Unidade", ""),
+                "Tarifa": tarifa_fmt,
+                "Observações": item.get("Observações", "")
+            })
+        df_estatico = pd.DataFrame(dados_estaticos)
+        
+        st.dataframe(df_estatico, use_container_width=True, hide_index=True)
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+    st.markdown("---")
+    st.markdown("### ⚙️ Parâmetros da Proposta Comercial (PDF)")
+    
+    with st.
