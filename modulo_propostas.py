@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import re
 
 # ==============================================================================
 # FUNÇÕES AUXILIARES DA PROPOSTA
@@ -29,7 +30,7 @@ def aplicar_reajuste_percentual_global(percentual):
         
         cat_code = item.get("Cat_Code", "GEN")
         input_key = f"input_tarifa_{cat_code}_{item['Código']}_{idx}"
-        st.session_state[input_key] = nova_tarifa
+        st.session_state[input_key] = str(nova_tarifa)
 
 def formatar_cnpj(val):
     digitos = "".join([c for c in str(val) if c.isdigit()])[:14]
@@ -137,16 +138,24 @@ def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_blo
                 input_key = f"input_tarifa_{categoria_filtro}_{item['Código']}_{idx}"
                 
                 if input_key not in st.session_state:
-                    st.session_state[input_key] = float(item["Tarifa (R$)"])
+                    val_ini = str(item["Tarifa (R$)"])
+                    if val_ini in ["0.0", "0", "0.00", "nan"]:
+                        val_ini = ""
+                    st.session_state[input_key] = val_ini
                     
-                nova_tarifa = st.number_input(
+                tarifa_str_input = st.text_input(
                     label=f"Tarifa_{item['Código']}_{idx}",
                     label_visibility="collapsed",
-                    min_value=0.0,
-                    step=0.01,
-                    format="%.5f",
-                    key=input_key
+                    key=input_key,
+                    placeholder="0.00"
                 )
+                
+                tarifa_limpa = re.sub(r'[^0-9.,]', '', tarifa_str_input)
+                try:
+                    nova_tarifa = float(tarifa_limpa.replace(",", ".")) if tarifa_limpa.strip() else 0.0
+                except ValueError:
+                    nova_tarifa = 0.0
+                
                 item["Tarifa (R$)"] = nova_tarifa
                     
             with c_un:
@@ -305,7 +314,6 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_completos_fn=None, 
             cli_val = str(st.session_state.get("input_cli_nome_tela2") or st.session_state.get("_safe_cliente_nome", "")).strip()
             cnp_val = str(st.session_state.get("proposta_cliente_cnpj") or st.session_state.get("_safe_cnpj_val", "")).strip()
             
-            # Validação obrigatória: impede avançar se houver itens de Seguro com tarifa igual a 0.0000
             seguro_zerado = False
             for item in todos_itens:
                 cat_item = str(item.get("Categoria", "")).strip().lower()
