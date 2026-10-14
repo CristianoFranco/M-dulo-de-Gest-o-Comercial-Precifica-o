@@ -270,7 +270,7 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
 
     ver_form = st.session_state["form_prop_cliente_version"]
 
-    # 1. PROCESSAR AÇÃO DE CARREGAR PROPOSTA ANTES DE INSTANCIAR QUALQUER WIDGET
+    # 1. PROCESSAR AÇÃO DE CARREGAR PROPOSTA
     if carregar_propostas_salvas_fn and st.session_state.get("btn_carregar_proposta_clicado"):
         st.session_state["btn_carregar_proposta_clicado"] = False
         prop_escolhida = str(st.session_state.get("proposta_selecionada_temp", "")).strip()
@@ -290,7 +290,6 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                         st.session_state["_safe_cliente_nome"] = c_nome_carregado
                         st.session_state["_safe_cnpj_val"] = c_cnpj_carregado
                         
-                        # Incrementa a versão para forçar a recriação limpa do formulário com os novos dados
                         st.session_state["form_prop_cliente_version"] += 1
                         ver_form = st.session_state["form_prop_cliente_version"]
 
@@ -326,7 +325,34 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
             except Exception as e:
                 st.error(f"Erro ao carregar proposta: {e}")
 
-    # 2. INICIALIZAÇÃO DE ESTADO DAS VARIÁVEIS DO FORMULÁRIO COM VERSÃO DINÂMICA
+    # 2. SE O BOTÃO DE SALVAR JÁ FOI CLICADO NO CICLO ANTERIOR, EXIBIR IMEDIATAMENTE O BOTÃO DE DOWNLOAD
+    if st.session_state.get("ultimo_pdf_bytes"):
+        st.success("✅ Proposta salva com sucesso no Google Sheets e documento PDF gerado!")
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.download_button(
+            label="📥 Baixar / Visualizar Proposta em PDF",
+            data=st.session_state["ultimo_pdf_bytes"],
+            file_name=st.session_state.get("ultimo_pdf_nome", "Proposta.pdf"),
+            mime="application/pdf",
+            use_container_width=True,
+            type="primary"
+        )
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("🔄 Iniciar Nova Proposta", use_container_width=True):
+            st.session_state.pop("ultimo_pdf_bytes", None)
+            st.session_state.pop("ultimo_pdf_nome", None)
+            st.session_state["proposta_id_em_edicao"] = None
+            st.session_state["proposta_id_ativo"] = None
+            st.session_state["rascunho_itens"] = []
+            st.session_state["_safe_cliente_nome"] = ""
+            st.session_state["_safe_cnpj_val"] = ""
+            st.session_state["form_prop_cliente_version"] += 1
+            st.rerun()
+        
+        # Ocultar o resto da tela se o PDF já estiver pronto para download
+        st.markdown("---")
+        return
+
     itens_rascunho = st.session_state.get("rascunho_itens", [])
     cliente_nome = str(st.session_state.get("_safe_cliente_nome") or st.session_state.get("input_cli_nome_tela2", "")).strip()
     cnpj_val = str(st.session_state.get("_safe_cnpj_val") or st.session_state.get("proposta_cliente_cnpj", "")).strip()
@@ -375,29 +401,6 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
     if st.session_state.get("mensagem_sucesso_carregar"):
         st.success(st.session_state.pop("mensagem_sucesso_carregar"))
 
-    if st.session_state.get("ultimo_pdf_bytes"):
-        st.success("✅ Proposta salva com sucesso no Google Sheets e documento PDF gerado!")
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.download_button(
-            label="📥 Baixar / Visualizar Proposta em PDF",
-            data=st.session_state["ultimo_pdf_bytes"],
-            file_name=st.session_state.get("ultimo_pdf_nome", "Proposta.pdf"),
-            mime="application/pdf",
-            use_container_width=True,
-            type="primary"
-        )
-        st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("🔄 Iniciar Nova Proposta", use_container_width=True):
-            st.session_state.pop("ultimo_pdf_bytes", None)
-            st.session_state.pop("ultimo_pdf_nome", None)
-            st.session_state["proposta_id_em_edicao"] = None
-            st.session_state["proposta_id_ativo"] = None
-            st.session_state["rascunho_itens"] = []
-            st.session_state["_safe_cliente_nome"] = ""
-            st.session_state["_safe_cnpj_val"] = ""
-            st.session_state["form_prop_cliente_version"] += 1
-            st.rerun()
-
     # 3. EXIBIÇÃO RESUMIDA DO DOCUMENTO
     st.markdown("### Documento da Proposta")
     if not itens_rascunho:
@@ -442,7 +445,7 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
     st.markdown("---")
     st.markdown("### ⚙️ Parâmetros da Proposta Comercial (PDF)")
     
-    # 4. FORMULÁRIO DE PARÂMETROS COM CHAVES DINÂMICAS DE VERSÃO
+    # 4. FORMULÁRIO DE PARÂMETROS
     with st.form(f"form_parametros_proposta_pdf_{ver_form}"):
         col_pop1, col_pop2 = st.columns(2)
         with col_pop1:
@@ -541,7 +544,6 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                     st.session_state["rascunho_itens"] = []
                     st.session_state["_safe_cliente_nome"] = ""
                     st.session_state["_safe_cnpj_val"] = ""
-                    st.session_state["form_prop_cliente_version"] += 1
                     
                     for k in list(st.session_state.keys()):
                         if k.startswith("input_tarifa_"):
