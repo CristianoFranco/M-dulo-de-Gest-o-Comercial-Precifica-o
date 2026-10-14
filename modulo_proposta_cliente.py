@@ -1,31 +1,49 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime
-import io
-import html
 import os
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image, KeepTogether
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
+from reportlab.pdfgen import canvas
+import io
 
-try:
-    from reportlab.lib.pagesizes import letter
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
-    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-    from reportlab.lib.enums import TA_RIGHT, TA_JUSTIFY, TA_CENTER, TA_LEFT
-    from reportlab.lib import colors
-    REPORTLAB_DISPONIVEL = True
-except ImportError:
-    REPORTLAB_DISPONIVEL = False
+class NumberedCanvas(canvas.Canvas):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._saved_page_states = []
+
+    def showPage(self):
+        self._saved_page_states.append(dict(self.__dict__))
+        self._startPage()
+
+    def save(self):
+        num_pages = len(self._saved_page_states)
+        for state in self._saved_page_states:
+            self.__dict__.update(state)
+            self.draw_page_number(num_pages)
+            super().showPage()
+        super().save()
+
+    def draw_page_number(self, page_count):
+        self.saveState()
+        self.setFont("Helvetica", 8)
+        self.setFillColor(colors.HexColor("#555555"))
+        page_text = f"Página {self._pageNumber} de {page_count}"
+        self.drawRightString(612 - 40, 35, page_text)
+        self.restoreState()
 
 def desenhar_cabecalho_rodape(canvas, doc):
     canvas.saveState()
     
-    # Caminho absoluto seguro para localizar o Logo.png na raiz do projeto
+    # Caminho absoluto seguro para encontrar o Logo.png na mesma pasta do script
     diretorio_atual = os.path.dirname(os.path.abspath(__file__))
     logo_path = os.path.join(diretorio_atual, 'Logo.png')
     
     if os.path.exists(logo_path):
         canvas.drawImage(logo_path, x=236, y=730, width=140, height=45, preserveAspectRatio=True, mask='auto')
     else:
-        print(f"⚠️ Atenção: Logótipo não encontrado em: {logo_path}")
+        print(f"⚠️ Atenção: Logo não encontrado em {logo_path}")
 
     canvas.setFont('Helvetica', 8)
     canvas.setFillColor(colors.HexColor('#555555'))
@@ -34,43 +52,147 @@ def desenhar_cabecalho_rodape(canvas, doc):
     canvas.drawCentredString(612 / 2.0, 15, "+55 19 3936-8520 / www.globexmultimodal.com.br")
     canvas.restoreState()
 
-def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato_cliente, objeto_proposta, iss_val, prazo_val, vigencia_val, fat_minimo_val, outras_premissas_val, itens_proposta):
+def gerar_pdf_proposta(cliente, cnpj, itens, numero_proposta):
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
         buffer,
         pagesize=letter,
-        rightMargin=36,
-        leftMargin=36,
-        topMargin=90,
+        rightMargin=40,
+        leftMargin=40,
+        topMargin=95,
         bottomMargin=55
     )
-    story = []
+    
     styles = getSampleStyleSheet()
     
-    num_prop_esc = html.escape(str(numero_proposta))
-    c_nome_esc = html.escape(str(cliente_nome))
-    c_objeto_esc = html.escape(str(objeto_proposta))
-    c_contato_esc = html.escape(str(contato_cliente))
-    iss_esc = html.escape(str(iss_val))
-    prazo_esc = html.escape(str(prazo_val))
-    vigencia_esc = html.escape(str(vigencia_val))
-    fat_minimo_esc = html.escape(str(fat_minimo_val)).strip()
-    outras_premissas_esc = html.escape(str(outras_premissas_val)).strip()
+    # Estilos customizados
+    estilo_titulo = ParagraphStyle(
+        'TituloProposta',
+        parent=styles['Heading1'],
+        fontName='Helvetica-Bold',
+        fontSize=16,
+        textColor=colors.HexColor('#0F172A'),
+        alignment=1,
+        spaceAfter=15
+    )
     
-    style_data_direita = ParagraphStyle('DataDireita', parent=styles['Normal'], fontSize=10, leading=14, alignment=TA_RIGHT, textColor=colors.HexColor('#222222'), spaceAfter=6)
-    style_proposta_direita = ParagraphStyle('PropostaNumDireita', parent=styles['Normal'], fontSize=11, fontName='Helvetica-Bold', leading=15, alignment=TA_RIGHT, textColor=colors.HexColor('#0052B4'), spaceAfter=12)
-    body_left_style = ParagraphStyle('CorpoTextoEsquerda', parent=styles['Normal'], fontSize=10, leading=14, alignment=TA_LEFT, textColor=colors.HexColor('#222222'), spaceAfter=6)
-    body_justify_style = ParagraphStyle('CorpoTextoJustificado', parent=styles['Normal'], fontSize=10, leading=14, alignment=TA_JUSTIFY, textColor=colors.HexColor('#222222'), spaceAfter=8)
-    titulo_bloco_style = ParagraphStyle('TituloBlocoCategoria', parent=styles['Heading2'], fontSize=11, leading=15, fontName='Helvetica-Bold', alignment=TA_LEFT, textColor=colors.HexColor('#0052B4'), spaceBefore=10, spaceAfter=4)
-    titulo_tabelas_style = ParagraphStyle('TituloTabelasServicos', parent=styles['Heading2'], fontSize=13, leading=17, fontName='Helvetica-Bold', alignment=TA_LEFT, textColor=colors.HexColor('#0052B4'), spaceBefore=14, spaceAfter=8)
-    titulo_termo_center = ParagraphStyle('TituloTermoCentralizado', parent=styles['Heading2'], fontSize=12, leading=16, fontName='Helvetica-Bold', alignment=TA_CENTER, textColor=colors.HexColor('#0052B4'), spaceBefore=10, spaceAfter=12)
-    premissas_style = ParagraphStyle('PremissasStyle', parent=styles['Normal'], fontSize=8, leading=11, alignment=TA_JUSTIFY, textColor=colors.HexColor('#333333'), spaceBefore=10, spaceAfter=10)
+    estilo_normal = ParagraphStyle(
+        'TextoNormal',
+        parent=styles['Normal'],
+        fontName='Helvetica',
+        fontSize=10,
+        textColor=colors.HexColor('#333333')
+    )
+    
+    estilo_cabecalho_tabela = ParagraphStyle(
+        'CabecalhoTabela',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=10,
+        textColor=colors.white,
+        alignment=1
+    )
 
-    fat_min_title_style = ParagraphStyle('FatMinTitle', fontName='Helvetica-Bold', fontSize=9, leading=12, textColor=colors.HexColor('#0052B4'), alignment=TA_LEFT)
-    fat_min_text_style = ParagraphStyle('FatMinText', fontName='Helvetica', fontSize=8.5, leading=12, textColor=colors.HexColor('#222222'), alignment=TA_LEFT)
+    story = []
+    
+    # Informações da Proposta
+    story.append(Paragraph(f"<b>PROPOSTA COMERCIAL Nº:</b> {numero_proposta}", estilo_titulo))
+    story.append(Spacer(1, 10))
+    
+    dados_cliente = [
+        [Paragraph(f"<b>Cliente:</b> {cliente}", estilo_normal), Paragraph(f"<b>CNPJ:</b> {cnpj}", estilo_normal)]
+    ]
+    tabela_cliente = Table(dados_cliente, colWidths=[300, 232])
+    tabela_cliente.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F8FAFC')),
+        ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('PADDING', (0,0), (-1,-1), 8),
+    ]))
+    story.append(tabela_cliente)
+    story.append(Spacer(1, 20))
+    
+    # Tabela de Itens
+    tabela_dados = [[
+        Paragraph("<b>Código</b>", estilo_cabecalho_tabela),
+        Paragraph("<b>Descrição dos Serviços</b>", estilo_cabecalho_tabela),
+        Paragraph("<b>Unidade</b>", estilo_cabecalho_tabela),
+        Paragraph("<b>Tarifa (R$)</b>", estilo_cabecalho_tabela)
+    ]]
+    
+    for item in itens:
+        tarifa_formatada = f"R$ {float(item.get('Tarifa (R$)', 0)):,.4f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        tabela_dados.append([
+            Paragraph(str(item.get("Código", "")), estilo_normal),
+            Paragraph(str(item.get("Descrição", "")), estilo_normal),
+            Paragraph(str(item.get("Unidade", "")), estilo_normal),
+            Paragraph(tarifa_formatada, estilo_normal)
+        ])
+        
+    tabela_itens = Table(tabela_dados, colWidths=[60, 272, 100, 100])
+    tabela_itens.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#0052B4')),
+        ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
+        ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('PADDING', (0,0), (-1,-1), 6),
+    ]))
+    story.append(tabela_itens)
+    
+    doc.build(story, onFirstPage=desenhar_cabecalho_rodape, onLaterPages=desenhar_cabecalho_rodape, canvasmaker=NumberedCanvas)
+    buffer.seek(0)
+    return buffer.getvalue()
 
-    th_style = ParagraphStyle('TH', fontName='Helvetica-Bold', fontSize=9, leading=11, textColor=colors.white, alignment=TA_LEFT)
-    th_style_right = ParagraphStyle('THRight', fontName='Helvetica-Bold', fontSize=9, leading=11, textColor=colors.white, alignment=TA_RIGHT)
-    td_style_left = ParagraphStyle('TDLeft', fontName='Helvetica', fontSize=8, leading=11, textColor=colors.HexColor('#222222'), alignment=TA_LEFT)
-    td_style_center = ParagraphStyle('TDCenter', fontName='Helvetica', fontSize=8, leading=11, textColor=colors.HexColor('#222222'), alignment=TA_CENTER)
-    td_style_right = ParagraphStyle('TDRight', fontName='Helvetica', fontSize=8, leading=11, textColor=colors.
+def renderizar_aba_proposta_cliente(salvar_proposta_final_fn=None, *args, **kwargs):
+    st.markdown("## 📄 Proposta Final / Visualização do Cliente")
+    st.caption("Revise os dados da proposta, visualize o documento formatado e gere o PDF final.")
+    
+    cliente = st.session_state.get("_safe_cliente_nome", "")
+    cnpj = st.session_state.get("_safe_cnpj_val", "")
+    itens = st.session_state.get("rascunho_itens", [])
+    numero_proposta = st.session_state.get("proposta_id_ativo", "10/00001/2026")
+    
+    if not cliente or not itens:
+        st.warning("⚠️ Nenhum cliente ou item encontrado no rascunho atual. Por favor, volte à aba 'Proposta Rascunho' e preencha os dados.")
+        if st.button("⬅️ Voltar para Rascunho"):
+            st.session_state["aba_ativa"] = "proposta"
+            st.rerun()
+        return
+
+    st.markdown(f"### Proposta para: **{cliente}** (CNPJ: {cnpj or 'Não informado'})")
+    st.markdown(f"**Número:** `{numero_proposta}`")
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # Exibir tabela visual na tela
+    df_preview = pd.DataFrame(itens)
+    if "Tarifa (R$)" in df_preview.columns:
+        df_preview["Tarifa (R$)"] = df_preview["Tarifa (R$)"].apply(lambda x: f"R$ {float(x):,.4f}".replace(",", "X").replace(".", ",").replace("X", "."))
+    
+    colunas_visiveis = [c for c in ["Código", "Descrição", "Unidade", "Tarifa (R$)", "Observações"] if c in df_preview.columns]
+    st.dataframe(df_preview[colunas_visiveis], use_container_width=True, hide_index=True)
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    pdf_bytes = gerar_pdf_proposta(cliente, cnpj, itens, numero_proposta)
+    
+    col_dl, col_salvar = st.columns(2)
+    with col_dl:
+        st.download_button(
+            label="📥 Descarregar Proposta em PDF",
+            data=pdf_bytes,
+            file_name=f"Proposta_{numero_proposta.replace('/', '-')}_{cliente}.pdf",
+            mime="application/pdf",
+            type="primary",
+            use_container_width=True
+        )
+        
+    with col_salvar:
+        if st.button("💾 Salvar Proposta no Histórico", use_container_width=True):
+            if salvar_proposta_final_fn:
+                sucesso = salvar_proposta_final_fn(numero_proposta, cliente, cnpj, itens)
+                if sucesso:
+                    st.success("Proposta salva com sucesso no histórico!")
+                else:
+                    st.error("Erro ao salvar a proposta no histórico.")
+            else:
+                st.success("Proposta gravada com sucesso!")
