@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import re
 
 def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, normalizar_codigo_fn=None, formatar_tarifa_fn=None):
     st.markdown("""
@@ -99,9 +100,13 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
             tarifa_input = 0.0
             st.info("ℹ️ Categoria 'Seguro' selecionada: o campo de tarifa está oculto e será preenchido dinamicamente na Proposta Rascunho.")
         else:
-            tarifa_str_input = st.text_input("Tarifa (R$) *", value="0.00", placeholder="Ex: 150.00", key=f"cad_tar_txt_v16_{ver}")
+            tarifa_str_input = st.text_input("Tarifa (R$) *", value="", placeholder="Ex: 150.00", key=f"cad_tar_txt_v16_{ver}")
+            
+            # Remove qualquer caractere que não seja número, ponto ou vírgula em tempo real
+            tarifa_limpa = re.sub(r'[^0-9.,]', '', tarifa_str_input)
+            
             try:
-                tarifa_input = float(tarifa_str_input.replace(",", ".")) if tarifa_str_input.strip() else 0.0
+                tarifa_input = float(tarifa_limpa.replace(",", ".")) if tarifa_limpa.strip() else 0.0
             except ValueError:
                 tarifa_input = 0.0
 
@@ -137,7 +142,7 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
                     if not idx_existente.empty:
                         for k, v in novo_registro.items():
                             df_completo.loc[idx_existente[0], k] = v
-                        st.success(f"Serviço com o código '{codigo_limp}' (anteriormente inativo) foi reativado e atualizado com sucesso!")
+                        st.success(f"Servício com o código '{codigo_limp}' (anteriormente inativo) foi reativado e atualizado com sucesso!")
                     else:
                         df_novo = pd.DataFrame([novo_registro])
                         df_completo = pd.concat([df_completo, df_novo], ignore_index=True)
@@ -229,12 +234,16 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
                     else:
                         try:
                             t_val_inicial = str(row_sel["Tarifa (R$)"]).strip()
+                            if t_val_inicial in ["0.0", "0", "0.00", "nan"]:
+                                t_val_inicial = ""
                         except Exception:
-                            t_val_inicial = "0.00"
+                            t_val_inicial = ""
                         
-                        edit_tarifa_str = st.text_input("Tarifa (R$) *", value=t_val_inicial, key="edit_tar_txt_v16")
+                        edit_tarifa_str = st.text_input("Tarifa (R$) *", value=t_val_inicial, placeholder="Ex: 150.00", key="edit_tar_txt_v16")
+                        
+                        edit_tarifa_limpa = re.sub(r'[^0-9.,]', '', edit_tarifa_str)
                         try:
-                            edit_tarifa = float(edit_tarifa_str.replace(",", ".")) if edit_tarifa_str.strip() else 0.0
+                            edit_tarifa = float(edit_tarifa_limpa.replace(",", ".")) if edit_tarifa_limpa.strip() else 0.0
                         except ValueError:
                             edit_tarifa = 0.0
                         
