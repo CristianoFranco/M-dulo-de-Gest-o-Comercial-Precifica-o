@@ -1,3 +1,4 @@
+import streamlit as pd_st # (mantém importações originais)
 import streamlit as st
 import pandas as pd
 import re
@@ -161,6 +162,11 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
         if "Status" in df_exibir.columns:
             df_exibir = df_exibir.drop(columns=["Status"])
 
+        # ORDENAÇÃO CRESCENTE POR CÓDIGO (Suporta números e textos corretamente)
+        if not df_exibir.empty and "Código" in df_exibir.columns:
+            df_exibir["_sort_key"] = pd.to_numeric(df_exibir["Código"], errors="coerce")
+            df_exibir = df_exibir.sort_values(by=["_sort_key", "Código"], ascending=[True, True]).drop(columns=["_sort_key"])
+
         if df_exibir.empty:
             st.info("Nenhum serviço ativo cadastrado.")
         else:
@@ -169,7 +175,10 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
             st.markdown("<br>", unsafe_allow_html=True)
             st.markdown("#### ⚙️ Gerenciar Serviço (Editar / Excluir)")
             
-            df_ativos = df_completo[df_completo["Status"].str.upper() != "INATIVO"]
+            df_ativos = df_completo[df_completo["Status"].str.upper() != "INATIVO"].copy()
+            if not df_ativos.empty and "Código" in df_ativos.columns:
+                df_ativos["_sort_key"] = pd.to_numeric(df_ativos["Código"], errors="coerce")
+                df_ativos = df_ativos.sort_values(by=["_sort_key", "Código"], ascending=[True, True]).drop(columns=["_sort_key"])
             
             opcoes_select = [""]
             mapa_codigos = {}
@@ -201,7 +210,6 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
                 if btn_acao_excluir:
                     idx_alvo = df_completo[(df_completo["Código"] == cod_selecionado) & (df_completo["Status"].str.upper() != "INATIVO")].index[0]
                     
-                    # Limpa o código para liberar a sua reutilização e define o status como Inativo
                     df_completo.loc[idx_alvo, "Código"] = f"DEL_{cod_selecionado}_{int(datetime.now().timestamp())}"
                     df_completo.loc[idx_alvo, "Status"] = "Inativo"
                     
@@ -268,7 +276,7 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
                                 "Tarifa (R$)": tarifa_val,
                                 "Unidade": edit_un,
                                 "Categoria": edit_cat,
-                                "Observações": edit_obs.strip() if edit_obs else "",
+                                "Observações": edit_obs.strip() if obs_input else "",
                                 "Status": "Ativo"
                             }
                             
