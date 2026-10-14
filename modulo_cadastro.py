@@ -276,7 +276,7 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
                                 "Tarifa (R$)": tarifa_val,
                                 "Unidade": edit_un,
                                 "Categoria": edit_cat,
-                                "Observações": edit_obs.strip() if obs_input else "",
+                                "Observações": edit_obs.strip() if edit_obs else "",
                                 "Status": "Ativo"
                             }
                             
