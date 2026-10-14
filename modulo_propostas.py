@@ -2,9 +2,6 @@ import streamlit as st
 import pandas as pd
 import re
 
-# ==============================================================================
-# FUNÇÕES AUXILIARES DA PROPOSTA
-# ==============================================================================
 def inicializar_estado_proposta():
     if "rascunho_itens" not in st.session_state:
         st.session_state["rascunho_itens"] = []
@@ -22,12 +19,10 @@ def remover_item_proposta_por_indice(index_para_remover):
 
 def aplicar_reajuste_percentual_global(percentual):
     fator = 1.0 + (float(percentual) / 100.0)
-    
     for idx, item in enumerate(st.session_state["rascunho_itens"]):
         val_atual = float(item["Tarifa (R$)"])
         nova_tarifa = round(val_atual * fator, 5)
         item["Tarifa (R$)"] = nova_tarifa
-        
         cat_code = item.get("Cat_Code", "GEN")
         input_key = f"input_tarifa_{cat_code}_{item['Código']}_{idx}"
         st.session_state[input_key] = str(nova_tarifa)
@@ -53,12 +48,8 @@ def callback_cnpj():
     st.session_state["proposta_cliente_cnpj"] = cnpj_formatado
     st.session_state["_safe_cnpj_val"] = cnpj_formatado
 
-# ==============================================================================
-# RENDERIZADOR DE BLOCO POR CATEGORIA
-# ==============================================================================
 def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_bloco):
     st.markdown(f"#### {icone_bloco} {titulo}")
-    
     if df_categoria.empty:
         st.info(f"Nenhum serviço cadastrado na categoria '{titulo}'.")
         st.markdown("---")
@@ -67,7 +58,6 @@ def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_blo
     opcoes = [""] + codigos_categoria
     
     col_sel, col_btn = st.columns([6, 2])
-    
     with col_sel:
         item_selecionado = st.selectbox(
             f"Selecionar {titulo}:",
@@ -75,7 +65,6 @@ def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_blo
             format_func=lambda x: "" if x == "" else f"{x} - {df_categoria[df_categoria['Código'] == x]['Descrição'].values[0]}",
             key=f"select_cat_{categoria_filtro}"
         )
-        
     with col_btn:
         st.write("")
         st.write("")
@@ -87,9 +76,7 @@ def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_blo
                     tarifa_float = float(tarifa_raw)
                 except ValueError:
                     tarifa_float = float(row["Tarifa (R$)"])
-                
                 obs_val = str(row["Observações"]) if "Observações" in row and pd.notna(row["Observações"]) else ""
-                
                 ja_existe = any(str(i.get("Código", "")) == str(item_selecionado) for i in st.session_state["rascunho_itens"])
                 if not ja_existe:
                     st.session_state["rascunho_itens"].append({
@@ -106,6 +93,7 @@ def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_blo
                     st.warning("Este item já foi adicionado ao rascunho.")
             else:
                 st.warning("Selecione um item antes de adicionar.")
+
     itens_do_bloco_com_idx = [
         (idx, item) for idx, item in enumerate(st.session_state["rascunho_itens"])
         if item.get("Cat_Code") == categoria_filtro or item.get("Categoria") == titulo
@@ -113,7 +101,6 @@ def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_blo
     
     if itens_do_bloco_com_idx:
         st.markdown("<h5 style='color: #FFFFFF; font-weight: bold; margin-top: 15px;'>📋 Itens Inseridos:</h5>", unsafe_allow_html=True)
-        
         h_del, h_cod, h_desc, h_tar, h_un, h_obs = st.columns([0.5, 1.2, 3.2, 2.2, 1.8, 2.2])
         with h_del: st.markdown("<b style='color: #FFFFFF;'>❌</b>", unsafe_allow_html=True)
         with h_cod: st.markdown("<b style='color: #FFFFFF;'>Código</b>", unsafe_allow_html=True)
@@ -122,52 +109,41 @@ def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_blo
         with h_un: st.markdown("<b style='color: #FFFFFF;'>Unidade</b>", unsafe_allow_html=True)
         with h_obs: st.markdown("<b style='color: #FFFFFF;'>Observações</b>", unsafe_allow_html=True)
         st.markdown("<hr style='margin: 4px 0 10px 0; border-color: rgba(255,255,255,0.3);'>", unsafe_allow_html=True)
+        
         for idx, item in itens_do_bloco_com_idx:
             c_del, c_cod, c_desc, c_tar, c_un, c_obs = st.columns([0.5, 1.2, 3.2, 2.2, 1.8, 2.2])
-            
             with c_del:
                 if st.button("❌", key=f"btn_x_{categoria_filtro}_{item['Código']}_{idx}", help="Remover item"):
                     remover_item_proposta_por_indice(idx)
                     st.rerun()
-                    
             with c_cod:
                 st.markdown(f"<span style='color: #FFFFFF; font-weight: bold;'>{item['Código']}</span>", unsafe_allow_html=True)
             with c_desc:
                 st.markdown(f"<span style='color: #FFFFFF;'>{item['Descrição']}</span>", unsafe_allow_html=True)
             with c_tar:
                 input_key = f"input_tarifa_{categoria_filtro}_{item['Código']}_{idx}"
-                
                 if input_key not in st.session_state:
                     st.session_state[input_key] = str(item["Tarifa (R$)"])
-                    
                 tarifa_str_input = st.text_input(
                     label=f"Tarifa_{item['Código']}_{idx}",
                     label_visibility="collapsed",
                     key=input_key,
                     placeholder="0.00"
                 )
-                
-                # Bloqueia letras em tempo real e aceita apenas números, pontos e vírgulas[cite: 2]
                 tarifa_limpa = re.sub(r'[^0-9.,]', '', tarifa_str_input)
                 try:
                     nova_tarifa = float(tarifa_limpa.replace(",", ".")) if tarifa_limpa.strip() else 0.0
                 except ValueError:
                     nova_tarifa = 0.0
-                
                 item["Tarifa (R$)"] = nova_tarifa
-                    
             with c_un:
                 st.markdown(f"<span style='color: #FFFFFF;'>{item['Unidade']}</span>", unsafe_allow_html=True)
             with c_obs:
                 st.markdown(f"<span style='color: #FFFFFF;'>{item.get('Observações', '')}</span>", unsafe_allow_html=True)
         st.markdown("---")
 
-# ==============================================================================
-# RENDERIZADOR PRINCIPAL ABA 2
-# ==============================================================================
 def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_completos_fn=None, obter_proximo_numero_fn=None, *args, **kwargs):
     inicializar_estado_proposta()
-    
     if st.session_state.get("proposta_id_em_edicao"):
         numero_proposta = str(st.session_state["proposta_id_em_edicao"])
     else:
@@ -200,6 +176,7 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_completos_fn=None, 
             }
         </style>
     """, unsafe_allow_html=True)
+    
     col_tit, col_num = st.columns([3, 1])
     with col_tit:
         st.markdown("## 📝 Proposta Rascunho")
@@ -216,8 +193,8 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_completos_fn=None, 
                 st.session_state["input_cli_nome_tela2"] = ""
                 st.session_state["proposta_cliente_cnpj"] = ""
                 st.rerun()
+                
     st.markdown("<br>", unsafe_allow_html=True)
-    
     col_cli, col_cnpj = st.columns([2.5, 1.5])
     
     with col_cli:
@@ -255,7 +232,6 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_completos_fn=None, 
     if st.session_state["rascunho_itens"]:
         with st.expander("📈 **Ajuste Percentual Geral nas Tarifas do Rascunho**", expanded=True):
             col_perc, col_apply, _ = st.columns([2, 2.5, 3.5])
-            
             with col_perc:
                 percentual_ajuste = st.number_input(
                     "Reajuste (%):",
@@ -297,4 +273,42 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_completos_fn=None, 
             else:
                 item["Cat_Code"] = "OUT"
                 
-    renderizar_bloco_categoria("Armazenagem", "ARM", df_armazenagem,
+    renderizar_bloco_categoria("Armazenagem", "ARM", df_armazenagem, "🏬")
+    renderizar_bloco_categoria("Seguro", "SEG", df_seguro, "🛡️")
+    renderizar_bloco_categoria("Serviços e Movimentações", "SER", df_servicos_handling, "⚙️")
+    renderizar_bloco_categoria("Outros", "OUT", df_outros, "📦")
+    
+    todos_itens = st.session_state["rascunho_itens"]
+    col_res1, col_res2 = st.columns([2, 1])
+    with col_res1:
+        st.markdown(f"### Total de Itens no Rascunho: **{len(todos_itens)}**")
+        
+    with col_res2:
+        if st.button("➡️ Finalizar Lançamento e Ir para Proposta Cliente", use_container_width=True):
+            cli_val = str(st.session_state.get("input_cli_nome_tela2") or st.session_state.get("_safe_cliente_nome", "")).strip()
+            cnp_val = str(st.session_state.get("proposta_cliente_cnpj") or st.session_state.get("_safe_cnpj_val", "")).strip()
+            
+            seguro_zerado = False
+            for item in todos_itens:
+                cat_item = str(item.get("Categoria", "")).strip().lower()
+                if cat_item == "seguro" or item.get("Cat_Code") == "SEG":
+                    try:
+                        t_val = float(item.get("Tarifa (R$)", 0))
+                    except Exception:
+                        t_val = 0.0
+                    if t_val == 0.0:
+                        seguro_zerado = True
+                        break
+
+            if not cli_val:
+                st.error("⚠️ O campo 'Cliente *' é obrigatório!")
+            elif not todos_itens:
+                st.error("Adicione pelo menos um item antes de avançar.")
+            elif seguro_zerado:
+                st.error("⚠️ Atenção: Há itens de **Seguro** com tarifa igual a 0,0000. O percentual do seguro deve ser preenchido obrigatoriamente e ser diferente de zero.")
+            else:
+                st.session_state["_safe_cliente_nome"] = cli_val
+                st.session_state["_safe_cnpj_val"] = cnp_val
+                st.session_state["proposta_id_ativo"] = numero_proposta
+                st.session_state["aba_ativa"] = "cliente"
+                st.rerun()
