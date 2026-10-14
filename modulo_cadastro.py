@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import re
+from datetime import datetime
 
 def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, normalizar_codigo_fn=None, formatar_tarifa_fn=None):
     st.markdown("""
@@ -102,7 +103,6 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
         else:
             tarifa_str_input = st.text_input("Tarifa (R$) *", value="", placeholder="Ex: 150.00", key=f"cad_tar_txt_v16_{ver}")
             
-            # Remove qualquer caractere que não seja número, ponto ou vírgula em tempo real
             tarifa_limpa = re.sub(r'[^0-9.,]', '', tarifa_str_input)
             
             try:
@@ -200,10 +200,14 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
                 
                 if btn_acao_excluir:
                     idx_alvo = df_completo[(df_completo["Código"] == cod_selecionado) & (df_completo["Status"].str.upper() != "INATIVO")].index[0]
+                    
+                    # Limpa o código para liberar a sua reutilização e define o status como Inativo
+                    df_completo.loc[idx_alvo, "Código"] = f"DEL_{cod_selecionado}_{int(datetime.now().timestamp())}"
                     df_completo.loc[idx_alvo, "Status"] = "Inativo"
+                    
                     if salvar_dados_completos_fn:
                         salvar_dados_completos_fn(df_completo)
-                    st.success("Item excluído com sucesso!")
+                    st.success("Item excluído com sucesso e código liberado para uso!")
                     st.session_state.pop("modo_acao_servico", None)
                     st.session_state.pop("codigo_em_edicao", None)
                     st.rerun()
