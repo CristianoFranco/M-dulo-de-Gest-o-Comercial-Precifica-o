@@ -50,11 +50,19 @@ def callback_cnpj():
 
 def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_bloco):
     st.markdown(f"#### {icone_bloco} {titulo}")
-    if df_categoria.empty:
-        st.info(f"Nenhum serviço cadastrado na categoria '{titulo}'.")
+    
+    # Filtra os códigos que já foram inseridos no rascunho para sumirem do selectbox
+    codigos_ja_inseridos = {str(i.get("Código", "")) for i in st.session_state["rascunho_itens"]}
+    df_disponivel = df_categoria[~df_categoria["Código"].astype(str).isin(codigos_ja_inseridos)]
+
+    if df_disponivel.empty:
+        st.info(f"Todos os serviços disponíveis em '{titulo}' já foram adicionados ou não há itens.")
+        # Exibe os itens já inseridos abaixo mesmo se o selectbox estiver vazio
+        renderizar_tabela_itens_bloco(titulo, categoria_filtro)
         st.markdown("---")
         return
-    codigos_categoria = df_categoria["Código"].tolist()
+
+    codigos_categoria = df_disponivel["Código"].tolist()
     opcoes = [""] + codigos_categoria
     
     col_sel, col_btn = st.columns([6, 2])
@@ -62,7 +70,7 @@ def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_blo
         item_selecionado = st.selectbox(
             f"Selecionar {titulo}:",
             options=opcoes,
-            format_func=lambda x: "" if x == "" else f"{x} - {df_categoria[df_categoria['Código'] == x]['Descrição'].values[0]}",
+            format_func=lambda x: "" if x == "" else f"{x} - {df_disponivel[df_disponivel['Código'] == x]['Descrição'].values[0]}",
             key=f"select_cat_{categoria_filtro}"
         )
     with col_btn:
@@ -70,30 +78,38 @@ def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_blo
         st.write("")
         if st.button("➕ Adicionar", key=f"btn_add_{categoria_filtro}"):
             if item_selecionado != "":
-                row = df_categoria[df_categoria["Código"] == item_selecionado].iloc[0]
+                row = df_disponivel[df_disponivel["Código"] == item_selecionado].iloc[0]
+                
+                cat_original_item = str(row.get("Categoria", "")).strip().lower()
+                if categoria_filtro == "OUT":
+                    if "armazenagem" in cat_original_item or "seguro" in cat_original_item:
+                        st.error("⚠️ Este bloco é exclusivo para Serviços Conexos (Serviços, Movimentação ou Outros). Itens de Armazenagem e Seguro devem ser inseridos nos seus blocos específicos.")
+                        return
+
                 tarifa_raw = str(row["Tarifa (R$)"]).replace(".", "").replace(",", ".")
                 try:
                     tarifa_float = float(tarifa_raw)
                 except ValueError:
                     tarifa_float = float(row["Tarifa (R$)"])
                 obs_val = str(row["Observações"]) if "Observações" in row and pd.notna(row["Observações"]) else ""
-                ja_existe = any(str(i.get("Código", "")) == str(item_selecionado) for i in st.session_state["rascunho_itens"])
-                if not ja_existe:
-                    st.session_state["rascunho_itens"].append({
-                        "Código": str(row["Código"]),
-                        "Descrição": str(row["Descrição"]),
-                        "Tarifa (R$)": tarifa_float,
-                        "Unidade": str(row["Unidade"]),
-                        "Observações": obs_val,
-                        "Categoria": titulo,
-                        "Cat_Code": categoria_filtro
-                    })
-                    st.rerun()
-                else:
-                    st.warning("Este item já foi adicionado ao rascunho.")
+                
+                st.session_state["rascunho_itens"].append({
+                    "Código": str(row["Código"]),
+                    "Descrição": str(row["Descrição"]),
+                    "Tarifa (R$)": tarifa_float,
+                    "Unidade": str(row["Unidade"]),
+                    "Observações": obs_val,
+                    "Categoria": titulo,
+                    "Cat_Code": categoria_filtro
+                })
+                st.rerun()
             else:
                 st.warning("Selecione um item antes de adicionar.")
 
+    renderizar_tabela_itens_bloco(titulo, categoria_filtro)
+    st.markdown("---")
+
+def renderizar_tabela_itens_bloco(titulo, categoria_filtro):
     itens_do_bloco_com_idx = [
         (idx, item) for idx, item in enumerate(st.session_state["rascunho_itens"])
         if item.get("Cat_Code") == categoria_filtro or item.get("Categoria") == titulo
@@ -140,7 +156,6 @@ def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_blo
                 st.markdown(f"<span style='color: #FFFFFF;'>{item['Unidade']}</span>", unsafe_allow_html=True)
             with c_obs:
                 st.markdown(f"<span style='color: #FFFFFF;'>{item.get('Observações', '')}</span>", unsafe_allow_html=True)
-        st.markdown("---")
 
 def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_completos_fn=None, obter_proximo_numero_fn=None, *args, **kwargs):
     inicializar_estado_proposta()
@@ -229,6 +244,10 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_completos_fn=None, 
     if df_servicos is None or not isinstance(df_servicos, pd.DataFrame):
         df_servicos = pd.DataFrame()
         
+    if not df_servicos.empty and "Código" in df_servicos.columns:
+        df_servicos["_sort_key"] = pd.to_numeric(df_servicos["Código"], errors="coerce")
+        df_servicos = df_servicos.sort_values(by=["_sort_key", "Código"], ascending=[True, True]).drop(columns=["_sort_key"])
+        
     if st.session_state["rascunho_itens"]:
         with st.expander("📈 **Ajuste Percentual Geral nas Tarifas do Rascunho**", expanded=True):
             col_perc, col_apply, _ = st.columns([2, 2.5, 3.5])
@@ -259,7 +278,7 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_completos_fn=None, 
     df_armazenagem = df_servicos[df_servicos["Cat_Upper"] == "ARMAZENAGEM"]
     df_seguro = df_servicos[df_servicos["Cat_Upper"] == "SEGURO"]
     df_servicos_handling = df_servicos[df_servicos["Cat_Upper"].isin(["SERVIÇO", "MOVIMENTAÇÃO (HANDLING)"])]
-    df_outros = df_servicos[~df_servicos["Cat_Upper"].isin(["ARMAZENAGEM", "SEGURO", "SERVIÇO", "MOVIMENTAÇÃO (HANDLING)"])]
+    df_servicos_conexos = df_servicos[~df_servicos["Cat_Upper"].isin(["ARMAZENAGEM", "SEGURO"])]
     
     for item in st.session_state["rascunho_itens"]:
         if not item.get("Cat_Code") or item.get("Cat_Code") == "GEN":
@@ -276,7 +295,7 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_completos_fn=None, 
     renderizar_bloco_categoria("Armazenagem", "ARM", df_armazenagem, "🏬")
     renderizar_bloco_categoria("Seguro", "SEG", df_seguro, "🛡️")
     renderizar_bloco_categoria("Serviços e Movimentações", "SER", df_servicos_handling, "⚙️")
-    renderizar_bloco_categoria("Outros", "OUT", df_outros, "📦")
+    renderizar_bloco_categoria("Serviços Conexos", "OUT", df_servicos_conexos, "📦")
     
     todos_itens = st.session_state["rascunho_itens"]
     col_res1, col_res2 = st.columns([2, 1])
@@ -308,7 +327,7 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_completos_fn=None, 
                 st.error("⚠️ Atenção: Há itens de **Seguro** com tarifa igual a 0,0000. O percentual do seguro deve ser preenchido obrigatoriamente e ser diferente de zero.")
             else:
                 st.session_state["_safe_cliente_nome"] = cli_val
-                st.session_state["_safe_cnpj_val"] = cnp_val
+                st.session_state["_save_cnpj_val"] = cnp_val
                 st.session_state["proposta_id_ativo"] = numero_proposta
                 st.session_state["aba_ativa"] = "cliente"
                 st.rerun()
