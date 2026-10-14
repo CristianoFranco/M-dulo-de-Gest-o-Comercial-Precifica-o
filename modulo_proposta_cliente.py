@@ -150,7 +150,7 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato
                 Paragraph("Código", th_style),
                 Paragraph("Descrição", th_style),
                 Paragraph("Unidade", th_style),
-                Paragraph("Tarifa", td_style_right),
+                Paragraph("Tarifa", th_style_right),
                 Paragraph("Observações", th_style)
             ]
             tabela = Table([cabecalho] + linhas, colWidths=[45, 165, 125, 85, 120])
