@@ -165,7 +165,6 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
             df_exibir["_sort_key"] = pd.to_numeric(df_exibir["Código"], errors="coerce")
             df_exibir = df_exibir.sort_values(by=["_sort_key", "Código"], ascending=[True, True]).drop(columns=["_sort_key"])
 
-        # Formatação da coluna de Tarifa para exibição amigável (com vírgula e casas decimais)
         if not df_exibir.empty and "Tarifa (R$)" in df_exibir.columns:
             def formatar_exibicao_tarifa(val):
                 try:
@@ -276,4 +275,29 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
                             for i in idx_antigo:
                                 df_completo.loc[i, "Status"] = "Inativo"
                             
-                            tarifa_val = 0.0 if is_seguro_edit else (formatar_tarifa_fn(edit_tarifa) if formatar_tarifa_fn else edit_
+                            tarifa_val = 0.0 if is_seguro_edit else (formatar_tarifa_fn(edit_tarifa) if formatar_tarifa_fn else edit_tarifa)
+
+                            novo_registro = {
+                                "Código": str(cod_selecionado),
+                                "Descrição": edit_desc.strip(),
+                                "Tarifa (R$)": tarifa_val,
+                                "Unidade": edit_un,
+                                "Categoria": edit_cat,
+                                "Observações": edit_obs.strip() if edit_obs else "",
+                                "Status": "Ativo"
+                            }
+                            
+                            df_novo = pd.DataFrame([novo_registro])
+                            df_completo = pd.concat([df_completo, df_novo], ignore_index=True)
+                            
+                            if salvar_dados_completos_fn:
+                                salvar_dados_completos_fn(df_completo)
+                            st.success(f"Servício '{cod_selecionado}' atualizado com sucesso!")
+                            st.session_state.pop("modo_acao_servico", None)
+                            st.session_state.pop("codigo_em_edicao", None)
+                            st.rerun()
+                    with col_cancelar:
+                        if st.button("❌ Cancelar", use_container_width=True, key="btn_cancelar_edicao_v16"):
+                            st.session_state.pop("modo_acao_servico", None)
+                            st.session_state.pop("codigo_em_edicao", None)
+                            st.rerun()
