@@ -99,7 +99,11 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
             tarifa_input = 0.0
             st.info("ℹ️ Categoria 'Seguro' selecionada: o campo de tarifa está oculto e será preenchido dinamicamente na Proposta Rascunho.")
         else:
-            tarifa_input = st.number_input("Tarifa (R$) *", min_value=0.0, step=0.0001, format="%.5f", key=f"cad_tar_v16_{ver}")
+            tarifa_str_input = st.text_input("Tarifa (R$) *", value="0.00", placeholder="Ex: 150.00", key=f"cad_tar_txt_v16_{ver}")
+            try:
+                tarifa_input = float(tarifa_str_input.replace(",", ".")) if tarifa_str_input.strip() else 0.0
+            except ValueError:
+                tarifa_input = 0.0
 
         obs_input = st.text_area("Observações e Premissas (Opcional)", placeholder="Ex: Faturamento mínimo...", key=f"cad_obs_v16_{ver}")
 
@@ -137,7 +141,7 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
                     else:
                         df_novo = pd.DataFrame([novo_registro])
                         df_completo = pd.concat([df_completo, df_novo], ignore_index=True)
-                        st.success(f"Serviço '{descricao_input}' cadastrado com sucesso!")
+                        st.success(f"Servício '{descricao_input}' cadastrado com sucesso!")
 
                     if salvar_dados_completos_fn:
                         salvar_dados_completos_fn(df_completo)
@@ -224,10 +228,15 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
                         st.info("ℹ️ Para serviços de Seguro, a tarifa é controlada diretamente na Proposta Rascunho.")
                     else:
                         try:
-                            t_val_inicial = float(str(row_sel["Tarifa (R$)"]).replace(".", "").replace(",", "."))
+                            t_val_inicial = str(row_sel["Tarifa (R$)"]).strip()
                         except Exception:
-                            t_val_inicial = 0.0
-                        edit_tarifa = st.number_input("Tarifa (R$) *", value=t_val_inicial, min_value=0.0, step=0.0001, format="%.5f", key="edit_tar_num_v16")
+                            t_val_inicial = "0.00"
+                        
+                        edit_tarifa_str = st.text_input("Tarifa (R$) *", value=t_val_inicial, key="edit_tar_txt_v16")
+                        try:
+                            edit_tarifa = float(edit_tarifa_str.replace(",", ".")) if edit_tarifa_str.strip() else 0.0
+                        except ValueError:
+                            edit_tarifa = 0.0
                         
                     edit_obs = st.text_area("Observações e Premissas (Opcional)", value=str(row_sel.get("Observações", "")), key="edit_obs_area_v16")
                     
