@@ -138,10 +138,7 @@ def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_blo
                 input_key = f"input_tarifa_{categoria_filtro}_{item['Código']}_{idx}"
                 
                 if input_key not in st.session_state:
-                    val_ini = str(item["Tarifa (R$)"])
-                    if val_ini in ["0.0", "0", "0.00", "nan"]:
-                        val_ini = ""
-                    st.session_state[input_key] = val_ini
+                    st.session_state[input_key] = str(item["Tarifa (R$)"])
                     
                 tarifa_str_input = st.text_input(
                     label=f"Tarifa_{item['Código']}_{idx}",
@@ -150,6 +147,7 @@ def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_blo
                     placeholder="0.00"
                 )
                 
+                # Bloqueia letras em tempo real e aceita apenas números, pontos e vírgulas[cite: 2]
                 tarifa_limpa = re.sub(r'[^0-9.,]', '', tarifa_str_input)
                 try:
                     nova_tarifa = float(tarifa_limpa.replace(",", ".")) if tarifa_limpa.strip() else 0.0
@@ -299,42 +297,4 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_completos_fn=None, 
             else:
                 item["Cat_Code"] = "OUT"
                 
-    renderizar_bloco_categoria("Armazenagem", "ARM", df_armazenagem, "🏬")
-    renderizar_bloco_categoria("Seguro", "SEG", df_seguro, "🛡️")
-    renderizar_bloco_categoria("Serviços e Movimentações", "SER", df_servicos_handling, "⚙️")
-    renderizar_bloco_categoria("Outros", "OUT", df_outros, "📦")
-    
-    todos_itens = st.session_state["rascunho_itens"]
-    col_res1, col_res2 = st.columns([2, 1])
-    with col_res1:
-        st.markdown(f"### Total de Itens no Rascunho: **{len(todos_itens)}**")
-        
-    with col_res2:
-        if st.button("➡️ Finalizar Lançamento e Ir para Proposta Cliente", use_container_width=True):
-            cli_val = str(st.session_state.get("input_cli_nome_tela2") or st.session_state.get("_safe_cliente_nome", "")).strip()
-            cnp_val = str(st.session_state.get("proposta_cliente_cnpj") or st.session_state.get("_safe_cnpj_val", "")).strip()
-            
-            seguro_zerado = False
-            for item in todos_itens:
-                cat_item = str(item.get("Categoria", "")).strip().lower()
-                if cat_item == "seguro" or item.get("Cat_Code") == "SEG":
-                    try:
-                        t_val = float(item.get("Tarifa (R$)", 0))
-                    except Exception:
-                        t_val = 0.0
-                    if t_val == 0.0:
-                        seguro_zerado = True
-                        break
-
-            if not cli_val:
-                st.error("⚠️ O campo 'Cliente *' é obrigatório!")
-            elif not todos_itens:
-                st.error("Adicione pelo menos um item antes de avançar.")
-            elif seguro_zerado:
-                st.error("⚠️ Atenção: Há itens de **Seguro** com tarifa igual a 0,0000. O percentual do seguro deve ser preenchido obrigatoriamente e ser diferente de zero.")
-            else:
-                st.session_state["_safe_cliente_nome"] = cli_val
-                st.session_state["_safe_cnpj_val"] = cnp_val
-                st.session_state["proposta_id_ativo"] = numero_proposta
-                st.session_state["aba_ativa"] = "cliente"
-                st.rerun()
+    renderizar_bloco_categoria("Armazenagem", "ARM", df_armazenagem,
