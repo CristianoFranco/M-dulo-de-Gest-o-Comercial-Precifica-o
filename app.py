@@ -77,7 +77,6 @@ def aplicar_estilo_personalizado():
             label, .stMarkdown label, .stMarkdown p {{ color: #0A2540 !important; font-weight: 700 !important; }}
             h1, h2, h3, h4 {{ color: #FFFFFF !important; text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8); }}
             
-            /* Estilização isolada e precisa para os botões de navegação, garantindo texto branco no hover */
             div.stButton > button {{
                 border-radius: 8px !important;
                 font-weight: 700 !important;
@@ -168,15 +167,42 @@ def carregar_dados(apenas_ativos=True):
 def salvar_dados_completos(df_completo):
     try:
         worksheet = obter_aba_servicos()
-        worksheet.clear()
-        df_salvar = df_completo.copy()
-        df_salvar["Código"] = df_salvar["Código"].astype(str).str.strip()
-        dados_lista = [df_salvar.columns.values.tolist()] + df_salvar.astype(str).values.tolist()
-        worksheet.update(range_name='A1', values=dados_lista)
+        header = ["Código", "Descrição", "Tarifa (R$)", "Unidade", "Categoria", "Observações", "Status"]
+        
+        matriz_atual = worksheet.get_all_values()
+        if not matriz_atual or len(matriz_atual) == 0:
+            worksheet.append_row(header)
+            matriz_atual = [header]
+            
+        mapa_linhas = {}
+        for idx, linha in enumerate(matriz_atual[1:], start=2):
+            if len(linha) > 0:
+                codigo_planilha = str(linha[0]).strip()
+                mapa_linhas[codigo_planilha] = idx
+
+        for _, row in df_completo.iterrows():
+            codigo = str(row.get("Código", "")).strip()
+            descricao = str(row.get("Descrição", ""))
+            tarifa = str(row.get("Tarifa (R$)", ""))
+            unidade = str(row.get("Unidade", ""))
+            categoria = str(row.get("Categoria", ""))
+            observacoes = str(row.get("Observações", ""))
+            status = str(row.get("Status", "Ativo"))
+            
+            linha_dados = [codigo, descricao, tarifa, unidade, categoria, observacoes, status]
+            
+            if codigo in mapa_linhas:
+                row_idx = mapa_linhas[codigo]
+                worksheet.update(range_name=f"A{row_idx}:G{row_idx}", values=[linha_dados])
+            else:
+                worksheet.append_row(linha_dados)
+                nova_linha_idx = len(worksheet.get_all_values())
+                mapa_linhas[codigo] = nova_linha_idx
+
         carregar_dados_cached.clear()
         return True
     except Exception as e:
-        st.error("Erro ao salvar no Google Sheets: {}".format(e))
+        st.error("Erro ao salvar no Google Sheets por linhas: {}".format(e))
         return False
 
 # ==============================================================================
