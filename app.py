@@ -77,11 +77,36 @@ def aplicar_estilo_personalizado():
             label, .stMarkdown label, .stMarkdown p {{ color: #0A2540 !important; font-weight: 700 !important; }}
             h1, h2, h3, h4 {{ color: #FFFFFF !important; text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8); }}
             
-            /* Estilização isolada e precisa para os botões de navegação */
-            div.stButton > button {{
-                border-radius: 8px !important;
-                font-weight: 700 !important;
-                transition: all 0.2s ease-in-out;
+            /* Padronização absoluta para os botões de navegação */
+            div[data-testid="stColumn"] button[kind="primary"] {{
+                background-color: #0052B4 !important;
+                color: #FFFFFF !important;
+                font-weight: 800 !important;
+                border: 2px solid #60A5FA !important;
+                box-shadow: 0 4px 14px rgba(0, 82, 180, 0.6) !important;
+                opacity: 1 !important;
+            }}
+            div[data-testid="stColumn"] button[kind="primary"] p {{
+                color: #FFFFFF !important;
+            }}
+
+            div[data-testid="stColumn"] button[kind="secondary"] {{
+                background-color: rgba(255, 255, 255, 0.1) !important;
+                color: #E2E8F0 !important;
+                font-weight: 600 !important;
+                border: 1px solid rgba(255, 255, 255, 0.25) !important;
+                opacity: 1 !important;
+            }}
+            div[data-testid="stColumn"] button[kind="secondary"] p {{
+                color: #E2E8F0 !important;
+            }}
+            div[data-testid="stColumn"] button[kind="secondary"]:hover {{
+                background-color: rgba(255, 255, 255, 0.2) !important;
+                color: #FFFFFF !important;
+                border-color: rgba(255, 255, 255, 0.5) !important;
+            }}
+            div[data-testid="stColumn"] button[kind="secondary"]:hover p {{
+                color: #FFFFFF !important;
             }}
         </style>
     """.format(bg_style)
@@ -309,7 +334,7 @@ else:
         </div>
     """, unsafe_allow_html=True)
 
-# BARRA DE NAVEGAÇÃO COM CONTROLE EXCLUSIVO DE ESTADO ATIVO
+# BARRA DE NAVEGAÇÃO COM CONTROLE ESTrito DE ESTADOS
 col_nav1, col_nav2, col_nav3, _ = st.columns([2.2, 2.5, 2.5, 2.8])
 aba_atual = st.session_state["aba_ativa"]
 
