@@ -193,16 +193,11 @@ def salvar_dados_completos(df_completo):
 def salvar_propostas_na_planilha(linhas_proposta):
     try:
         ws = obter_aba_propostas()
-        
         num_prop = str(linhas_proposta[0].get("Proposta", "")).strip() if linhas_proposta else ""
-        
         todos_valores = ws.get_all_values()
-        
         if not todos_valores:
             todos_valores = [HEADER_PROPOSTAS_ESPERADO]
-        
         linhas_existentes = todos_valores[1:] if len(todos_valores) > 1 else []
-        
         está_editando = st.session_state.get("proposta_id_em_edicao") is not None
         
         linhas_filtradas = []
@@ -230,7 +225,6 @@ def salvar_propostas_na_planilha(linhas_proposta):
         ws.clear()
         conteudo_final = [HEADER_PROPOSTAS_ESPERADO] + linhas_filtradas + novas_linhas_matriz
         ws.update(range_name='A1', values=conteudo_final)
-        
         return True
     except Exception as e:
         st.error(f"Erro ao gravar proposta no Google Sheets: {e}")
@@ -242,7 +236,6 @@ def carregar_propostas_da_planilha():
         valores = ws.get_all_values()
         if not valores or len(valores) < 2:
             return pd.DataFrame(columns=HEADER_PROPOSTAS_ESPERADO)
-        
         df = pd.DataFrame(valores[1:], columns=valores[0])
         return df
     except Exception:
@@ -328,7 +321,7 @@ else:
         </div>
     """, unsafe_allow_html=True)
 
-# BARRA DE NAVEGAÇÃO COM DESTAQUE VISUAL (3 TELAS)
+# BARRA DE NAVEGAÇÃO COM DESTAQUE VISUAL EXCLUSIVO POR BOTÃO
 col_nav1, col_nav2, col_nav3, _ = st.columns([2.2, 2.5, 2.5, 2.8])
 aba_atual = st.session_state["aba_ativa"]
 
@@ -364,13 +357,11 @@ with col_nav3:
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# SCRIPT PARA FORÇAR O SCROLL PARA O TOPO AO MUDAR DE ABA
 st.markdown(
     "<script>setTimeout(function() { window.scrollTo({top: 0, behavior: 'auto'}); var mainContent = window.parent.document.querySelector('.main'); if (mainContent) { mainContent.scrollTop = 0; } }, 30);</script>",
     unsafe_allow_html=True
 )
 
-# RENDERIZAÇÃO DA TELA SELECIONADA
 if st.session_state["aba_ativa"] == "cadastro":
     executar_renderizar_cadastro()
 elif st.session_state["aba_ativa"] == "propostas":
