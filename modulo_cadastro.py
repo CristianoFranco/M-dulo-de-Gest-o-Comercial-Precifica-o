@@ -217,6 +217,7 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
                 if btn_acao_excluir:
                     idx_alvo = df_completo[(df_completo["Código"] == cod_selecionado) & (df_completo["Status"].str.upper() != "INATIVO")].index[0]
                     
+                    # Mantém o histórico alterando o código com DEL_ e marcando como Inativo
                     df_completo.loc[idx_alvo, "Código"] = f"DEL_{cod_selecionado}_{int(datetime.now().timestamp())}"
                     df_completo.loc[idx_alvo, "Status"] = "Inativo"
                     
@@ -271,31 +272,25 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
                     col_salvar, col_cancelar = st.columns(2)
                     with col_salvar:
                         if st.button("💾 Salvar Alterações", type="primary", use_container_width=True, key="btn_salvar_edicao_v16"):
-                            idx_antigo = df_completo[(df_completo["Código"] == cod_selecionado) & (df_completo["Status"].str.upper() != "INATIVO")].index
-                            for i in idx_antigo:
-                                df_completo.loc[i, "Status"] = "Inativo"
+                            idx_alvo = df_completo[(df_completo["Código"] == cod_selecionado) & (df_completo["Status"].str.upper() != "INATIVO")].index
                             
-                            tarifa_val = 0.0 if is_seguro_edit else (formatar_tarifa_fn(edit_tarifa) if formatar_tarifa_fn else edit_tarifa)
+                            if not idx_alvo.empty:
+                                tarifa_val = 0.0 if is_seguro_edit else (formatar_tarifa_fn(edit_tarifa) if formatar_tarifa_fn else edit_tarifa)
 
-                            novo_registro = {
-                                "Código": str(cod_selecionado),
-                                "Descrição": edit_desc.strip(),
-                                "Tarifa (R$)": tarifa_val,
-                                "Unidade": edit_un,
-                                "Categoria": edit_cat,
-                                "Observações": edit_obs.strip() if edit_obs else "",
-                                "Status": "Ativo"
-                            }
-                            
-                            df_novo = pd.DataFrame([novo_registro])
-                            df_completo = pd.concat([df_completo, df_novo], ignore_index=True)
-                            
-                            if salvar_dados_completos_fn:
-                                salvar_dados_completos_fn(df_completo)
-                            st.success(f"Servício '{cod_selecionado}' atualizado com sucesso!")
-                            st.session_state.pop("modo_acao_servico", None)
-                            st.session_state.pop("codigo_em_edicao", None)
-                            st.rerun()
+                                # Atualiza diretamente a linha existente sem criar duplicidade
+                                df_completo.loc[idx_alvo[0], "Descrição"] = edit_desc.strip()
+                                df_completo.loc[idx_alvo[0], "Categoria"] = edit_cat
+                                df_completo.loc[idx_alvo[0], "Unidade"] = edit_un
+                                df_completo.loc[idx_alvo[0], "Tarifa (R$)"] = tarifa_val
+                                df_completo.loc[idx_alvo[0], "Observações"] = edit_obs.strip() if edit_obs else ""
+                                df_completo.loc[idx_alvo[0], "Status"] = "Ativo"
+                                
+                                if salvar_dados_completos_fn:
+                                    salvar_dados_completos_fn(df_completo)
+                                st.success(f"Servício '{cod_selecionado}' atualizado com sucesso!")
+                                st.session_state.pop("modo_acao_servico", None)
+                                st.session_state.pop("codigo_em_edicao", None)
+                                st.rerun()
                     with col_cancelar:
                         if st.button("❌ Cancelar", use_container_width=True, key="btn_cancelar_edicao_v16"):
                             st.session_state.pop("modo_acao_servico", None)
