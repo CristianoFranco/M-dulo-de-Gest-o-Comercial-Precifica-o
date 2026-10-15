@@ -77,11 +77,15 @@ def aplicar_estilo_personalizado():
             label, .stMarkdown label, .stMarkdown p {{ color: #0A2540 !important; font-weight: 700 !important; }}
             h1, h2, h3, h4 {{ color: #FFFFFF !important; text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8); }}
             
-            /* Estilização isolada e precisa para os botões de navegação */
+            /* Estilização isolada e precisa para os botões de navegação, garantindo texto branco no hover */
             div.stButton > button {{
                 border-radius: 8px !important;
                 font-weight: 700 !important;
                 transition: all 0.2s ease-in-out;
+            }}
+            
+            div.stButton > button:hover, div.stButton > button:hover p, div.stButton > button:hover span {{
+                color: #FFFFFF !important;
             }}
         </style>
     """.format(bg_style)
