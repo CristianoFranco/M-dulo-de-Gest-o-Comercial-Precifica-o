@@ -130,7 +130,10 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato
         tarifa_val = item.get("Tarifa (R$)", 0.0)
         try:
             tarifa_float = float(tarifa_val)
-            tarifa_str = "R$ " + "{:,.5f}".format(tarifa_float).replace(",", "X").replace(".", ",").replace("X", ".")
+            if cat_chave == "SEGURO":
+                tarifa_str = "{:,.5f}".format(tarifa_float).replace(",", "X").replace(".", ",").replace("X", ".") + " %"
+            else:
+                tarifa_str = "R$ " + "{:,.5f}".format(tarifa_float).replace(",", "X").replace(".", ",").replace("X", ".")
         except (ValueError, TypeError):
             tarifa_str = str(tarifa_val)
 
@@ -439,9 +442,13 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
         dados_estaticos = []
         for item in itens_rascunho:
             tarifa_val = item.get("Tarifa (R$)", 0.0)
+            cat_item_str = str(item.get("Categoria", "")).strip().lower()
             try:
                 tarifa_float = float(tarifa_val)
-                tarifa_fmt = "R$ " + "{:,.5f}".format(tarifa_float).replace(",", "X").replace(".", ",").replace("X", ".")
+                if "seguro" in cat_item_str:
+                    tarifa_fmt = "{:,.5f}".format(tarifa_float).replace(",", "X").replace(".", ",").replace("X", ".") + " %"
+                else:
+                    tarifa_fmt = "R$ " + "{:,.5f}".format(tarifa_float).replace(",", "X").replace(".", ",").replace("X", ".")
             except (ValueError, TypeError):
                 tarifa_fmt = str(tarifa_val)
             
