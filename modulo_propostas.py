@@ -51,13 +51,11 @@ def callback_cnpj():
 def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_bloco):
     st.markdown(f"#### {icone_bloco} {titulo}")
     
-    # Filtra os códigos que já foram inseridos no rascunho para sumirem do selectbox
     codigos_ja_inseridos = {str(i.get("Código", "")) for i in st.session_state["rascunho_itens"]}
     df_disponivel = df_categoria[~df_categoria["Código"].astype(str).isin(codigos_ja_inseridos)]
 
     if df_disponivel.empty:
         st.info(f"Todos os serviços disponíveis em '{titulo}' já foram adicionados ou não há itens.")
-        # Exibe os itens já inseridos abaixo mesmo se o selectbox estiver vazio
         renderizar_tabela_itens_bloco(titulo, categoria_filtro)
         st.markdown("---")
         return
@@ -86,11 +84,13 @@ def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_blo
                         st.error("⚠️ Este bloco é exclusivo para Serviços Conexos (Serviços, Movimentação ou Outros). Itens de Armazenagem e Seguro devem ser inseridos nos seus blocos específicos.")
                         return
 
-                tarifa_raw = str(row["Tarifa (R$)"]).replace(".", "").replace(",", ".")
+                # Conversão correta e limpa do valor da tarifa
+                tarifa_raw = str(row["Tarifa (R$)"]).strip()
                 try:
-                    tarifa_float = float(tarifa_raw)
+                    tarifa_float = float(tarifa_raw.replace(",", "."))
                 except ValueError:
-                    tarifa_float = float(row["Tarifa (R$)"])
+                    tarifa_float = 0.0
+
                 obs_val = str(row["Observações"]) if "Observações" in row and pd.notna(row["Observações"]) else ""
                 
                 st.session_state["rascunho_itens"].append({
