@@ -269,4 +269,23 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
                             idx_alvo = df_completo[(df_completo["Código"] == cod_selecionado) & (df_completo["Status"].str.upper() != "INATIVO")].index
                             
                             if not idx_alvo.empty:
-                                tarifa_val = 0.0 if is_seguro_edit else (formatar_tar
+                                tarifa_val = 0.0 if is_seguro_edit else (formatar_tarifa_fn(edit_tarifa) if formatar_tarifa_fn else edit_tarifa)
+
+                                df_completo.loc[idx_alvo[0], "Descrição"] = edit_desc.strip()
+                                df_completo.loc[idx_alvo[0], "Categoria"] = edit_cat
+                                df_completo.loc[idx_alvo[0], "Unidade"] = edit_un
+                                df_completo.loc[idx_alvo[0], "Tarifa (R$)"] = tarifa_val
+                                df_completo.loc[idx_alvo[0], "Observações"] = edit_obs.strip() if edit_obs else ""
+                                df_completo.loc[idx_alvo[0], "Status"] = "Ativo"
+                                
+                                if salvar_dados_completos_fn:
+                                    salvar_dados_completos_fn(df_completo)
+                                st.success(f"Servício '{cod_selecionado}' atualizado com sucesso!")
+                                st.session_state.pop("modo_acao_servico", None)
+                                st.session_state.pop("codigo_em_edicao", None)
+                                st.rerun()
+                    with col_cancelar:
+                        if st.button("❌ Cancelar", use_container_width=True, key=f"btn_cancelar_edicao_v17_{cod_selecionado}"):
+                            st.session_state.pop("modo_acao_servico", None)
+                            st.session_state.pop("codigo_em_edicao", None)
+                            st.rerun()
