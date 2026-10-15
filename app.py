@@ -77,23 +77,11 @@ def aplicar_estilo_personalizado():
             label, .stMarkdown label, .stMarkdown p {{ color: #0A2540 !important; font-weight: 700 !important; }}
             h1, h2, h3, h4 {{ color: #FFFFFF !important; text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8); }}
             
-            div[data-testid="stColumn"] button[kind="primary"] {{
-                background: #0052B4 !important;
-                color: #FFFFFF !important;
-                font-weight: 800 !important;
-                border: 2px solid #60A5FA !important;
-                box-shadow: 0 4px 14px rgba(0, 82, 180, 0.6) !important;
-            }}
-            div[data-testid="stColumn"] button[kind="secondary"] {{
-                background: rgba(255, 255, 255, 0.1) !important;
-                color: #E2E8F0 !important;
-                font-weight: 600 !important;
-                border: 1px solid rgba(255, 255, 255, 0.25) !important;
-            }}
-            div[data-testid="stColumn"] button[kind="secondary"]:hover {{
-                background: rgba(255, 255, 255, 0.2) !important;
-                color: #FFFFFF !important;
-                border-color: rgba(255, 255, 255, 0.5) !important;
+            /* Estilização isolada e precisa para os botões de navegação */
+            div.stButton > button {{
+                border-radius: 8px !important;
+                font-weight: 700 !important;
+                transition: all 0.2s ease-in-out;
             }}
         </style>
     """.format(bg_style)
@@ -321,37 +309,25 @@ else:
         </div>
     """, unsafe_allow_html=True)
 
-# BARRA DE NAVEGAÇÃO COM DESTAQUE VISUAL EXCLUSIVO POR BOTÃO
+# BARRA DE NAVEGAÇÃO COM CONTROLE EXCLUSIVO DE ESTADO ATIVO
 col_nav1, col_nav2, col_nav3, _ = st.columns([2.2, 2.5, 2.5, 2.8])
 aba_atual = st.session_state["aba_ativa"]
 
 with col_nav1:
-    if st.button(
-        "📋 Cadastro",
-        key="btn_nav_cadastro",
-        type="primary" if aba_atual == "cadastro" else "secondary",
-        use_container_width=True
-    ):
+    tipo_btn1 = "primary" if aba_atual == "cadastro" else "secondary"
+    if st.button("📋 Cadastro", key="btn_nav_cadastro", type=tipo_btn1, use_container_width=True):
         st.session_state["aba_ativa"] = "cadastro"
         st.rerun()
 
 with col_nav2:
-    if st.button(
-        "🛠️ Proposta Rascunho",
-        key="btn_nav_propostas",
-        type="primary" if aba_atual == "propostas" else "secondary",
-        use_container_width=True
-    ):
+    tipo_btn2 = "primary" if aba_atual == "propostas" else "secondary"
+    if st.button("🛠️ Proposta Rascunho", key="btn_nav_propostas", type=tipo_btn2, use_container_width=True):
         st.session_state["aba_ativa"] = "propostas"
         st.rerun()
 
 with col_nav3:
-    if st.button(
-        "📄 Proposta Cliente",
-        key="btn_nav_cliente",
-        type="primary" if aba_atual == "cliente" else "secondary",
-        use_container_width=True
-    ):
+    tipo_btn3 = "primary" if aba_atual == "cliente" else "secondary"
+    if st.button("📄 Proposta Cliente", key="btn_nav_cliente", type=tipo_btn3, use_container_width=True):
         st.session_state["aba_ativa"] = "cliente"
         st.rerun()
 
