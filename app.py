@@ -77,35 +77,26 @@ def aplicar_estilo_personalizado():
             label, .stMarkdown label, .stMarkdown p {{ color: #0A2540 !important; font-weight: 700 !important; }}
             h1, h2, h3, h4 {{ color: #FFFFFF !important; text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8); }}
             
-            /* Padronização absoluta para os botões de navegação */
-            div[data-testid="stColumn"] button[kind="primary"] {{
-                background-color: #0052B4 !important;
-                color: #FFFFFF !important;
-                font-weight: 800 !important;
-                border: 2px solid #60A5FA !important;
-                box-shadow: 0 4px 14px rgba(0, 82, 180, 0.6) !important;
-                opacity: 1 !important;
-            }}
-            div[data-testid="stColumn"] button[kind="primary"] p {{
-                color: #FFFFFF !important;
-            }}
-
-            div[data-testid="stColumn"] button[kind="secondary"] {{
+            /* Padronização absoluta para a barra de navegação (todas as abas usam secondary para controle visual via CSS/estado) */
+            div[data-testid="stColumn"] button {{
                 background-color: rgba(255, 255, 255, 0.1) !important;
                 color: #E2E8F0 !important;
                 font-weight: 600 !important;
                 border: 1px solid rgba(255, 255, 255, 0.25) !important;
+                border-radius: 8px !important;
                 opacity: 1 !important;
+                transition: all 0.2s ease-in-out;
             }}
-            div[data-testid="stColumn"] button[kind="secondary"] p {{
+            div[data-testid="stColumn"] button p {{
                 color: #E2E8F0 !important;
+                font-weight: 600 !important;
             }}
-            div[data-testid="stColumn"] button[kind="secondary"]:hover {{
+            div[data-testid="stColumn"] button:hover {{
                 background-color: rgba(255, 255, 255, 0.2) !important;
                 color: #FFFFFF !important;
                 border-color: rgba(255, 255, 255, 0.5) !important;
             }}
-            div[data-testid="stColumn"] button[kind="secondary"]:hover p {{
+            div[data-testid="stColumn"] button:hover p {{
                 color: #FFFFFF !important;
             }}
         </style>
@@ -334,45 +325,9 @@ else:
         </div>
     """, unsafe_allow_html=True)
 
-# BARRA DE NAVEGAÇÃO COM CONTROLE ESTrito DE ESTADOS
-col_nav1, col_nav2, col_nav3, _ = st.columns([2.2, 2.5, 2.5, 2.8])
+# BARRA DE NAVEGAÇÃO COM ESTILIZAÇÃO INDIVIDUAL SEGURA VIA INJEÇÃO DE CSS CONDICIONAL
 aba_atual = st.session_state["aba_ativa"]
 
-with col_nav1:
-    tipo_btn1 = "primary" if aba_atual == "cadastro" else "secondary"
-    if st.button("📋 Cadastro", key="btn_nav_cadastro", type=tipo_btn1, use_container_width=True):
-        st.session_state["aba_ativa"] = "cadastro"
-        st.rerun()
-
-with col_nav2:
-    tipo_btn2 = "primary" if aba_atual == "propostas" else "secondary"
-    if st.button("🛠️ Proposta Rascunho", key="btn_nav_propostas", type=tipo_btn2, use_container_width=True):
-        st.session_state["aba_ativa"] = "propostas"
-        st.rerun()
-
-with col_nav3:
-    tipo_btn3 = "primary" if aba_atual == "cliente" else "secondary"
-    if st.button("📄 Proposta Cliente", key="btn_nav_cliente", type=tipo_btn3, use_container_width=True):
-        st.session_state["aba_ativa"] = "cliente"
-        st.rerun()
-
-st.markdown("<br>", unsafe_allow_html=True)
-
-st.markdown(
-    "<script>setTimeout(function() { window.scrollTo({top: 0, behavior: 'auto'}); var mainContent = window.parent.document.querySelector('.main'); if (mainContent) { mainContent.scrollTop = 0; } }, 30);</script>",
-    unsafe_allow_html=True
-)
-
-if st.session_state["aba_ativa"] == "cadastro":
-    executar_renderizar_cadastro()
-elif st.session_state["aba_ativa"] == "propostas":
-    renderizar_aba_propostas(
-        carregar_dados_fn=carregar_dados, 
-        salvar_dados_completos_fn=salvar_dados_completos,
-        obter_proximo_numero_fn=obter_proximo_numero_proposta_global
-    )
-else:
-    renderizar_aba_proposta_cliente(
-        salvar_proposta_sheets_fn=salvar_propostas_na_planilha,
-        carregar_propostas_salvas_fn=carregar_propostas_da_planilha
-    )
+# Estilos dinâmicos específicos para cada botão dependendo da aba ativa
+ativo_cad = "background-color: #0052B4 !important; color: #FFFFFF !important; border: 2px solid #60A5FA !important; box-shadow: 0 4px 14px rgba(0, 82, 180, 0.6) !important;" if aba_atual == "cadastro" else ""
+ativo_prop = "background-color: #0052B4 !important;
