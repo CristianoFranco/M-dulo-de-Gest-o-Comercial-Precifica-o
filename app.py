@@ -207,16 +207,28 @@ def salvar_dados_completos(df_completo):
         return False
 
 # ==============================================================================
-# FUNÇÕES DE INTEGRAÇÃO COM A TELA 3 (PROPOSTAS SALVAS)
+# FUNÇÕES DE INTEGRAÇÃO COM A TELA 3 (PROPOSTAS SALVAS) - COM TRAVAS DE SEGURANÇA
 # ==============================================================================
 def salvar_propostas_na_planilha(linhas_proposta):
     try:
         ws = obter_aba_propostas()
         num_prop = str(linhas_proposta[0].get("Proposta", "")).strip() if linhas_proposta else ""
+        if not num_prop:
+            st.error("Número da proposta inválido para salvamento.")
+            return False
+
         todos_valores = ws.get_all_values()
         if not todos_valores:
             todos_valores = [HEADER_PROPOSTAS_ESPERADO]
+            
+        header = todos_valores[0]
         linhas_existentes = todos_valores[1:] if len(todos_valores) > 1 else []
+        
+        # Trava de segurança contra falhas temporárias de rede
+        if len(linhas_existentes) > 0 and len(todos_valores) <= 1:
+            st.error("Erro de segurança: Falha de comunicação temporária com o Google Sheets. Salvamento abortado para proteger seus dados.")
+            return False
+
         está_editando = st.session_state.get("proposta_id_em_edicao") is not None
         
         linhas_filtradas = []
@@ -226,6 +238,7 @@ def salvar_propostas_na_planilha(linhas_proposta):
                 if está_editando and proposta_linha == num_prop:
                     continue
                 linhas_filtradas.append(lin)
+                
         novas_linhas_matriz = []
         for reg in linhas_proposta:
             novas_linhas_matriz.append([
@@ -242,7 +255,7 @@ def salvar_propostas_na_planilha(linhas_proposta):
             ])
             
         ws.clear()
-        conteudo_final = [HEADER_PROPOSTAS_ESPERADO] + linhas_filtradas + novas_linhas_matriz
+        conteudo_final = [header] + linhas_filtradas + novas_linhas_matriz
         ws.update(range_name='A1', values=conteudo_final)
         return True
     except Exception as e:
