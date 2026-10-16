@@ -110,7 +110,29 @@ def gerar_pdf_simulador(numero_prop, cliente_nome, df_simulacao_completo, valor_
     buffer.seek(0)
     return buffer
 
+def ordenar_categorias(cat):
+    c_lower = str(cat).strip().lower()
+    if "armazenagem" in c_lower:
+        return 1
+    elif "seguro" in c_lower:
+        return 2
+    elif "conexos" in c_lower or "serviços conexos" in c_lower:
+        return 4
+    else:
+        return 3 # Demais serviços
+
 def renderizar_aba_simulacao(carregar_dados_fn, carregar_propostas_salvas_fn):
+    # CSS personalizado para escurecer o destaque ao passar o cursor nos botões de download
+    st.markdown("""
+        <style>
+            div.stDownloadButton > button:hover {
+                background-color: #003380 !important;
+                border-color: #002255 !important;
+                color: #FFFFFF !important;
+            }
+        </style>
+    """, unsafe_allow_html=True)
+
     st.markdown("## 📊 Simulador Comercial & Cenários")
     st.caption("Simule volumes, ajuste tarifas pontualmente ou em massa, visualize gráficos de categoria e exporte relatórios.")
     st.markdown("<br>", unsafe_allow_html=True)
@@ -182,7 +204,7 @@ def renderizar_aba_simulacao(carregar_dados_fn, carregar_propostas_salvas_fn):
     st.markdown("### 📋 Itens e Simulação de Quantidades / Tarifas")
     st.caption("Você pode alterar livremente a Tarifa de Simulação e informar a Quantidade prevista para cada item.")
 
-    categorias_unicas = sorted(list(set([item["Categoria"] for item in lista_itens])))
+    categorias_unicas = sorted(list(set([item["Categoria"] for item in lista_itens])), key=ordenar_categorias)
     
     valor_total_geral = 0.0
     dados_tabela_final = []
@@ -190,7 +212,6 @@ def renderizar_aba_simulacao(carregar_dados_fn, carregar_propostas_salvas_fn):
     for idx_cat, cat in enumerate(categorias_unicas):
         st.markdown(f"**Categoria: {cat}**")
         
-        # Exibe o cabeçalho vermelho em letras maiúsculas apenas no primeiro bloco
         if idx_cat == 0:
             h_cod, h_desc, h_cat_col, h_und, h_tar, h_qtd, h_tot = st.columns([1, 3, 2, 1.5, 2, 1.5, 2])
             with h_cod: st.markdown("<span style='color: #FF4B4B; font-weight: bold;'>CÓDIGO</span>", unsafe_allow_html=True)
@@ -244,7 +265,6 @@ def renderizar_aba_simulacao(carregar_dados_fn, carregar_propostas_salvas_fn):
                     "Valor Total": item["Tarifa Simulação"] * item["Quantidade"]
                 })
         
-        # Espaçamento reduzido entre os blocos (de <br><br> para espaçamento compacto)
         if idx_cat < len(categorias_unicas) - 1:
             st.markdown("<div style='margin-bottom: 10px;'></div>", unsafe_allow_html=True)
 
@@ -260,13 +280,15 @@ def renderizar_aba_simulacao(carregar_dados_fn, carregar_propostas_salvas_fn):
         df_cat_grp = df_cat_grp[df_cat_grp["Valor Total"] > 0]
 
         if not df_cat_grp.empty:
-            fig, ax = plt.subplots(figsize=(6, 4))
+            # Gráfico reduzido para melhor analise
+            fig, ax = plt.subplots(figsize=(4.2, 3.2))
             ax.pie(
                 df_cat_grp["Valor Total"],
                 labels=df_cat_grp["Categoria"],
                 autopct='%1.1f%%',
                 startangle=140,
-                colors=['#0052B4', '#60A5FA', '#1E3A8A', '#93C5FD', '#1E40AF']
+                colors=['#0052B4', '#60A5FA', '#1E3A8A', '#93C5FD', '#1E40AF'],
+                textprops={'fontsize': 8}
             )
             ax.axis('equal')
             st.pyplot(fig)
