@@ -215,4 +215,38 @@ def renderizar_aba_simulacao(carregar_dados_fn, carregar_propostas_salvas_fn):
             h_cod, h_desc, h_cat_col, h_und, h_tar, h_qtd, h_tot = st.columns([1, 3, 2, 1.5, 2, 1.5, 2])
             with h_cod: st.markdown("<span style='color: #FF4B4B; font-weight: bold;'>CÓDIGO</span>", unsafe_allow_html=True)
             with h_desc: st.markdown("<span style='color: #FF4B4B; font-weight: bold;'>DESCRIÇÃO</span>", unsafe_allow_html=True)
-            with
+            with h_cat_col: st.markdown("<span style='color: #FF4B4B; font-weight: bold;'>CATEGORIA</span>", unsafe_allow_html=True)
+            with h_und: st.markdown("<span style='color: #FF4B4B; font-weight: bold;'>UNIDADE</span>", unsafe_allow_html=True)
+            with h_tar: st.markdown("<span style='color: #FF4B4B; font-weight: bold;'>TARIFA (R$)</span>", unsafe_allow_html=True)
+            with h_qtd: st.markdown("<span style='color: #FF4B4B; font-weight: bold;'>QTD. (SIMULAÇÃO)</span>", unsafe_allow_html=True)
+            with h_tot: st.markdown("<span style='color: #FF4B4B; font-weight: bold;'>VALOR TOTAL (R$)</span>", unsafe_allow_html=True)
+            st.markdown("<hr style='margin: 2px 0 6px 0;'>", unsafe_allow_html=True)
+
+        for i, item in enumerate(lista_itens):
+            if item["Categoria"] == cat:
+                c_cod, c_desc, c_cat, c_und, c_tar, c_qtd, c_tot = st.columns([1, 3, 2, 1.5, 2, 1.5, 2])
+                with c_cod:
+                    st.markdown(f"<span style='color: #FFFFFF; font-weight: 500;'>{item['Código']}</span>", unsafe_allow_html=True)
+                with c_desc:
+                    st.markdown(f"<span style='color: #FFFFFF; font-weight: 500;'>{item['Descrição']}</span>", unsafe_allow_html=True)
+                with c_cat:
+                    st.markdown(f"<span style='color: #FFFFFF; font-weight: 500;'>{item['Categoria']}</span>", unsafe_allow_html=True)
+                with c_und:
+                    st.markdown(f"<span style='color: #FFFFFF; font-weight: 500;'>{item['Unidade']}</span>", unsafe_allow_html=True)
+                with c_tar:
+                    key_tar = f"sim_tar_{proposta_selecionada}_{item['Código']}_{i}"
+                    val_str = st.text_input("Tarifa", value=str(item["Tarifa Simulação"]), key=key_tar, label_visibility="collapsed")
+                    try:
+                        t_num = float(val_str.replace(",", ".")) if val_str.strip() else 0.0
+                    except ValueError:
+                        t_num = 0.0
+                    item["Tarifa Simulação"] = t_num
+                with c_qtd:
+                    key_qtd = f"sim_qtd_{proposta_selecionada}_{item['Código']}_{i}"
+                    val_qtd_atual = "" if item["Quantidade"] == 0 or item["Quantidade"] == "" else str(item["Quantidade"])
+                    qtd_str = st.text_input("Qtd", value=val_qtd_atual, key=key_qtd, label_visibility="collapsed")
+                    try:
+                        q_num = float(qtd_str.replace(",", ".")) if qtd_str.strip() else 0.0
+                    except ValueError:
+                        q_num = 0.0
+                    item["Quantidade"] = qtd
