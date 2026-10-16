@@ -84,7 +84,6 @@ def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_blo
                         st.error("⚠️ Este bloco é exclusivo para Serviços Conexos (Serviços, Movimentação ou Outros). Itens de Armazenagem e Seguro devem ser inseridos nos seus blocos específicos.")
                         return
 
-                # Conversão correta e limpa do valor da tarifa
                 tarifa_raw = str(row["Tarifa (R$)"]).strip()
                 try:
                     tarifa_float = float(tarifa_raw.replace(",", "."))
@@ -200,6 +199,8 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_completos_fn=None, 
         st.markdown(f"### Nº: `{numero_proposta}`")
         if st.session_state.get("proposta_id_em_edicao"):
             if st.button("➕ Nova Proposta (Limpar Edição)", use_container_width=True):
+                st.session_state.pop("ultimo_pdf_bytes", None)
+                st.session_state.pop("ultimo_pdf_nome", None)
                 st.session_state["proposta_id_em_edicao"] = None
                 st.session_state["proposta_id_ativo"] = None
                 st.session_state["rascunho_itens"] = []
@@ -326,6 +327,9 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_completos_fn=None, 
             elif seguro_zerado:
                 st.error("⚠️ Atenção: Há itens de **Seguro** com tarifa igual a 0,0000. O percentual do seguro deve ser preenchido obrigatoriamente e ser diferente de zero.")
             else:
+                # Limpa qualquer PDF residual para liberar a tela de preenchimento
+                st.session_state.pop("ultimo_pdf_bytes", None)
+                st.session_state.pop("ultimo_pdf_nome", None)
                 st.session_state["_safe_cliente_nome"] = cli_val
                 st.session_state["_save_cnpj_val"] = cnp_val
                 st.session_state["proposta_id_ativo"] = numero_proposta
