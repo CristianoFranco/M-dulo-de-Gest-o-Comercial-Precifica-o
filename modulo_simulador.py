@@ -105,7 +105,7 @@ def gerar_pdf_simulador(numero_prop, cliente_nome, df_simulacao_completo, valor_
     buffer.seek(0)
     return buffer
 
-def renderizar_aba_simulador(carregar_propostas_salvas_fn):
+def renderizar_aba_simulacao(carregar_dados_fn, carregar_propostas_salvas_fn):
     st.markdown("## 📊 Simulador Comercial & Cenários")
     st.caption("Simule volumes, ajuste tarifas pontualmente ou em massa, visualize gráficos de categoria e exporte relatórios.")
     st.markdown("<br>", unsafe_allow_html=True)
@@ -132,7 +132,6 @@ def renderizar_aba_simulador(carregar_propostas_salvas_fn):
     df_prop = df_historico[df_historico["Proposta"].astype(str).str.strip() == proposta_selecionada].copy()
     cliente_atual = str(df_prop["Cliente"].iloc[0]) if "Cliente" in df_prop.columns and not df_prop.empty else "Cliente"
 
-    # Inicializar estado da simulação para a proposta escolhida
     chave_estado_itens = f"simulador_itens_{proposta_selecionada}"
     if chave_estado_itens not in st.session_state:
         itens_iniciais = []
@@ -238,7 +237,6 @@ def renderizar_aba_simulador(carregar_propostas_salvas_fn):
                     "Valor Total": item["Tarifa Simulação"] * item["Quantidade"]
                 })
         
-        # Espaçamento limpo entre as categorias sem títulos repetitivos
         if idx_cat < len(categorias_unicas) - 1:
             st.markdown("<br>", unsafe_allow_html=True)
 
@@ -248,7 +246,6 @@ def renderizar_aba_simulador(carregar_propostas_salvas_fn):
 
     df_simulacao_completo = pd.DataFrame(dados_tabela_final)
 
-    # Gráfico de Pizza por Categoria
     if valor_total_geral > 0:
         st.markdown("### 🥧 Distribuição de Custos por Categoria")
         df_cat_grp = df_simulacao_completo.groupby("Categoria")["Valor Total"].sum().reset_index()
@@ -270,7 +267,6 @@ def renderizar_aba_simulador(carregar_propostas_salvas_fn):
     col_exp1, col_exp2 = st.columns(2)
 
     with col_exp1:
-        # Exportar para Excel
         output_excel = io.BytesIO()
         with pd.ExcelWriter(output_excel, engine='openpyxl') as writer:
             df_simulacao_completo.to_excel(writer, index=False, sheet_name='Simulação')
@@ -285,7 +281,6 @@ def renderizar_aba_simulador(carregar_propostas_salvas_fn):
         )
 
     with col_exp2:
-        # Gerar PDF da Simulação
         if REPORTLAB_DISPONIVEL:
             pdf_bytes = gerar_pdf_simulador(proposta_selecionada, cliente_atual, df_simulacao_completo, valor_total_geral)
             if pdf_bytes:
