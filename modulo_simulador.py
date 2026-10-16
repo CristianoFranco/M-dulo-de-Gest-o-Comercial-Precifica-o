@@ -119,10 +119,9 @@ def ordenar_categorias(cat):
     elif "conexos" in c_lower or "serviços conexos" in c_lower:
         return 4
     else:
-        return 3 # Demais serviços
+        return 3
 
 def renderizar_aba_simulacao(carregar_dados_fn, carregar_propostas_salvas_fn):
-    # CSS personalizado para escurecer o destaque ao passar o cursor nos botões de download
     st.markdown("""
         <style>
             div.stDownloadButton > button:hover {
@@ -146,16 +145,30 @@ def renderizar_aba_simulacao(carregar_dados_fn, carregar_propostas_salvas_fn):
         st.info("Nenhuma proposta salva encontrada para iniciar a simulação.")
         return
 
-    propostas_disponiveis = [str(p).strip() for p in df_historico["Proposta"].dropna().unique() if str(p).strip() and str(p) != "nan"]
+    # Mapear propostas com o nome do cliente para exibição amigável no selectbox
+    mapa_propostas = {}
+    for _, row in df_historico.iterrows():
+        p = str(row.get("Proposta", "")).strip()
+        c = str(row.get("Cliente", "")).strip()
+        if p and p != "nan":
+            mapa_propostas[p] = c
+
+    propostas_disponiveis = sorted(list(mapa_propostas.keys()))
     
     col_sel_p, _ = st.columns([2, 2])
     with col_sel_p:
-        proposta_selecionada = st.selectbox("Selecione a Proposta para Simulação:", options=[""] + propostas_disponiveis, key="select_prop_simulador")
+        opcao_selecionada = st.selectbox(
+            "Selecione a Proposta para Simulação:",
+            options=[""] + propostas_disponiveis,
+            format_func=lambda x: f"Proposta: {x} — Cliente: {mapa_propostas.get(x, '')}" if x else "Selecione uma proposta...",
+            key="select_prop_simulador"
+        )
 
-    if not proposta_selecionada:
+    if not opcao_selecionada:
         st.warning("Selecione uma proposta acima para carregar os itens no simulador.")
         return
 
+    proposta_selecionada = opcao_selecionada
     df_prop = df_historico[df_historico["Proposta"].astype(str).str.strip() == proposta_selecionada].copy()
     cliente_atual = str(df_prop["Cliente"].iloc[0]) if "Cliente" in df_prop.columns and not df_prop.empty else "Cliente"
 
@@ -175,7 +188,7 @@ def renderizar_aba_simulacao(carregar_dados_fn, carregar_propostas_salvas_fn):
                 "Unidade": str(row.get("Unidade", "")),
                 "Tarifa Original": t_orig,
                 "Tarifa Simulação": t_orig,
-                "Quantidade": 0.0
+                "Quantidade": ""
             })
         st.session_state[chave_estado_itens] = itens_iniciais
 
@@ -244,14 +257,16 @@ def renderizar_aba_simulacao(carregar_dados_fn, carregar_propostas_salvas_fn):
                     item["Tarifa Simulação"] = t_num
                 with c_qtd:
                     key_qtd = f"sim_qtd_{proposta_selecionada}_{item['Código']}_{i}"
-                    qtd_str = st.text_input("Qtd", value=str(item["Quantidade"]), key=key_qtd, label_visibility="collapsed")
+                    val_qtd_atual = "" if item["Quantidade"] in [0, 0.0, ""] else str(item["Quantidade"])
+                    qtd_str = st.text_input("Qtd", value=val_qtd_atual, key=key_qtd, label_visibility="collapsed")
                     try:
                         q_num = float(qtd_str.replace(",", ".")) if qtd_str.strip() else 0.0
                     except ValueError:
                         q_num = 0.0
-                    item["Quantidade"] = q_num
+                    item["Quantidade"] = qtd_str if qtd_str.strip() == "" else q_num
                 with c_tot:
-                    v_tot = item["Tarifa Simulação"] * item["Quantidade"]
+                    qtd_calc = float(item["Quantidade"]) if str(item["Quantidade"]).strip() != "" else 0.0
+                    v_tot = item["Tarifa Simulação"] * qtd_calc
                     valor_total_geral += v_tot
                     st.markdown(f"<span style='color: #FFFFFF; font-weight: 600; line-height: 2.4rem;'>R$ {v_tot:,.2f}</span>".replace(",", "X").replace(".", ",").replace("X", "."), unsafe_allow_html=True)
 
@@ -261,8 +276,8 @@ def renderizar_aba_simulacao(carregar_dados_fn, carregar_propostas_salvas_fn):
                     "Categoria": item["Categoria"],
                     "Unidade": item["Unidade"],
                     "Tarifa Simulação": item["Tarifa Simulação"],
-                    "Quantidade": item["Quantidade"],
-                    "Valor Total": item["Tarifa Simulação"] * item["Quantidade"]
+                    "Quantidade": qtd_calc,
+                    "Valor Total": v_tot
                 })
         
         if idx_cat < len(categorias_unicas) - 1:
@@ -280,18 +295,19 @@ def renderizar_aba_simulacao(carregar_dados_fn, carregar_propostas_salvas_fn):
         df_cat_grp = df_cat_grp[df_cat_grp["Valor Total"] > 0]
 
         if not df_cat_grp.empty:
-            # Gráfico reduzido para melhor analise
-            fig, ax = plt.subplots(figsize=(4.2, 3.2))
-            ax.pie(
-                df_cat_grp["Valor Total"],
-                labels=df_cat_grp["Categoria"],
-                autopct='%1.1f%%',
-                startangle=140,
-                colors=['#0052B4', '#60A5FA', '#1E3A8A', '#93C5FD', '#1E40AF'],
-                textprops={'fontsize': 8}
-            )
-            ax.axis('equal')
-            st.pyplot(fig)
+            col_chart_left, col_chart_center, col_chart_right = st.columns([1, 2, 1])
+            with col_chart_center:
+                fig, ax = plt.subplots(figsize=(2.8, 2.2))
+                ax.pie(
+                    df_cat_grp["Valor Total"],
+                    labels=df_cat_grp["Categoria"],
+                    autopct='%1.1f%%',
+                    startangle=140,
+                    colors=['#0052B4', '#60A5FA', '#1E3A8A', '#93C5FD', '#1E40AF'],
+                    textprops={'fontsize': 7}
+                )
+                ax.axis('equal')
+                st.pyplot(fig)
 
     st.markdown("---")
     col_exp1, col_exp2 = st.columns(2)
