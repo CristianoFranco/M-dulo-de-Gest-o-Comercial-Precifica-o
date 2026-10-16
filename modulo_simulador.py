@@ -235,18 +235,4 @@ def renderizar_aba_simulacao(carregar_dados_fn, carregar_propostas_salvas_fn):
                     st.markdown(f"<span style='color: #FFFFFF; font-weight: 500;'>{item['Unidade']}</span>", unsafe_allow_html=True)
                 with c_tar:
                     key_tar = f"sim_tar_{proposta_selecionada}_{item['Código']}_{i}"
-                    val_str = st.text_input("Tarifa", value=str(item["Tarifa Simulação"]), key=key_tar, label_visibility="collapsed")
-                    try:
-                        t_num = float(val_str.replace(",", ".")) if val_str.strip() else 0.0
-                    except ValueError:
-                        t_num = 0.0
-                    item["Tarifa Simulação"] = t_num
-                with c_qtd:
-                    key_qtd = f"sim_qtd_{proposta_selecionada}_{item['Código']}_{i}"
-                    val_qtd_atual = "" if item["Quantidade"] == 0 or item["Quantidade"] == "" else str(item["Quantidade"])
-                    qtd_str = st.text_input("Qtd", value=val_qtd_atual, key=key_qtd, label_visibility="collapsed")
-                    try:
-                        q_num = float(qtd_str.replace(",", ".")) if qtd_str.strip() else 0.0
-                    except ValueError:
-                        q_num = 0.0
-                    item["Quantidade"] = qtd
+                    val_str = st.text_input("Tarifa", value=str(
