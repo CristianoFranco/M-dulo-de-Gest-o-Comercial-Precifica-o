@@ -184,4 +184,36 @@ def salvar_dados_completos(df_completo):
             codigo = str(row.get("Código", "")).strip()
             descricao = str(row.get("Descrição", ""))
             tarifa = str(row.get("Tarifa (R$)", ""))
-            unidade = str
+            unidade = str(row.get("Unidade", ""))
+            categoria = str(row.get("Categoria", ""))
+            observacoes = str(row.get("Observações", ""))
+            status = str(row.get("Status", "Ativo"))
+            
+            linha_dados = [codigo, descricao, tarifa, unidade, categoria, observacoes, status]
+            
+            if codigo in mapa_linhas:
+                row_idx = mapa_linhas[codigo]
+                worksheet.update(range_name=f"A{row_idx}:G{row_idx}", values=[linha_dados])
+            else:
+                worksheet.append_row(linha_dados)
+                nova_linha_idx = len(worksheet.get_all_values())
+                mapa_linhas[codigo] = nova_linha_idx
+
+        carregar_dados_cached.clear()
+        return True
+    except Exception as e:
+        st.error("Erro ao salvar no Google Sheets por linhas: {}".format(e))
+        return False
+
+# ==============================================================================
+# FUNÇÕES DE INTEGRAÇÃO COM A TELA 3 (PROPOSTAS SALVAS)
+# ==============================================================================
+def salvar_propostas_na_planilha(linhas_proposta):
+    try:
+        ws = obter_aba_propostas()
+        num_prop = str(linhas_proposta[0].get("Proposta", "")).strip() if linhas_proposta else ""
+        todos_valores = ws.get_all_values()
+        if not todos_valores:
+            todos_valores = [HEADER_PROPOSTAS_ESPERADO]
+        linhas_existentes = todos_valores[1:] if len(todos_valores) > 1 else []
+        está_editando = st.session_state.get("proposta_id_em_edicao") is not None
