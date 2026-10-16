@@ -208,9 +208,13 @@ def renderizar_aba_simulacao(carregar_dados_fn, carregar_propostas_salvas_fn):
         st.write("")
         if st.button("🚀 Aplicar Reajuste em Massa", use_container_width=True):
             fator = 1.0 + (float(perc_massa) / 100.0)
-            for item in lista_itens:
+            for idx, item in enumerate(lista_itens):
                 if cat_massa == "Todas" or item["Categoria"] == cat_massa:
-                    item["Tarifa Simulação"] = round(item["Tarifa Simulação"] * fator, 5)
+                    nova_tarifa = round(item["Tarifa Simulação"] * fator, 5)
+                    item["Tarifa Simulação"] = nova_tarifa
+                    # Atualiza o estado da caixa de texto correspondente para refletir o reajuste imediatamente
+                    key_tar = f"sim_tar_{proposta_selecionada}_{item['Código']}_{idx}"
+                    st.session_state[key_tar] = str(nova_tarifa)
             st.success(f"Reajuste de {perc_massa}% aplicado com sucesso!")
             st.rerun()
 
@@ -299,7 +303,6 @@ def renderizar_aba_simulacao(carregar_dados_fn, carregar_propostas_salvas_fn):
             with col_chart_center:
                 fig, ax = plt.subplots(figsize=(4.0, 3.0))
                 
-                # Gráfico sem rótulos internos sobrepostos, usando legenda limpa ao lado
                 wedges, texts, autotexts = ax.pie(
                     df_cat_grp["Valor Total"],
                     autopct='%1.1f%%',
@@ -308,7 +311,6 @@ def renderizar_aba_simulacao(carregar_dados_fn, carregar_propostas_salvas_fn):
                     textprops={'fontsize': 8, 'color': 'black', 'weight': 'bold'}
                 )
                 
-                # Legenda lateral sem sobreposição
                 ax.legend(
                     wedges, 
                     df_cat_grp["Categoria"],
