@@ -119,10 +119,9 @@ def ordenar_categorias(cat):
     elif "conexos" in c_lower or "serviços conexos" in c_lower:
         return 4
     else:
-        return 3 # Demais serviços
+        return 3
 
 def renderizar_aba_simulacao(carregar_dados_fn, carregar_propostas_salvas_fn):
-    # CSS personalizado para escurecer o destaque ao passar o cursor nos botões de download
     st.markdown("""
         <style>
             div.stDownloadButton > button:hover {
@@ -175,7 +174,7 @@ def renderizar_aba_simulacao(carregar_dados_fn, carregar_propostas_salvas_fn):
                 "Unidade": str(row.get("Unidade", "")),
                 "Tarifa Original": t_orig,
                 "Tarifa Simulação": t_orig,
-                "Quantidade": 0.0
+                "Quantidade": ""
             })
         st.session_state[chave_estado_itens] = itens_iniciais
 
@@ -216,108 +215,4 @@ def renderizar_aba_simulacao(carregar_dados_fn, carregar_propostas_salvas_fn):
             h_cod, h_desc, h_cat_col, h_und, h_tar, h_qtd, h_tot = st.columns([1, 3, 2, 1.5, 2, 1.5, 2])
             with h_cod: st.markdown("<span style='color: #FF4B4B; font-weight: bold;'>CÓDIGO</span>", unsafe_allow_html=True)
             with h_desc: st.markdown("<span style='color: #FF4B4B; font-weight: bold;'>DESCRIÇÃO</span>", unsafe_allow_html=True)
-            with h_cat_col: st.markdown("<span style='color: #FF4B4B; font-weight: bold;'>CATEGORIA</span>", unsafe_allow_html=True)
-            with h_und: st.markdown("<span style='color: #FF4B4B; font-weight: bold;'>UNIDADE</span>", unsafe_allow_html=True)
-            with h_tar: st.markdown("<span style='color: #FF4B4B; font-weight: bold;'>TARIFA (R$)</span>", unsafe_allow_html=True)
-            with h_qtd: st.markdown("<span style='color: #FF4B4B; font-weight: bold;'>QTD. (SIMULAÇÃO)</span>", unsafe_allow_html=True)
-            with h_tot: st.markdown("<span style='color: #FF4B4B; font-weight: bold;'>VALOR TOTAL (R$)</span>", unsafe_allow_html=True)
-            st.markdown("<hr style='margin: 2px 0 6px 0;'>", unsafe_allow_html=True)
-
-        for i, item in enumerate(lista_itens):
-            if item["Categoria"] == cat:
-                c_cod, c_desc, c_cat, c_und, c_tar, c_qtd, c_tot = st.columns([1, 3, 2, 1.5, 2, 1.5, 2])
-                with c_cod:
-                    st.markdown(f"<span style='color: #FFFFFF; font-weight: 500;'>{item['Código']}</span>", unsafe_allow_html=True)
-                with c_desc:
-                    st.markdown(f"<span style='color: #FFFFFF; font-weight: 500;'>{item['Descrição']}</span>", unsafe_allow_html=True)
-                with c_cat:
-                    st.markdown(f"<span style='color: #FFFFFF; font-weight: 500;'>{item['Categoria']}</span>", unsafe_allow_html=True)
-                with c_und:
-                    st.markdown(f"<span style='color: #FFFFFF; font-weight: 500;'>{item['Unidade']}</span>", unsafe_allow_html=True)
-                with c_tar:
-                    key_tar = f"sim_tar_{proposta_selecionada}_{item['Código']}_{i}"
-                    val_str = st.text_input("Tarifa", value=str(item["Tarifa Simulação"]), key=key_tar, label_visibility="collapsed")
-                    try:
-                        t_num = float(val_str.replace(",", ".")) if val_str.strip() else 0.0
-                    except ValueError:
-                        t_num = 0.0
-                    item["Tarifa Simulação"] = t_num
-                with c_qtd:
-                    key_qtd = f"sim_qtd_{proposta_selecionada}_{item['Código']}_{i}"
-                    qtd_str = st.text_input("Qtd", value=str(item["Quantidade"]), key=key_qtd, label_visibility="collapsed")
-                    try:
-                        q_num = float(qtd_str.replace(",", ".")) if qtd_str.strip() else 0.0
-                    except ValueError:
-                        q_num = 0.0
-                    item["Quantidade"] = q_num
-                with c_tot:
-                    v_tot = item["Tarifa Simulação"] * item["Quantidade"]
-                    valor_total_geral += v_tot
-                    st.markdown(f"<span style='color: #FFFFFF; font-weight: 600; line-height: 2.4rem;'>R$ {v_tot:,.2f}</span>".replace(",", "X").replace(".", ",").replace("X", "."), unsafe_allow_html=True)
-
-                dados_tabela_final.append({
-                    "Código": item["Código"],
-                    "Descrição": item["Descrição"],
-                    "Categoria": item["Categoria"],
-                    "Unidade": item["Unidade"],
-                    "Tarifa Simulação": item["Tarifa Simulação"],
-                    "Quantidade": item["Quantidade"],
-                    "Valor Total": item["Tarifa Simulação"] * item["Quantidade"]
-                })
-        
-        if idx_cat < len(categorias_unicas) - 1:
-            st.markdown("<div style='margin-bottom: 10px;'></div>", unsafe_allow_html=True)
-
-    st.markdown("---")
-    st.markdown(f"### 💰 Valor Total Geral da Simulação: **R$ {valor_total_geral:,.2f}**".replace(",", "X").replace(".", ",").replace("X", "."))
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    df_simulacao_completo = pd.DataFrame(dados_tabela_final)
-
-    if MATPLOTLIB_DISPONIVEL and valor_total_geral > 0:
-        st.markdown("### 🥧 Distribuição de Custos por Categoria")
-        df_cat_grp = df_simulacao_completo.groupby("Categoria")["Valor Total"].sum().reset_index()
-        df_cat_grp = df_cat_grp[df_cat_grp["Valor Total"] > 0]
-
-        if not df_cat_grp.empty:
-            # Gráfico reduzido para melhor analise
-            fig, ax = plt.subplots(figsize=(4.2, 3.2))
-            ax.pie(
-                df_cat_grp["Valor Total"],
-                labels=df_cat_grp["Categoria"],
-                autopct='%1.1f%%',
-                startangle=140,
-                colors=['#0052B4', '#60A5FA', '#1E3A8A', '#93C5FD', '#1E40AF'],
-                textprops={'fontsize': 8}
-            )
-            ax.axis('equal')
-            st.pyplot(fig)
-
-    st.markdown("---")
-    col_exp1, col_exp2 = st.columns(2)
-
-    with col_exp1:
-        output_excel = io.BytesIO()
-        with pd.ExcelWriter(output_excel, engine='openpyxl') as writer:
-            df_simulacao_completo.to_excel(writer, index=False, sheet_name='Simulação')
-        output_excel.seek(0)
-
-        st.download_button(
-            label="📥 Exportar Simulação em Excel (.xlsx)",
-            data=output_excel,
-            file_name=f"Simulacao_{proposta_selecionada.replace('/', '_')}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            use_container_width=True
-        )
-
-    with col_exp2:
-        if REPORTLAB_DISPONIVEL:
-            pdf_bytes = gerar_pdf_simulador(proposta_selecionada, cliente_atual, df_simulacao_completo, valor_total_geral)
-            if pdf_bytes:
-                st.download_button(
-                    label="📄 Gerar PDF da Simulação",
-                    data=pdf_bytes,
-                    file_name=f"Simulacao_{proposta_selecionada.replace('/', '_')}.pdf",
-                    mime="application/pdf",
-                    use_container_width=True
-                )
+            with
