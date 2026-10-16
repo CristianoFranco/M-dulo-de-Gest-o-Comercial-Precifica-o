@@ -145,7 +145,6 @@ def renderizar_aba_simulacao(carregar_dados_fn, carregar_propostas_salvas_fn):
         st.info("Nenhuma proposta salva encontrada para iniciar a simulação.")
         return
 
-    # Mapear propostas com o nome do cliente para exibição amigável no selectbox
     mapa_propostas = {}
     for _, row in df_historico.iterrows():
         p = str(row.get("Proposta", "")).strip()
@@ -157,10 +156,12 @@ def renderizar_aba_simulacao(carregar_dados_fn, carregar_propostas_salvas_fn):
     
     col_sel_p, _ = st.columns([2, 2])
     with col_sel_p:
+        st.markdown("### Selecione a Proposta e Cliente")
         opcao_selecionada = st.selectbox(
-            "Selecione a Proposta para Simulação:",
+            "Selecione a Proposta e Cliente",
             options=[""] + propostas_disponiveis,
-            format_func=lambda x: f"Proposta: {x} — Cliente: {mapa_propostas.get(x, '')}" if x else "Selecione uma proposta...",
+            format_func=lambda x: f"{x} — {mapa_propostas.get(x, '')}" if x else "Selecione uma proposta...",
+            label_visibility="collapsed",
             key="select_prop_simulador"
         )
 
