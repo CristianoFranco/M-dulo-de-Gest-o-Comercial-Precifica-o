@@ -2,7 +2,12 @@ import streamlit as st
 import pandas as pd
 import io
 import os
-import matplotlib.pyplot as plt
+
+try:
+    import matplotlib.pyplot as plt
+    MATPLOTLIB_DISPONIVEL = True
+except ImportError:
+    MATPLOTLIB_DISPONIVEL = False
 
 try:
     from reportlab.lib.pagesizes import letter
@@ -185,27 +190,29 @@ def renderizar_aba_simulacao(carregar_dados_fn, carregar_propostas_salvas_fn):
     for idx_cat, cat in enumerate(categorias_unicas):
         st.markdown(f"**Categoria: {cat}**")
         
-        h_cod, h_desc, h_cat, h_und, h_tar, h_qtd, h_tot = st.columns([1, 3, 2, 1.5, 2, 1.5, 2])
-        with h_cod: st.markdown("<b>Código</b>", unsafe_allow_html=True)
-        with h_desc: st.markdown("<b>Descrição</b>", unsafe_allow_html=True)
-        with h_cat: st.markdown("<b>Categoria</b>", unsafe_allow_html=True)
-        with h_und: st.markdown("<b>Unidade</b>", unsafe_allow_html=True)
-        with h_tar: st.markdown("<b>Tarifa (R$)</b>", unsafe_allow_html=True)
-        with h_qtd: st.markdown("<b>Qtd. (Simulação)</b>", unsafe_allow_html=True)
-        with h_tot: st.markdown("<b>Valor Total (R$)</b>", unsafe_allow_html=True)
-        st.markdown("<hr style='margin: 2px 0 8px 0;'>", unsafe_allow_html=True)
+        # Exibe o cabeçalho vermelho em letras maiúsculas apenas no primeiro bloco
+        if idx_cat == 0:
+            h_cod, h_desc, h_cat_col, h_und, h_tar, h_qtd, h_tot = st.columns([1, 3, 2, 1.5, 2, 1.5, 2])
+            with h_cod: st.markdown("<span style='color: #FF4B4B; font-weight: bold;'>CÓDIGO</span>", unsafe_allow_html=True)
+            with h_desc: st.markdown("<span style='color: #FF4B4B; font-weight: bold;'>DESCRIÇÃO</span>", unsafe_allow_html=True)
+            with h_cat_col: st.markdown("<span style='color: #FF4B4B; font-weight: bold;'>CATEGORIA</span>", unsafe_allow_html=True)
+            with h_und: st.markdown("<span style='color: #FF4B4B; font-weight: bold;'>UNIDADE</span>", unsafe_allow_html=True)
+            with h_tar: st.markdown("<span style='color: #FF4B4B; font-weight: bold;'>TARIFA (R$)</span>", unsafe_allow_html=True)
+            with h_qtd: st.markdown("<span style='color: #FF4B4B; font-weight: bold;'>QTD. (SIMULAÇÃO)</span>", unsafe_allow_html=True)
+            with h_tot: st.markdown("<span style='color: #FF4B4B; font-weight: bold;'>VALOR TOTAL (R$)</span>", unsafe_allow_html=True)
+            st.markdown("<hr style='margin: 2px 0 6px 0;'>", unsafe_allow_html=True)
 
         for i, item in enumerate(lista_itens):
             if item["Categoria"] == cat:
                 c_cod, c_desc, c_cat, c_und, c_tar, c_qtd, c_tot = st.columns([1, 3, 2, 1.5, 2, 1.5, 2])
                 with c_cod:
-                    st.text(item["Código"])
+                    st.markdown(f"<span style='color: #FFFFFF; font-weight: 500;'>{item['Código']}</span>", unsafe_allow_html=True)
                 with c_desc:
-                    st.text(item["Descrição"])
+                    st.markdown(f"<span style='color: #FFFFFF; font-weight: 500;'>{item['Descrição']}</span>", unsafe_allow_html=True)
                 with c_cat:
-                    st.text(item["Categoria"])
+                    st.markdown(f"<span style='color: #FFFFFF; font-weight: 500;'>{item['Categoria']}</span>", unsafe_allow_html=True)
                 with c_und:
-                    st.text(item["Unidade"])
+                    st.markdown(f"<span style='color: #FFFFFF; font-weight: 500;'>{item['Unidade']}</span>", unsafe_allow_html=True)
                 with c_tar:
                     key_tar = f"sim_tar_{proposta_selecionada}_{item['Código']}_{i}"
                     val_str = st.text_input("Tarifa", value=str(item["Tarifa Simulação"]), key=key_tar, label_visibility="collapsed")
@@ -225,7 +232,7 @@ def renderizar_aba_simulacao(carregar_dados_fn, carregar_propostas_salvas_fn):
                 with c_tot:
                     v_tot = item["Tarifa Simulação"] * item["Quantidade"]
                     valor_total_geral += v_tot
-                    st.text(f"R$ {v_tot:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+                    st.markdown(f"<span style='color: #FFFFFF; font-weight: 600; line-height: 2.4rem;'>R$ {v_tot:,.2f}</span>".replace(",", "X").replace(".", ",").replace("X", "."), unsafe_allow_html=True)
 
                 dados_tabela_final.append({
                     "Código": item["Código"],
@@ -237,8 +244,9 @@ def renderizar_aba_simulacao(carregar_dados_fn, carregar_propostas_salvas_fn):
                     "Valor Total": item["Tarifa Simulação"] * item["Quantidade"]
                 })
         
+        # Espaçamento reduzido entre os blocos (de <br><br> para espaçamento compacto)
         if idx_cat < len(categorias_unicas) - 1:
-            st.markdown("<br>", unsafe_allow_html=True)
+            st.markdown("<div style='margin-bottom: 10px;'></div>", unsafe_allow_html=True)
 
     st.markdown("---")
     st.markdown(f"### 💰 Valor Total Geral da Simulação: **R$ {valor_total_geral:,.2f}**".replace(",", "X").replace(".", ",").replace("X", "."))
@@ -246,7 +254,7 @@ def renderizar_aba_simulacao(carregar_dados_fn, carregar_propostas_salvas_fn):
 
     df_simulacao_completo = pd.DataFrame(dados_tabela_final)
 
-    if valor_total_geral > 0:
+    if MATPLOTLIB_DISPONIVEL and valor_total_geral > 0:
         st.markdown("### 🥧 Distribuição de Custos por Categoria")
         df_cat_grp = df_simulacao_completo.groupby("Categoria")["Valor Total"].sum().reset_index()
         df_cat_grp = df_cat_grp[df_cat_grp["Valor Total"] > 0]
