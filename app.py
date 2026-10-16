@@ -8,6 +8,7 @@ from google.oauth2.service_account import Credentials
 from modulo_cadastro import renderizar_aba_cadastro
 from modulo_propostas import renderizar_aba_propostas
 from modulo_proposta_cliente import renderizar_aba_proposta_cliente
+from modulo_simulacao import renderizar_aba_simulacao
 
 # ==============================================================================
 # 1. ESTILO E CONFIGURAÇÃO DA PÁGINA
@@ -388,12 +389,7 @@ elif st.session_state["aba_ativa"] == "cliente":
         carregar_propostas_salvas_fn=carregar_propostas_da_planilha
     )
 else:
-    try:
-        from modulo_simulacao import renderizar_aba_simulacao
-        renderizar_aba_simulacao(
-            carregar_dados_fn=carregar_dados,
-            carregar_propostas_salvas_fn=carregar_propostas_da_planilha
-        )
-    except ImportError:
-        st.markdown("## 📊 Módulo de Simulação")
-        st.info("O arquivo `modulo_simulacao.py` ainda não foi implementado. Crie o módulo para habilitar a tela de simulação.")
+    renderizar_aba_simulacao(
+        carregar_dados_fn=carregar_dados,
+        carregar_propostas_salvas_fn=carregar_propostas_da_planilha
+    )
