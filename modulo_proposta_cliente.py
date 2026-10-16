@@ -269,6 +269,11 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato
     return buffer
 
 def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_propostas_salvas_fn=None):
+    # TRAVA DE SEGURANÇA: Se existem itens no rascunho, limpa qualquer PDF anterior para exibir a tela de preenchimento da proposta
+    if st.session_state.get("rascunho_itens"):
+        st.session_state.pop("ultimo_pdf_bytes", None)
+        st.session_state.pop("ultimo_pdf_nome", None)
+
     st.markdown("""
         <style>
             div.stButton > button[kind="secondary"] {
@@ -305,6 +310,8 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                 if isinstance(df_historico_tmp, pd.DataFrame) and not df_historico_tmp.empty:
                     df_prop_sel = df_historico_tmp[df_historico_tmp["Proposta"].astype(str).str.strip() == prop_escolhida]
                     if not df_prop_sel.empty:
+                        st.session_state.pop("ultimo_pdf_bytes", None)
+                        st.session_state.pop("ultimo_pdf_nome", None)
                         st.session_state["proposta_id_em_edicao"] = prop_escolhida
                         st.session_state["proposta_id_ativo"] = prop_escolhida
                         
