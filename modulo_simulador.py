@@ -220,7 +220,6 @@ def renderizar_aba_simulacao(carregar_dados_fn, carregar_propostas_salvas_fn):
 
     categorias_unicas = sorted(list(set([item["Categoria"] for item in lista_itens])), key=ordenar_categorias)
     
-    valor_total_geral = 0.0
     dados_tabela_final = []
 
     for idx_cat, cat in enumerate(categorias_unicas):
@@ -268,7 +267,6 @@ def renderizar_aba_simulacao(carregar_dados_fn, carregar_propostas_salvas_fn):
                 with c_tot:
                     qtd_calc = float(item["Quantidade"]) if str(item["Quantidade"]).strip() != "" else 0.0
                     v_tot = item["Tarifa Simulação"] * qtd_calc
-                    valor_total_geral += v_tot
                     st.markdown(f"<span style='color: #FFFFFF; font-weight: 600; line-height: 2.4rem;'>R$ {v_tot:,.2f}</span>".replace(",", "X").replace(".", ",").replace("X", "."), unsafe_allow_html=True)
 
                 dados_tabela_final.append({
@@ -284,11 +282,12 @@ def renderizar_aba_simulacao(carregar_dados_fn, carregar_propostas_salvas_fn):
         if idx_cat < len(categorias_unicas) - 1:
             st.markdown("<div style='margin-bottom: 10px;'></div>", unsafe_allow_html=True)
 
+    df_simulacao_completo = pd.DataFrame(dados_tabela_final)
+    valor_total_geral = float(df_simulacao_completo["Valor Total"].sum()) if not df_simulacao_completo.empty else 0.0
+
     st.markdown("---")
     st.markdown(f"### 💰 Valor Total Geral da Simulação: **R$ {valor_total_geral:,.2f}**".replace(",", "X").replace(".", ",").replace("X", "."))
     st.markdown("<br>", unsafe_allow_html=True)
-
-    df_simulacao_completo = pd.DataFrame(dados_tabela_final)
 
     if MATPLOTLIB_DISPONIVEL and valor_total_geral > 0:
         st.markdown("### 🥧 Distribuição de Custos por Categoria")
@@ -298,15 +297,27 @@ def renderizar_aba_simulacao(carregar_dados_fn, carregar_propostas_salvas_fn):
         if not df_cat_grp.empty:
             col_chart_left, col_chart_center, col_chart_right = st.columns([1, 2, 1])
             with col_chart_center:
-                fig, ax = plt.subplots(figsize=(2.8, 2.2))
-                ax.pie(
+                fig, ax = plt.subplots(figsize=(4.0, 3.0))
+                
+                # Gráfico sem rótulos internos sobrepostos, usando legenda limpa ao lado
+                wedges, texts, autotexts = ax.pie(
                     df_cat_grp["Valor Total"],
-                    labels=df_cat_grp["Categoria"],
                     autopct='%1.1f%%',
                     startangle=140,
                     colors=['#0052B4', '#60A5FA', '#1E3A8A', '#93C5FD', '#1E40AF'],
-                    textprops={'fontsize': 7}
+                    textprops={'fontsize': 8, 'color': 'black', 'weight': 'bold'}
                 )
+                
+                # Legenda lateral sem sobreposição
+                ax.legend(
+                    wedges, 
+                    df_cat_grp["Categoria"],
+                    title="Categorias",
+                    loc="center left",
+                    bbox_to_anchor=(1, 0, 0.5, 1),
+                    fontsize=8
+                )
+                
                 ax.axis('equal')
                 st.pyplot(fig)
 
