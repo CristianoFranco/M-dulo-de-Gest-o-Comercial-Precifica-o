@@ -8,7 +8,7 @@ from google.oauth2.service_account import Credentials
 from modulo_cadastro import renderizar_aba_cadastro
 from modulo_propostas import renderizar_aba_propostas
 from modulo_proposta_cliente import renderizar_aba_proposta_cliente
-from modulo_simulacao import renderizar_aba_simulacao
+from modulo_simulador import renderizar_aba_simulacao
 
 # ==============================================================================
 # 1. ESTILO E CONFIGURAÇÃO DA PÁGINA
