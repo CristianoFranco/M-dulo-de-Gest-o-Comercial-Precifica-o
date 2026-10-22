@@ -200,7 +200,7 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato
         f"4. Vigência Min: {vigencia_esc} meses;<br/>"
         "5. Os serviços não discriminados nesta tabela serão acordados entre as partes;<br/>"
         "6. O faturamento e cobrança dos serviços serão MENSAIS;<br/>"
-        "7. Mão de obra inclusa para prestação dos serviços: Ajudante, Separador, Conferente, Líder e Operador. Não dedicadas.<br/>"
+        "7. Mão de obra inclusa para prestação dos serviços: Ajudante, Separador, Conferente, Líder e Operador. <br/>"
         "8. Cubagem padrão: posição palete: 1,74m³ / posição gaveta: 0,72m³<br/>"
         "9. Dimensões padrão: posição palete: 1,00 x 1,20 x 1,45 / posição gaveta: 1,00 x 1,20 x 0,60"
     )
