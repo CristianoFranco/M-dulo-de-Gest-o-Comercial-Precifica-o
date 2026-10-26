@@ -201,17 +201,39 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_completos_fn=None, 
         st.caption("Monte a estrutura comercial selecionando os serviços e ajustando as tarifas.")
     with col_num:
         st.markdown(f"### Nº: `{numero_proposta}`")
-        if st.session_state.get("proposta_id_em_edicao"):
-            if st.button("➕ Nova Proposta (Limpar Edição)", use_container_width=True):
+        
+        # BOTÃO / EXPANDER DE NOVA PROPOSTA COM ESCOLHA DE LIMPEZA
+        with st.expander("➕ Nova Proposta", expanded=False):
+            opcao_limpeza = st.radio(
+                "O que deseja limpar?",
+                ["Apenas Nome e CNPJ (Manter Itens)", "Limpar Tudo (Nome, CNPJ e Itens)"],
+                key="radio_opcao_limpeza_nova_prop"
+            )
+            if st.button("Confirmar Nova Proposta", use_container_width=True, key="btn_confirma_nova_prop"):
                 st.session_state.pop("ultimo_pdf_bytes", None)
                 st.session_state.pop("ultimo_pdf_nome", None)
                 st.session_state["proposta_id_em_edicao"] = None
-                st.session_state["proposta_id_ativo"] = None
-                st.session_state["rascunho_itens"] = []
+                
+                # Busca o próximo número sequencial atualizado da planilha do Google Sheets
+                if obter_proximo_numero_fn:
+                    novo_num_seq = obter_proximo_numero_fn()
+                else:
+                    novo_num_seq = "10/00001/2026"
+                
+                st.session_state["proposta_id_ativo"] = novo_num_seq
+                
+                if "Limpar Tudo" in opcao_limpeza:
+                    st.session_state["rascunho_itens"] = []
+                    for k in list(st.session_state.keys()):
+                        if k.startswith("input_tarifa_"):
+                            del st.session_state[k]
+                
                 st.session_state["_safe_cliente_nome"] = ""
                 st.session_state["_safe_cnpj_val"] = ""
                 st.session_state["input_cli_nome_tela2"] = ""
                 st.session_state["proposta_cliente_cnpj"] = ""
+                
+                st.success(f"Nova proposta iniciada com sucesso! Nº: {novo_num_seq}")
                 st.rerun()
                 
     st.markdown("<br>", unsafe_allow_html=True)
@@ -335,8 +357,6 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_completos_fn=None, 
                 st.session_state.pop("ultimo_pdf_nome", None)
                 st.session_state["_safe_cliente_nome"] = cli_val
                 st.session_state["_safe_cnpj_val"] = cnp_val
-                
-                # FIXA O NÚMERO DA PROPOSTA ATUALIZADO PARA A TELA CLIENTE
                 st.session_state["proposta_id_ativo"] = numero_proposta
                 st.session_state["aba_ativa"] = "cliente"
                 st.rerun()
