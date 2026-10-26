@@ -202,7 +202,7 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato
         "6. O faturamento e cobrança dos serviços serão MENSAIS;<br/>"
         "7. Mão de obra inclusa para prestação dos serviços: Ajudante, Separador, Conferente, Líder e Operador. <br/>"
         "8. Cubagem padrão: posição palete: 1,74m³ / posição gaveta: 0,72m³<br/>"
-        "9. Dimensões padrão: posição palete: 1,00 x 1,20 x 1,45 / posição gaveta: 1,00 x 1,20 x 0,60"
+        "9. Dimensões padrão: posição palete: 1,00 x 1,20 x 1,45 / posição gaveta: 0,00 x 0,00 x 0,00"
     )
     if outras_premissas_esc:
         texto_premissas += f"<br/>10. {outras_premissas_esc}"
@@ -268,12 +268,7 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato
     buffer.seek(0)
     return buffer
 
-def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_propostas_salvas_fn=None):
-    # TRAVA DE SEGURANÇA: Se existem itens no rascunho, limpa qualquer PDF anterior para exibir a tela de preenchimento da proposta
-    if st.session_state.get("rascunho_itens"):
-        st.session_state.pop("ultimo_pdf_bytes", None)
-        st.session_state.pop("ultimo_pdf_nome", None)
-
+def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_propostas_salvas_fn=None, obter_proximo_numero_fn=None):
     st.markdown("""
         <style>
             div.stButton > button[kind="secondary"] {
@@ -413,16 +408,19 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
     if key_op not in st.session_state:
         st.session_state[key_op] = ""
 
+    # GARANTE A RECUPERAÇÃO DO NÚMERO CORRETO
     if st.session_state.get("proposta_id_em_edicao"):
         numero_proposta_atual = str(st.session_state["proposta_id_em_edicao"])
     elif st.session_state.get("proposta_id_ativo"):
         numero_proposta_atual = str(st.session_state["proposta_id_ativo"])
+    elif obter_proximo_numero_fn:
+        numero_proposta_atual = obter_proximo_numero_fn()
+        st.session_state["proposta_id_ativo"] = numero_proposta_atual
     else:
         agora = datetime.now()
         mes_str = agora.strftime("%m")
         ano_str = agora.strftime("%Y")
-        seq = st.session_state.get("sequencial_proposta", 1)
-        numero_proposta_atual = mes_str + "/" + "{:05d}".format(seq) + "/" + ano_str
+        numero_proposta_atual = f"{mes_str}/00001/{ano_str}"
 
     if not REPORTLAB_DISPONIVEL:
         st.error("⚠️ A biblioteca 'reportlab' não está instalada ou disponível no ambiente. O PDF não pode ser gerado.")
