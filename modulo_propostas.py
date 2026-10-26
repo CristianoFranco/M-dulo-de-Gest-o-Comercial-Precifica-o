@@ -158,10 +158,14 @@ def renderizar_tabela_itens_bloco(titulo, categoria_filtro):
 
 def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_completos_fn=None, obter_proximo_numero_fn=None, *args, **kwargs):
     inicializar_estado_proposta()
+    
     if st.session_state.get("proposta_id_em_edicao"):
         numero_proposta = str(st.session_state["proposta_id_em_edicao"])
+    elif st.session_state.get("proposta_id_ativo"):
+        numero_proposta = str(st.session_state["proposta_id_ativo"])
     else:
         numero_proposta = obter_proximo_numero_fn() if obter_proximo_numero_fn else "10/00001/2026"
+        st.session_state["proposta_id_ativo"] = numero_proposta
     
     st.markdown("""
         <style>
@@ -327,11 +331,12 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_completos_fn=None, 
             elif seguro_zerado:
                 st.error("⚠️ Atenção: Há itens de **Seguro** com tarifa igual a 0,0000. O percentual do seguro deve ser preenchido obrigatoriamente e ser diferente de zero.")
             else:
-                # Limpa qualquer PDF residual para liberar a tela de preenchimento
                 st.session_state.pop("ultimo_pdf_bytes", None)
                 st.session_state.pop("ultimo_pdf_nome", None)
                 st.session_state["_safe_cliente_nome"] = cli_val
-                st.session_state["_save_cnpj_val"] = cnp_val
+                st.session_state["_safe_cnpj_val"] = cnp_val
+                
+                # FIXA O NÚMERO DA PROPOSTA ATUALIZADO PARA A TELA CLIENTE
                 st.session_state["proposta_id_ativo"] = numero_proposta
                 st.session_state["aba_ativa"] = "cliente"
                 st.rerun()
