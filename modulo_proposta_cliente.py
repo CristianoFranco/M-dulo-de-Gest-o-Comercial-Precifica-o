@@ -30,7 +30,7 @@ def desenhar_cabecalho_rodape(canvas, doc):
     canvas.drawCentredString(612 / 2.0, 15, "+55 19 3936-8520 / www.globexmultimodal.com.br")
     canvas.restoreState()
 
-def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato_cliente, objeto_proposta, iss_val, prazo_val, vigencia_val, fat_minimo_val, outras_premissas_val, itens_proposta):
+def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, rg_ie_val, email_val, contato_cliente, objeto_proposta, iss_val, prazo_val, vigencia_val, fat_minimo_val, outras_premissas_val, itens_proposta):
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
         buffer,
@@ -45,6 +45,9 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato
     
     num_prop_esc = html.escape(str(numero_proposta))
     c_nome_esc = html.escape(str(cliente_nome))
+    c_cnpj_esc = html.escape(str(cnpj_val))
+    rg_ie_esc = html.escape(str(rg_ie_val))
+    email_esc = html.escape(str(email_val))
     c_objeto_esc = html.escape(str(objeto_proposta))
     c_contato_esc = html.escape(str(contato_cliente))
     iss_esc = html.escape(str(iss_val))
@@ -234,30 +237,29 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato
     for c in clausulas:
         story.append(Paragraph(c, body_justify_style))
     
-    story.append(Spacer(1, 8))
+    story.append(Spacer(1, 10))
     
-    campos_cadastro = [
-        "<b>NOME/RAZÃO SOCIAL:</b> ____________________________________________________________________",
-        "<b>CPF/CNPJ:</b> ____________________________________________________________________________",
-        "<b>RG/INSCRIÇÃO ESTADUAL:</b> ________________________________________________________________",
-        "<b>DATA DE CONSTITUIÇÃO DA EMPRESA:</b> ____________________________________________________",
-        "<b>RAMO DE ATIVIDADE:</b> ____________________________________________________________________",
-        "<b>E-MAIL:</b> ________________________________________________________________________________",
-        "<b>ENDEREÇO:</b> ______________________________________________________________________________",
-        "<b>BAIRRO:</b> ________________________________________________________________________________",
-        "<b>CIDADE:</b> ________________________________________________________________________________",
-        "<b>CEP:</b> ____________________________________________________________________________________",
-        "<b>TELEFONE:</b> ______________________________________________________________________________",
-        "<b>CONTATO:</b> ________________________________________________________________________________"
+    # Informações Cadastrais preenchidas automaticamente
+    info_cadastrais = [
+        f"<b>Nome/Razão Social:</b> {c_nome_esc}",
+        f"<b>CPF/CNPJ:</b> {c_cnpj_esc}",
+        f"<b>RG / Inscrição Estadual:</b> {rg_ie_esc}",
+        f"<b>Email:</b> {email_esc}"
     ]
-    for campo in campos_cadastro:
-        story.append(Paragraph(campo, body_left_style))
+    for info in info_cadastrais:
+        story.append(Paragraph(info, body_left_style))
         
-    story.append(Spacer(1, 8))
-    story.append(Paragraph("Indaiatuba - SP, _____ de ______________________ de ___________. ", body_left_style))
-    story.append(Spacer(1, 18))
-    story.append(Paragraph("______________________________________________________", body_left_style))
-    story.append(Paragraph("<b>Nome:</b><br/><b>Função:</b><br/><b>RG:</b>", body_left_style))
+    story.append(Spacer(1, 15))
+    story.append(Paragraph("<b>Assinatura / Representante Legal (via Authentic):</b>", body_left_style))
+    story.append(Spacer(1, 6))
+    
+    campos_assinatura = [
+        "<b>Nome:</b> ____________________________________________________________________",
+        "<b>Função:</b> __________________________________________________________________",
+        "<b>CPF:</b> ____________________________________________________________________"
+    ]
+    for campo in campos_assinatura:
+        story.append(Paragraph(campo, body_left_style))
 
     try:
         doc.build(story, onFirstPage=desenhar_cabecalho_rodape, onLaterPages=desenhar_cabecalho_rodape)
@@ -321,6 +323,8 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                         ver_form = st.session_state["form_prop_cliente_version"]
 
                         st.session_state[f"input_popup_razao_social_{ver_form}"] = c_nome_carregado
+                        st.session_state[f"input_popup_rg_ie_{ver_form}"] = ""
+                        st.session_state[f"input_popup_email_{ver_form}"] = ""
                         st.session_state[f"input_popup_contato_{ver_form}"] = ""
                         st.session_state[f"input_popup_objeto_{ver_form}"] = ""
                         st.session_state[f"input_popup_iss_{ver_form}"] = "2.5"
@@ -383,6 +387,8 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
     cnpj_val = str(st.session_state.get("_safe_cnpj_val") or st.session_state.get("proposta_cliente_cnpj", "")).strip()
     
     key_rz = f"input_popup_razao_social_{ver_form}"
+    key_rg = f"input_popup_rg_ie_{ver_form}"
+    key_em = f"input_popup_email_{ver_form}"
     key_ct = f"input_popup_contato_{ver_form}"
     key_is = f"input_popup_iss_{ver_form}"
     key_obj = f"input_popup_objeto_{ver_form}"
@@ -393,6 +399,10 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
 
     if key_rz not in st.session_state:
         st.session_state[key_rz] = cliente_nome
+    if key_rg not in st.session_state:
+        st.session_state[key_rg] = ""
+    if key_em not in st.session_state:
+        st.session_state[key_em] = ""
     if key_ct not in st.session_state:
         st.session_state[key_ct] = ""
     if key_is not in st.session_state:
@@ -480,10 +490,12 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
         col_pop1, col_pop2 = st.columns(2)
         with col_pop1:
             input_razao_social = st.text_input("Razão Social da Empresa Contratante:", key=key_rz)
-            input_contato = st.text_input("Contato do Cliente:", placeholder="Ex: Nome do responsável", key=key_ct)
+            input_rg_ie = st.text_input("RG / Inscrição Estadual:", placeholder="Ex: 000.000.000.000", key=key_rg)
+            input_email = st.text_input("E-mail de Contato:", placeholder="Ex: contato@empresa.com", key=key_em)
             input_iss = st.text_input("% I.S.S sobre o faturamento:", key=key_is)
         with col_pop2:
             input_objeto = st.text_input("Objeto da Proposta:", placeholder="Ex: Prestação de serviços logísticos", key=key_obj)
+            input_contato = st.text_input("Contato do Cliente:", placeholder="Ex: Nome do responsável", key=key_ct)
             input_prazo = st.text_input("Prazo de pagamento em dias:", key=key_pz)
             input_vigencia = st.text_input("Vigência mínima em meses:", key=key_vg)
 
@@ -512,6 +524,8 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
         if submitted_pdf:
             c_nome = str(input_razao_social).strip()
             c_cnpj = str(st.session_state.get("_safe_cnpj_val") or st.session_state.get("proposta_cliente_cnpj", "")).strip()
+            c_rg_ie = str(input_rg_ie).strip()
+            c_email = str(input_email).strip()
             c_contato = str(input_contato).strip()
             c_objeto = str(input_objeto).strip()
             c_iss = str(input_iss).strip()
@@ -555,6 +569,8 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                         numero_proposta_atual,
                         c_nome,
                         c_cnpj,
+                        c_rg_ie,
+                        c_email,
                         c_contato,
                         c_objeto,
                         c_iss,
