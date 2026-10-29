@@ -66,7 +66,6 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
         unidade_opcoes = st.session_state.get("lista_unidades", ["", "Por caixa", "por unidade", "por pallet", "por hora/homem", "por etiqueta", "por volume", "por mês", "percentual"])
         unidade_input = st.selectbox("Unidade *", options=unidade_opcoes, key=f"cad_un_v19_{ver}")
         
-        # Bloco de Nova Unidade logo abaixo do campo Unidade
         if f"limpar_input_unidade_{ver}" not in st.session_state:
             st.session_state[f"limpar_input_unidade_{ver}"] = False
 
@@ -109,8 +108,6 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
             except ValueError:
                 tarifa_input = 0.0
 
-        obs_input = st.text_area("Observações e Premissas (Opcional)", placeholder="Ex: Faturamento mínimo...", key=f"cad_obs_v19_{ver}")
-
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("💾 Salvar Serviço", use_container_width=True, type="primary", key=f"btn_salvar_novo_servico_v19_{ver}"):
             codigo_limp = normalizar_codigo_fn(codigo_input) if normalizar_codigo_fn else str(codigo_input).strip()
@@ -133,7 +130,7 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
                         "Tarifa (R$)": tarifa_val,
                         "Unidade": unidade_input,
                         "Categoria": categoria_input,
-                        "Observações": obs_input.strip() if obs_input else "",
+                        "Observações": "",
                         "Status": "Ativo"
                     }
 
@@ -158,6 +155,8 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
         df_exibir = df_completo[df_completo["Status"].str.upper() != "INATIVO"].copy()
         if "Status" in df_exibir.columns:
             df_exibir = df_exibir.drop(columns=["Status"])
+        if "Observações" in df_exibir.columns:
+            df_exibir = df_exibir.drop(columns=["Observações"])
 
         if not df_exibir.empty and "Código" in df_exibir.columns:
             df_exibir["_sort_key"] = pd.to_numeric(df_exibir["Código"], errors="coerce")
@@ -257,52 +256,3 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
                             st.info("ℹ️ Para serviços de Seguro, a tarifa é controlada na Proposta Rascunho.")
                         else:
                             try:
-                                t_val_inicial = str(row_sel["Tarifa (R$)"]).strip()
-                                if t_val_inicial in ["0.0", "0", "0.00", "nan"]:
-                                    t_val_inicial = ""
-                            except Exception:
-                                t_val_inicial = ""
-                            edit_tarifa_str = st.text_input("Tarifa (R$) *", value=t_val_inicial, placeholder="Ex: 150.00")
-                            
-                        edit_obs = st.text_area("Observações e Premissas (Opcional)", value=str(row_sel.get("Observações", "")))
-                        
-                        submitted_edit = st.form_submit_button("💾 Salvar Alterações", type="primary", use_container_width=True)
-                        
-                        if submitted_edit:
-                            idx_alvo = df_completo[(df_completo["Código"] == cod_selecionado) & (df_completo["Status"].str.upper() != "INATIVO")].index
-                            
-                            if not idx_alvo.empty:
-                                edit_tarifa = 0.0
-                                if not is_seguro_edit:
-                                    edit_tarifa_limpa = re.sub(r'[^0-9.,]', '', edit_tarifa_str)
-                                    try:
-                                        edit_tarifa = float(edit_tarifa_limpa.replace(",", ".")) if edit_tarifa_limpa.strip() else 0.0
-                                    except ValueError:
-                                        edit_tarifa = 0.0
-
-                                tarifa_val = 0.0 if is_seguro_edit else (formatar_tarifa_fn(edit_tarifa) if formatar_tarifa_fn else edit_tarifa)
-
-                                # 1. Arquiva o registro anterior como Inativo com prefixo EDIT_
-                                timestamp_str = int(datetime.now().timestamp())
-                                df_completo.loc[idx_alvo[0], "Código"] = f"EDIT_{cod_selecionado}_{timestamp_str}"
-                                df_completo.loc[idx_alvo[0], "Status"] = "Inativo"
-
-                                # 2. Insere o novo registro atualizado mantendo o código original ativo
-                                novo_registro_editado = {
-                                    "Código": cod_selecionado,
-                                    "Descrição": edit_desc.strip(),
-                                    "Tarifa (R$)": tarifa_val,
-                                    "Unidade": edit_un,
-                                    "Categoria": edit_cat,
-                                    "Observações": edit_obs.strip() if edit_obs else "",
-                                    "Status": "Ativo"
-                                }
-                                df_novo_reg = pd.DataFrame([novo_registro_editado])
-                                df_completo = pd.concat([df_completo, df_novo_reg], ignore_index=True)
-                                
-                                if salvar_dados_completos_fn:
-                                    salvar_dados_completos_fn(df_completo)
-                                st.success(f"Servício '{cod_selecionado}' atualizado com sucesso (versão anterior arquivada com EDIT_)!")
-                                st.session_state.pop("modo_acao_servico", None)
-                                st.session_state.pop("codigo_em_edicao", None)
-                                st.rerun()
