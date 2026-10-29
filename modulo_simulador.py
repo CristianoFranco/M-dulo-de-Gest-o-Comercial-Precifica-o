@@ -146,3 +146,79 @@ def renderizar_aba_simulacao(carregar_dados_fn, carregar_propostas_salvas_fn):
                 background-color: #003380 !important;
                 border-color: #002255 !important;
                 color: #FFFFFF !important;
+            }
+        </style>
+    """, unsafe_allow_html=True)
+
+    st.markdown("<h2 style='color: #FFFFFF;'>📊 Simulador Comercial & Cenários</h2>", unsafe_allow_html=True)
+    st.markdown("<span style='color: #FFFFFF; opacity: 0.85;'>Simule volumes, ajuste tarifas pontualmente ou em massa, visualize gráficos de categoria e exporte relatórios.</span>", unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    try:
+        df_historico = carregar_propostas_salvas_fn()
+    except Exception:
+        df_historico = pd.DataFrame()
+
+    if df_historico.empty or "Proposta" not in df_historico.columns:
+        st.info("Nenhuma proposta salva encontrada para iniciar a simulação.")
+        return
+
+    mapa_propostas = {}
+    for _, row in df_historico.iterrows():
+        p = str(row.get("Proposta", "")).strip()
+        c = str(row.get("Cliente", "")).strip()
+        if p and p != "nan":
+            mapa_propostas[p] = c
+
+    propostas_disponiveis = sorted(list(mapa_propostas.keys()))
+    
+    col_sel_p, _ = st.columns([2, 2])
+    with col_sel_p:
+        st.markdown("<h3 style='color: #FFFFFF; font-size: 18px;'>Selecione a Proposta e Cliente</h3>", unsafe_allow_html=True)
+        opcao_selecionada = st.selectbox(
+            "Selecione a Proposta e Cliente",
+            options=[""] + propostas_disponiveis,
+            format_func=lambda x: f"{x} — {mapa_propostas.get(x, '')}" if x else "Selecione uma proposta...",
+            label_visibility="collapsed",
+            key="select_prop_simulador"
+        )
+
+    if not opcao_selecionada:
+        st.warning("Selecione uma proposta acima para carregar os itens no simulador.")
+        return
+
+    proposta_selecionada = opcao_selecionada
+    df_prop = df_historico[df_historico["Proposta"].astype(str).str.strip() == proposta_selecionada].copy()
+    cliente_atual = str(df_prop["Cliente"].iloc[0]) if "Cliente" in df_prop.columns and not df_prop.empty else "Cliente"
+
+    chave_estado_itens = f"simulador_itens_{proposta_selecionada}"
+    if chave_estado_itens not in st.session_state:
+        itens_iniciais = []
+        for _, row in df_prop.iterrows():
+            cat_row = str(row.get("Categoria", "Serviço"))
+            if not filtrar_categoria_permitida(cat_row):
+                continue
+            
+            try:
+                t_orig = float(row.get("Tarifa (R$)", 0.0))
+            except (ValueError, TypeError):
+                t_orig = 0.0
+            
+            itens_iniciais.append({
+                "Código": str(row.get("Código", "")),
+                "Descrição": str(row.get("Descrição", "")),
+                "Categoria": cat_row,
+                "Unidade": str(row.get("Unidade", "")),
+                "Tarifa Original": t_orig,
+                "Tarifa Simulação": t_orig,
+                "Quantidade": ""
+            })
+        st.session_state[chave_estado_itens] = itens_iniciais
+
+    lista_itens = st.session_state[chave_estado_itens]
+
+    if not lista_itens:
+        st.warning("Esta proposta não possui itens elegíveis para simulação (apenas blocos de Armazenagem, Seguro e Serviços/Movimentações são permitidos).")
+        return
+
+    st.markdown("---")
