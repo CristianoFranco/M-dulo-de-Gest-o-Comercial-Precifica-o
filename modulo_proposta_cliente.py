@@ -133,7 +133,7 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, contato
             if cat_chave == "SEGURO":
                 tarifa_str = "{:,.5f}".format(tarifa_float).replace(",", "X").replace(".", ",").replace("X", ".") + " %"
             else:
-                tarifa_str = "R$ " + "{:,.5f}".format(tarifa_float).replace(",", "X").replace(".", ",").replace("X", ".")
+                tarifa_str = "R$ " + "{:,.2f}".format(tarifa_float).replace(",", "X").replace(".", ",").replace("X", ".")
         except (ValueError, TypeError):
             tarifa_str = str(tarifa_val)
 
@@ -453,7 +453,7 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                 if "seguro" in cat_item_str:
                     tarifa_fmt = "{:,.5f}".format(tarifa_float).replace(",", "X").replace(".", ",").replace("X", ".") + " %"
                 else:
-                    tarifa_fmt = "R$ " + "{:,.5f}".format(tarifa_float).replace(",", "X").replace(".", ",").replace("X", ".")
+                    tarifa_fmt = "R$ " + "{:,.2f}".format(tarifa_float).replace(",", "X").replace(".", ",").replace("X", ".")
             except (ValueError, TypeError):
                 tarifa_fmt = str(tarifa_val)
             
