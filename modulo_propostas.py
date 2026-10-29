@@ -90,14 +90,12 @@ def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_blo
                 except ValueError:
                     tarifa_float = 0.0
 
-                obs_val = str(row["Observações"]) if "Observações" in row and pd.notna(row["Observações"]) else ""
-                
                 st.session_state["rascunho_itens"].append({
                     "Código": str(row["Código"]),
                     "Descrição": str(row["Descrição"]),
                     "Tarifa (R$)": tarifa_float,
                     "Unidade": str(row["Unidade"]),
-                    "Observações": obs_val,
+                    "Observações": "",
                     "Categoria": titulo,
                     "Cat_Code": categoria_filtro
                 })
@@ -122,7 +120,7 @@ def renderizar_tabela_itens_bloco(titulo, categoria_filtro):
         with h_desc: st.markdown("<b style='color: #FFFFFF;'>Descrição</b>", unsafe_allow_html=True)
         with h_tar: st.markdown("<b style='color: #FFFFFF;'>Tarifa Editável (R$)</b>", unsafe_allow_html=True)
         with h_un: st.markdown("<b style='color: #FFFFFF;'>Unidade</b>", unsafe_allow_html=True)
-        with h_obs: st.markdown("<b style='color: #FFFFFF;'>Observações</b>", unsafe_allow_html=True)
+        with h_obs: st.markdown("<b style='color: #FFFFFF;'>Observações (Editável)</b>", unsafe_allow_html=True)
         st.markdown("<hr style='margin: 4px 0 10px 0; border-color: rgba(255,255,255,0.3);'>", unsafe_allow_html=True)
         
         for idx, item in itens_do_bloco_com_idx:
@@ -154,7 +152,16 @@ def renderizar_tabela_itens_bloco(titulo, categoria_filtro):
             with c_un:
                 st.markdown(f"<span style='color: #FFFFFF;'>{item['Unidade']}</span>", unsafe_allow_html=True)
             with c_obs:
-                st.markdown(f"<span style='color: #FFFFFF;'>{item.get('Observações', '')}</span>", unsafe_allow_html=True)
+                obs_key = f"input_obs_{categoria_filtro}_{item['Código']}_{idx}"
+                if obs_key not in st.session_state:
+                    st.session_state[obs_key] = str(item.get("Observações", ""))
+                obs_str_input = st.text_input(
+                    label=f"Obs_{item['Código']}_{idx}",
+                    label_visibility="collapsed",
+                    key=obs_key,
+                    placeholder="Digite observações..."
+                )
+                item["Observações"] = obs_str_input
 
 def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_completos_fn=None, obter_proximo_numero_fn=None, *args, **kwargs):
     inicializar_estado_proposta()
@@ -202,7 +209,6 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_completos_fn=None, 
     with col_num:
         st.markdown(f"### Nº: `{numero_proposta}`")
         
-        # BOTÃO / EXPANDER DE NOVA PROPOSTA COM ESCOLHA DE LIMPEZA
         with st.expander("➕ Nova Proposta", expanded=False):
             opcao_limpeza = st.radio(
                 "O que deseja limpar?",
@@ -214,7 +220,6 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_completos_fn=None, 
                 st.session_state.pop("ultimo_pdf_nome", None)
                 st.session_state["proposta_id_em_edicao"] = None
                 
-                # Busca o próximo número sequencial atualizado da planilha do Google Sheets
                 if obter_proximo_numero_fn:
                     novo_num_seq = obter_proximo_numero_fn()
                 else:
@@ -225,7 +230,7 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_completos_fn=None, 
                 if "Limpar Tudo" in opcao_limpeza:
                     st.session_state["rascunho_itens"] = []
                     for k in list(st.session_state.keys()):
-                        if k.startswith("input_tarifa_"):
+                        if k.startswith("input_tarifa_") or k.startswith("input_obs_"):
                             del st.session_state[k]
                 
                 st.session_state["_safe_cliente_nome"] = ""
