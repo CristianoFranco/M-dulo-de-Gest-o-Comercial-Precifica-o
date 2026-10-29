@@ -256,3 +256,48 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
                             st.info("ℹ️ Para serviços de Seguro, a tarifa é controlada na Proposta Rascunho.")
                         else:
                             try:
+                                t_val_inicial = str(row_sel["Tarifa (R$)"]).strip()
+                                if t_val_inicial in ["0.0", "0", "0.00", "nan"]:
+                                    t_val_inicial = ""
+                            except Exception:
+                                t_val_inicial = ""
+                            edit_tarifa_str = st.text_input("Tarifa (R$) *", value=t_val_inicial, placeholder="Ex: 150.00")
+                            
+                        submitted_edit = st.form_submit_button("💾 Salvar Alterações", type="primary", use_container_width=True)
+                        
+                        if submitted_edit:
+                            idx_alvo = df_completo[(df_completo["Código"] == cod_selecionado) & (df_completo["Status"].str.upper() != "INATIVO")].index
+                            
+                            if not idx_alvo.empty:
+                                edit_tarifa = 0.0
+                                if not is_seguro_edit:
+                                    edit_tarifa_limpa = re.sub(r'[^0-9.,]', '', edit_tarifa_str)
+                                    try:
+                                        edit_tarifa = float(edit_tarifa_limpa.replace(",", ".")) if edit_tarifa_limpa.strip() else 0.0
+                                    except ValueError:
+                                        edit_tarifa = 0.0
+
+                                tarifa_val = 0.0 if is_seguro_edit else (formatar_tarifa_fn(edit_tarifa) if formatar_tarifa_fn else edit_tarifa)
+
+                                timestamp_str = int(datetime.now().timestamp())
+                                df_completo.loc[idx_alvo[0], "Código"] = f"EDIT_{cod_selecionado}_{timestamp_str}"
+                                df_completo.loc[idx_alvo[0], "Status"] = "Inativo"
+
+                                novo_registro_editado = {
+                                    "Código": cod_selecionado,
+                                    "Descrição": edit_desc.strip(),
+                                    "Tarifa (R$)": tarifa_val,
+                                    "Unidade": edit_un,
+                                    "Categoria": edit_cat,
+                                    "Observações": "",
+                                    "Status": "Ativo"
+                                }
+                                df_novo_reg = pd.DataFrame([novo_registro_editado])
+                                df_completo = pd.concat([df_completo, df_novo_reg], ignore_index=True)
+                                
+                                if salvar_dados_completos_fn:
+                                    salvar_dados_completos_fn(df_completo)
+                                st.success(f"Servício '{cod_selecionado}' atualizado com sucesso!")
+                                st.session_state.pop("modo_acao_servico", None)
+                                st.session_state.pop("codigo_em_edicao", None)
+                                st.rerun()
