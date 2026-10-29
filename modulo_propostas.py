@@ -49,7 +49,7 @@ def callback_cnpj():
     st.session_state["_safe_cnpj_val"] = cnpj_formatado
 
 def renderizar_bloco_categoria(titulo, categoria_filtro, df_categoria, icone_bloco):
-    st.markdown(f"#### {icone_bloco} {titulo}")
+    st.markdown(f"<h4 style='color: #FFFFFF;'>{icone_bloco} {titulo}</h4>", unsafe_allow_html=True)
     
     codigos_ja_inseridos = {str(i.get("Código", "")) for i in st.session_state["rascunho_itens"]}
     df_disponivel = df_categoria[~df_categoria["Código"].astype(str).isin(codigos_ja_inseridos)]
@@ -177,7 +177,13 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_completos_fn=None, 
     st.markdown("""
         <style>
             div[data-testid="stTextInput"] label,
-            div[data-testid="stTextInput"] label p {
+            div[data-testid="stSelectbox"] label,
+            div[data-testid="stNumberInput"] label,
+            div[data-testid="stTextArea"] label,
+            div[data-testid="stTextInput"] label p,
+            div[data-testid="stSelectbox"] label p,
+            div[data-testid="stNumberInput"] label p,
+            div[data-testid="stTextArea"] label p {
                 color: #FFFFFF !important;
                 font-weight: bold !important;
                 font-size: 16px !important;
@@ -204,10 +210,10 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_completos_fn=None, 
     
     col_tit, col_num = st.columns([3, 1])
     with col_tit:
-        st.markdown("## 📝 Proposta Rascunho")
-        st.caption("Monte a estrutura comercial selecionando os serviços e ajustando as tarifas.")
+        st.markdown("<h2 style='color: #FFFFFF;'>📝 Proposta Rascunho</h2>", unsafe_allow_html=True)
+        st.markdown("<span style='color: #FFFFFF; opacity: 0.85;'>Monte a estrutura comercial selecionando os serviços e ajustando as tarifas.</span>", unsafe_allow_html=True)
     with col_num:
-        st.markdown(f"### Nº: `{numero_proposta}`")
+        st.markdown(f"<h3 style='color: #FFFFFF;'>Nº: <code>{numero_proposta}</code></h3>", unsafe_allow_html=True)
         
         with st.expander("➕ Nova Proposta", expanded=False):
             opcao_limpeza = st.radio(
@@ -332,7 +338,7 @@ def renderizar_aba_propostas(carregar_dados_fn, salvar_dados_completos_fn=None, 
     todos_itens = st.session_state["rascunho_itens"]
     col_res1, col_res2 = st.columns([2, 1])
     with col_res1:
-        st.markdown(f"### Total de Itens no Rascunho: **{len(todos_itens)}**")
+        st.markdown(f"<h3 style='color: #FFFFFF;'>Total de Itens no Rascunho: <b>{len(todos_itens)}</b></h3>", unsafe_allow_html=True)
         
     with col_res2:
         if st.button("➡️ Finalizar Lançamento e Ir para Proposta Cliente", use_container_width=True):
