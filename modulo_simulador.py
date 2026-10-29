@@ -121,10 +121,8 @@ def ordenar_categorias(cat):
 
 def filtrar_categoria_permitida(cat_str):
     c_lower = str(cat_str).strip().lower()
-    # Bloqueia serviços conexos ou termos similares
     if "conexos" in c_lower or "serviços conexos" in c_lower:
         return False
-    # Permite apenas Armazenagem, Seguro, Serviços e Movimentação (Handling)
     if "armazenagem" in c_lower or "seguro" in c_lower or "serviço" in c_lower or "movimentação" in c_lower or "handling" in c_lower or "serviços e movimentações" in c_lower:
         return True
     return False
@@ -187,7 +185,7 @@ def renderizar_aba_simulacao(carregar_dados_fn, carregar_propostas_salvas_fn):
         for _, row in df_prop.iterrows():
             cat_row = str(row.get("Categoria", "Serviço"))
             if not filtrar_categoria_permitida(cat_row):
-                continue  # Ignora itens de serviços conexos
+                continue
             
             try:
                 t_orig = float(row.get("Tarifa (R$)", 0.0))
@@ -331,4 +329,38 @@ def renderizar_aba_simulacao(carregar_dados_fn, carregar_propostas_salvas_fn):
                     df_cat_grp["Categoria"],
                     title="Categorias",
                     loc="center left",
-                    bbox_to_anchor=(1, 0, 0.5
+                    bbox_to_anchor=(1, 0, 0.5, 1),
+                    fontsize=8
+                )
+                
+                ax.axis('equal')
+                st.pyplot(fig)
+
+    st.markdown("---")
+    col_exp1, col_exp2 = st.columns(2)
+
+    with col_exp1:
+        output_excel = io.BytesIO()
+        with pd.ExcelWriter(output_excel, engine='openpyxl') as writer:
+            df_simulacao_completo.to_excel(writer, index=False, sheet_name='Simulação')
+        output_excel.seek(0)
+
+        st.download_button(
+            label="📥 Exportar Simulação em Excel (.xlsx)",
+            data=output_excel,
+            file_name=f"Simulacao_{proposta_selecionada.replace('/', '_')}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True
+        )
+
+    with col_exp2:
+        if REPORTLAB_DISPONIVEL:
+            pdf_bytes = gerar_pdf_simulador(proposta_selecionada, cliente_atual, df_simulacao_completo, valor_total_geral)
+            if pdf_bytes:
+                st.download_button(
+                    label="📄 Gerar PDF da Simulação",
+                    data=pdf_bytes,
+                    file_name=f"Simulacao_{proposta_selecionada.replace('/', '_')}.pdf",
+                    mime="application/pdf",
+                    use_container_width=True
+                )
