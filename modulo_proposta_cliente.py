@@ -204,77 +204,10 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, rg_ie_v
         "5. Os serviços não discriminados nesta tabela serão acordados entre as partes;<br/>"
         "6. O faturamento e cobrança dos serviços serão MENSAIS;<br/>"
         "7. Mão de obra inclusa para prestação dos serviços: Ajudante, Separador, Conferente, Líder e Operador. <br/>"
-        "8. Cubagem padrão: posição palete: 1,74m³ / position gaveta: 0,72m³<br/>"
+        "8. Cubagem padrão: posição palete: 1,74m³ / posição gaveta: 0,72m³<br/>"
         "9. Dimensões padrão: posição palete: 1,00 x 1,20 x 1,45 / posição gaveta: 1,00 x 1,20 x 0,60"
     )
     if outras_premissas_esc:
         texto_premissas += f"<br/>10. {outras_premissas_esc}"
 
     story.append(Paragraph(texto_premissas, premissas_style))
-    story.append(PageBreak())
-    
-    story.append(Paragraph("<b>TERMO DE ACEITE PARA PRESTAÇÃO DE SERVIÇOS</b>", titulo_termo_center))
-    story.append(Spacer(1, 6))
-    
-    termo_p1 = (
-        f"Com a assinatura do presente termo, a empresa cliente, por meio de seu representante, responsável pelo fechamento da venda, "
-        f"declara que aceita todas as condições dispostas na proposta <b>{num_prop_esc}</b> apresentada pela <b>GLOBEX MULTIMODAL</b>, "
-        "ficando ciente que: A prestação dos serviços inicia-se na data expressa no presente termo."
-    )
-    story.append(Paragraph(termo_p1, body_justify_style))
-    
-    termo_p2 = (
-        "A assinatura do presente termo autoriza a GLOBEX MULTIMODAL a iniciar a prestação dos serviços e consequente faturamento, "
-        "seguindo os valores e condições descritas na proposta comercial ora aceita."
-    )
-    story.append(Paragraph(termo_p2, body_justify_style))
-    
-    clausulas = [
-        "1) Caso seja detectado o inadimplemento da empresa cliente em efetuar os pagamentos, fica permitida a cobrança do débito atualizado pelo IPCA/IBGE, acrescido de multa de mora de 2% e juros de 1% ao mês, pro rata tempore.",
-        "2) O presente termo é parte integrante e acessória do contrato de prestação de serviços, prevalecendo como documento principal até a assinatura do mesmo.",
-        "3) Os dados cadastrais abaixo especificados poderão ser utilizados pela GLOBEX MULTIMODAL para emissão dos documentos fiscais correspondentes."
-    ]
-    for c in clausulas:
-        story.append(Paragraph(c, body_justify_style))
-    
-    story.append(Spacer(1, 10))
-    
-    info_cadastrais = [
-        f"<b>Nome/Razão Social:</b> {c_nome_esc}",
-        f"<b>CPF/CNPJ:</b> {c_cnpj_esc}",
-        f"<b>RG / Inscrição Estadual:</b> {rg_ie_esc}",
-        f"<b>Email:</b> {email_esc}"
-    ]
-    for info in info_cadastrais:
-        story.append(Paragraph(info, body_left_style))
-        
-    story.append(Spacer(1, 12))
-    story.append(Paragraph("<b>Assinatura / Representante Legal:</b>", body_left_style))
-    story.append(Spacer(1, 8))
-    
-    # Estilo com espaçamento (leading) maior entre linhas e espaço após cada item
-    style_assinatura = ParagraphStyle(
-        'AssinaturaEstilo', 
-        parent=styles['Normal'], 
-        fontSize=10, 
-        leading=18, 
-        alignment=TA_LEFT, 
-        textColor=colors.HexColor('#222222'), 
-        spaceAfter=12
-    )
-    
-    campos_assinatura = [
-        "<b>Nome:</b>",
-        "<b>Função:</b>",
-        "<b>CPF:</b>"
-    ]
-    for campo in campos_assinatura:
-        story.append(Paragraph(campo, style_assinatura))
-
-    try:
-        doc.build(story, onFirstPage=desenhar_cabecalho_rodape, onLaterPages=desenhar_cabecalho_rodape)
-    except Exception as e:
-        st.error(f"Erro ao compilar o PDF no ReportLab: {e}")
-        return None
-
-    buffer.seek(0)
