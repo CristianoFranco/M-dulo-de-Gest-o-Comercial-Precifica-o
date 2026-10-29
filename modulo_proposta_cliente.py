@@ -332,6 +332,7 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                         ver_form = st.session_state["form_prop_cliente_version"]
 
                         st.session_state[f"input_popup_razao_social_{ver_form}"] = c_nome_carregado
+                        st.session_state[f"input_popup_cnpj_{ver_form}"] = c_cnpj_carregado
                         st.session_state[f"input_popup_rg_ie_{ver_form}"] = ""
                         st.session_state[f"input_popup_email_{ver_form}"] = ""
                         st.session_state[f"input_popup_contato_{ver_form}"] = ""
@@ -396,6 +397,7 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
     cnpj_val = str(st.session_state.get("_safe_cnpj_val") or st.session_state.get("proposta_cliente_cnpj", "")).strip()
     
     key_rz = f"input_popup_razao_social_{ver_form}"
+    key_cnpj = f"input_popup_cnpj_{ver_form}"
     key_rg = f"input_popup_rg_ie_{ver_form}"
     key_em = f"input_popup_email_{ver_form}"
     key_ct = f"input_popup_contato_{ver_form}"
@@ -408,6 +410,8 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
 
     if key_rz not in st.session_state:
         st.session_state[key_rz] = cliente_nome
+    if key_cnpj not in st.session_state:
+        st.session_state[key_cnpj] = cnpj_val
     if key_rg not in st.session_state:
         st.session_state[key_rg] = ""
     if key_em not in st.session_state:
@@ -498,14 +502,15 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
         col_pop1, col_pop2 = st.columns(2)
         with col_pop1:
             input_razao_social = st.text_input("Razão Social da Empresa Contratante:", key=key_rz)
+            input_cnpj = st.text_input("CNPJ / CPF:", placeholder="Ex: 00.000.000/0001-00", key=key_cnpj)
             input_rg_ie = st.text_input("RG / Inscrição Estadual:", placeholder="Ex: 000.000.000.000", key=key_rg)
             input_email = st.text_input("E-mail de Contato:", placeholder="Ex: contato@empresa.com", key=key_em)
-            input_iss = st.text_input("% I.S.S sobre o faturamento:", key=key_is)
         with col_pop2:
             input_objeto = st.text_input("Objeto da Proposta:", placeholder="Ex: Prestação de serviços logísticos", key=key_obj)
             input_contato = st.text_input("Contato do Cliente:", placeholder="Ex: Nome do responsável", key=key_ct)
             input_prazo = st.text_input("Prazo de pagamento em dias:", key=key_pz)
             input_vigencia = st.text_input("Vigência mínima em meses:", key=key_vg)
+            input_iss = st.text_input("% I.S.S sobre o faturamento:", key=key_is)
 
         st.markdown("<br>", unsafe_allow_html=True)
         input_fat_minimo = st.text_area(
@@ -531,7 +536,7 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
 
         if submitted_pdf:
             c_nome = str(input_razao_social).strip()
-            c_cnpj = str(st.session_state.get("_safe_cnpj_val") or st.session_state.get("proposta_cliente_cnpj", "")).strip()
+            c_cnpj = str(input_cnpj).strip()
             c_rg_ie = str(input_rg_ie).strip()
             c_email = str(input_email).strip()
             c_contato = str(input_contato).strip()
