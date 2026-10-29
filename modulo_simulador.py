@@ -130,6 +130,18 @@ def filtrar_categoria_permitida(cat_str):
 def renderizar_aba_simulacao(carregar_dados_fn, carregar_propostas_salvas_fn):
     st.markdown("""
         <style>
+            div[data-testid="stTextInput"] label,
+            div[data-testid="stSelectbox"] label,
+            div[data-testid="stNumberInput"] label,
+            div[data-testid="stTextArea"] label,
+            div[data-testid="stTextInput"] label p,
+            div[data-testid="stSelectbox"] label p,
+            div[data-testid="stNumberInput"] label p,
+            div[data-testid="stTextArea"] label p {
+                color: #FFFFFF !important;
+                font-weight: bold !important;
+                font-size: 15px !important;
+            }
             div.stDownloadButton > button:hover {
                 background-color: #003380 !important;
                 border-color: #002255 !important;
@@ -138,8 +150,8 @@ def renderizar_aba_simulacao(carregar_dados_fn, carregar_propostas_salvas_fn):
         </style>
     """, unsafe_allow_html=True)
 
-    st.markdown("## 📊 Simulador Comercial & Cenários")
-    st.caption("Simule volumes, ajuste tarifas pontualmente ou em massa, visualize gráficos de categoria e exporte relatórios.")
+    st.markdown("<h2 style='color: #FFFFFF;'>📊 Simulador Comercial & Cenários</h2>", unsafe_allow_html=True)
+    st.markdown("<span style='color: #FFFFFF; opacity: 0.85;'>Simule volumes, ajuste tarifas pontualmente ou em massa, visualize gráficos de categoria e exporte relatórios.</span>", unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
 
     try:
@@ -162,7 +174,7 @@ def renderizar_aba_simulacao(carregar_dados_fn, carregar_propostas_salvas_fn):
     
     col_sel_p, _ = st.columns([2, 2])
     with col_sel_p:
-        st.markdown("### Selecione a Proposta e Cliente")
+        st.markdown("<h3 style='color: #FFFFFF; font-size: 18px;'>Selecione a Proposta e Cliente</h3>", unsafe_allow_html=True)
         opcao_selecionada = st.selectbox(
             "Selecione a Proposta e Cliente",
             options=[""] + propostas_disponiveis,
@@ -179,188 +191,4 @@ def renderizar_aba_simulacao(carregar_dados_fn, carregar_propostas_salvas_fn):
     df_prop = df_historico[df_historico["Proposta"].astype(str).str.strip() == proposta_selecionada].copy()
     cliente_atual = str(df_prop["Cliente"].iloc[0]) if "Cliente" in df_prop.columns and not df_prop.empty else "Cliente"
 
-    chave_estado_itens = f"simulador_itens_{proposta_selecionada}"
-    if chave_estado_itens not in st.session_state:
-        itens_iniciais = []
-        for _, row in df_prop.iterrows():
-            cat_row = str(row.get("Categoria", "Serviço"))
-            if not filtrar_categoria_permitida(cat_row):
-                continue
-            
-            try:
-                t_orig = float(row.get("Tarifa (R$)", 0.0))
-            except (ValueError, TypeError):
-                t_orig = 0.0
-            
-            itens_iniciais.append({
-                "Código": str(row.get("Código", "")),
-                "Descrição": str(row.get("Descrição", "")),
-                "Categoria": cat_row,
-                "Unidade": str(row.get("Unidade", "")),
-                "Tarifa Original": t_orig,
-                "Tarifa Simulação": t_orig,
-                "Quantidade": ""
-            })
-        st.session_state[chave_estado_itens] = itens_iniciais
-
-    lista_itens = st.session_state[chave_estado_itens]
-
-    if not lista_itens:
-        st.warning("Esta proposta não possui itens elegíveis para simulação (apenas blocos de Armazenagem, Seguro e Serviços/Movimentações são permitidos).")
-        return
-
-    st.markdown("---")
-    st.markdown("### ⚡ Reajuste em Massa de Tarifas")
-    col_m1, col_m2, col_m3 = st.columns([2, 2, 2])
-    with col_m1:
-        perc_massa = st.number_input("Aumento / Redução (%):", value=0.0, step=0.5, format="%.2f", key="input_perc_massa_sim")
-    with col_m2:
-        categorias_disponiveis = ["Todas"] + list(set([item["Categoria"] for item in lista_itens]))
-        cat_massa = st.selectbox("Aplicar na Categoria:", options=categorias_disponiveis, key="select_cat_massa_sim")
-    with col_m3:
-        st.write("")
-        st.write("")
-        if st.button("🚀 Aplicar Reajuste em Massa", use_container_width=True):
-            fator = 1.0 + (float(perc_massa) / 100.0)
-            for idx, item in enumerate(lista_itens):
-                if cat_massa == "Todas" or item["Categoria"] == cat_massa:
-                    nova_tarifa = round(item["Tarifa Simulação"] * fator, 5)
-                    item["Tarifa Simulação"] = nova_tarifa
-                    key_tar = f"sim_tar_{proposta_selecionada}_{item['Código']}_{idx}"
-                    st.session_state[key_tar] = str(nova_tarifa)
-            st.success(f"Reajuste de {perc_massa}% aplicado com sucesso!")
-            st.rerun()
-
-    st.markdown("---")
-    st.markdown("### 📋 Itens e Simulação de Quantidades / Tarifas")
-    st.caption("Você pode alterar livremente a Tarifa de Simulação e informar a Quantidade prevista para cada item.")
-
-    categorias_unicas = sorted(list(set([item["Categoria"] for item in lista_itens])), key=ordenar_categorias)
-    
-    dados_tabela_final = []
-
-    for idx_cat, cat in enumerate(categorias_unicas):
-        st.markdown(f"**Categoria: {cat}**")
-        
-        if idx_cat == 0:
-            h_cod, h_desc, h_cat_col, h_und, h_tar, h_qtd, h_tot = st.columns([1, 3, 2, 1.5, 2, 1.5, 2])
-            with h_cod: st.markdown("<span style='color: #FF4B4B; font-weight: bold;'>CÓDIGO</span>", unsafe_allow_html=True)
-            with h_desc: st.markdown("<span style='color: #FF4B4B; font-weight: bold;'>DESCRIÇÃO</span>", unsafe_allow_html=True)
-            with h_cat_col: st.markdown("<span style='color: #FF4B4B; font-weight: bold;'>CATEGORIA</span>", unsafe_allow_html=True)
-            with h_und: st.markdown("<span style='color: #FF4B4B; font-weight: bold;'>UNIDADE</span>", unsafe_allow_html=True)
-            with h_tar: st.markdown("<span style='color: #FF4B4B; font-weight: bold;'>TARIFA (R$)</span>", unsafe_allow_html=True)
-            with h_qtd: st.markdown("<span style='color: #FF4B4B; font-weight: bold;'>QTD. (SIMULAÇÃO)</span>", unsafe_allow_html=True)
-            with h_tot: st.markdown("<span style='color: #FF4B4B; font-weight: bold;'>VALOR TOTAL (R$)</span>", unsafe_allow_html=True)
-            st.markdown("<hr style='margin: 2px 0 6px 0;'>", unsafe_allow_html=True)
-
-        for i, item in enumerate(lista_itens):
-            if item["Categoria"] == cat:
-                c_cod, c_desc, c_cat, c_und, c_tar, c_qtd, c_tot = st.columns([1, 3, 2, 1.5, 2, 1.5, 2])
-                with c_cod:
-                    st.markdown(f"<span style='color: #FFFFFF; font-weight: 500;'>{item['Código']}</span>", unsafe_allow_html=True)
-                with c_desc:
-                    st.markdown(f"<span style='color: #FFFFFF; font-weight: 500;'>{item['Descrição']}</span>", unsafe_allow_html=True)
-                with c_cat:
-                    st.markdown(f"<span style='color: #FFFFFF; font-weight: 500;'>{item['Categoria']}</span>", unsafe_allow_html=True)
-                with c_und:
-                    st.markdown(f"<span style='color: #FFFFFF; font-weight: 500;'>{item['Unidade']}</span>", unsafe_allow_html=True)
-                with c_tar:
-                    key_tar = f"sim_tar_{proposta_selecionada}_{item['Código']}_{i}"
-                    val_str = st.text_input("Tarifa", value=str(item["Tarifa Simulação"]), key=key_tar, label_visibility="collapsed")
-                    try:
-                        t_num = float(val_str.replace(",", ".")) if val_str.strip() else 0.0
-                    except ValueError:
-                        t_num = 0.0
-                    item["Tarifa Simulação"] = t_num
-                with c_qtd:
-                    key_qtd = f"sim_qtd_{proposta_selecionada}_{item['Código']}_{i}"
-                    val_qtd_atual = "" if item["Quantidade"] in [0, 0.0, ""] else str(item["Quantidade"])
-                    qtd_str = st.text_input("Qtd", value=val_qtd_atual, key=key_qtd, label_visibility="collapsed")
-                    try:
-                        q_num = float(qtd_str.replace(",", ".")) if qtd_str.strip() else 0.0
-                    except ValueError:
-                        q_num = 0.0
-                    item["Quantidade"] = qtd_str if qtd_str.strip() == "" else q_num
-                with c_tot:
-                    qtd_calc = float(item["Quantidade"]) if str(item["Quantidade"]).strip() != "" else 0.0
-                    v_tot = item["Tarifa Simulação"] * qtd_calc
-                    st.markdown(f"<span style='color: #FFFFFF; font-weight: 600; line-height: 2.4rem;'>R$ {v_tot:,.2f}</span>".replace(",", "X").replace(".", ",").replace("X", "."), unsafe_allow_html=True)
-
-                dados_tabela_final.append({
-                    "Código": item["Código"],
-                    "Descrição": item["Descrição"],
-                    "Categoria": item["Categoria"],
-                    "Unidade": item["Unidade"],
-                    "Tarifa Simulação": item["Tarifa Simulação"],
-                    "Quantidade": qtd_calc,
-                    "Valor Total": v_tot
-                })
-        
-        if idx_cat < len(categorias_unicas) - 1:
-            st.markdown("<div style='margin-bottom: 10px;'></div>", unsafe_allow_html=True)
-
-    df_simulacao_completo = pd.DataFrame(dados_tabela_final)
-    valor_total_geral = float(df_simulacao_completo["Valor Total"].sum()) if not df_simulacao_completo.empty else 0.0
-
-    st.markdown("---")
-    st.markdown(f"### 💰 Valor Total Geral da Simulação: **R$ {valor_total_geral:,.2f}**".replace(",", "X").replace(".", ",").replace("X", "."))
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    if MATPLOTLIB_DISPONIVEL and valor_total_geral > 0:
-        st.markdown("### 🥧 Distribuição de Custos por Categoria")
-        df_cat_grp = df_simulacao_completo.groupby("Categoria")["Valor Total"].sum().reset_index()
-        df_cat_grp = df_cat_grp[df_cat_grp["Valor Total"] > 0]
-
-        if not df_cat_grp.empty:
-            col_chart_left, col_chart_center, col_chart_right = st.columns([1, 2, 1])
-            with col_chart_center:
-                fig, ax = plt.subplots(figsize=(4.0, 3.0))
-                
-                wedges, texts, autotexts = ax.pie(
-                    df_cat_grp["Valor Total"],
-                    autopct='%1.1f%%',
-                    startangle=140,
-                    colors=['#0052B4', '#60A5FA', '#1E3A8A', '#93C5FD', '#1E40AF'],
-                    textprops={'fontsize': 8, 'color': 'black', 'weight': 'bold'}
-                )
-                
-                ax.legend(
-                    wedges, 
-                    df_cat_grp["Categoria"],
-                    title="Categorias",
-                    loc="center left",
-                    bbox_to_anchor=(1, 0, 0.5, 1),
-                    fontsize=8
-                )
-                
-                ax.axis('equal')
-                st.pyplot(fig)
-
-    st.markdown("---")
-    col_exp1, col_exp2 = st.columns(2)
-
-    with col_exp1:
-        output_excel = io.BytesIO()
-        with pd.ExcelWriter(output_excel, engine='openpyxl') as writer:
-            df_simulacao_completo.to_excel(writer, index=False, sheet_name='Simulação')
-        output_excel.seek(0)
-
-        st.download_button(
-            label="📥 Exportar Simulação em Excel (.xlsx)",
-            data=output_excel,
-            file_name=f"Simulacao_{proposta_selecionada.replace('/', '_')}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            use_container_width=True
-        )
-
-    with col_exp2:
-        if REPORTLAB_DISPONIVEL:
-            pdf_bytes = gerar_pdf_simulador(proposta_selecionada, cliente_atual, df_simulacao_completo, valor_total_geral)
-            if pdf_bytes:
-                st.download_button(
-                    label="📄 Gerar PDF da Simulação",
-                    data=pdf_bytes,
-                    file_name=f"Simulacao_{proposta_selecionada.replace('/', '_')}.pdf",
-                    mime="application/pdf",
-                    use_container_width=True
-                )
+    chave_estado_itens = f
