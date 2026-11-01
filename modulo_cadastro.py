@@ -153,10 +153,12 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
         st.markdown("### 📊 Tabela de Serviços Ativos")
         
         df_exibir = df_completo[df_completo["Status"].str.upper() != "INATIVO"].copy()
-        if "Status" in df_exibir.columns:
-            df_exibir = df_exibir.drop(columns=["Status"])
-        if "Observações" in df_exibir.columns:
-            df_exibir = df_exibir.drop(columns=["Observações"])
+        
+        # Ocultar colunas de controle interno do Supabase (created_at, id, status, observacoes)
+        colunas_para_remover = ["Status", "Observações", "created_at", "id"]
+        for col in colunas_para_remover:
+            if col in df_exibir.columns:
+                df_exibir = df_exibir.drop(columns=[col])
 
         if not df_exibir.empty and "Código" in df_exibir.columns:
             df_exibir["_sort_key"] = pd.to_numeric(df_exibir["Código"], errors="coerce")
