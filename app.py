@@ -1,10 +1,9 @@
 import streamlit as st
 import pandas as pd
-import gspread
 import base64
 import os
 from datetime import datetime
-from google.oauth2.service_account import Credentials
+from supabase import create_client, Client
 from modulo_cadastro import renderizar_aba_cadastro
 from modulo_propostas import renderizar_aba_propostas
 from modulo_proposta_cliente import renderizar_aba_proposta_cliente
@@ -95,56 +94,34 @@ def aplicar_estilo_personalizado():
 aplicar_estilo_personalizado()
 
 # ==============================================================================
-# 2. CONEXÃO COM GOOGLE SHEETS
+# 2. CONEXÃO COM SUPABASE
 # ==============================================================================
-SPREADSHEET_ID = "1wbhgMnqQuyOxwCef4pJh3vDnafBBU2AZk-uSt1NnPWc"
-HEADER_PROPOSTAS_ESPERADO = [
-    "Proposta", "Data", "Cliente", "CNPJ", "Código", 
-    "Descrição", "Categoria", "Unidade", "Tarifa (R$)", "Observações"
-]
-
-@st.cache_resource(ttl=3600)
-def obter_planilha_google_sheets():
-    scope = ["https://www.googleapis.com/auth/spreadsheets"]
-    if "gcp_service_account" in st.secrets:
-        creds_dict = dict(st.secrets["gcp_service_account"])
-        if "private_key" in creds_dict:
-            creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
-        creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
-    else:
-        creds = Credentials.from_service_account_file("credentials.json", scopes=scope)
-    client = gspread.authorize(creds)
-    return client.open_by_url("https://docs.google.com/spreadsheets/d/{}".format(SPREADSHEET_ID))
-
-def obter_aba_servicos():
-    sh = obter_planilha_google_sheets()
-    return sh.sheet1
-
-def obter_aba_propostas():
-    sh = obter_planilha_google_sheets()
-    try:
-        ws = sh.worksheet("Propostas_Salvas")
-    except Exception:
-        ws = sh.add_worksheet(title="Propostas_Salvas", rows=1000, cols=10)
-        ws.append_row(HEADER_PROPOSTAS_ESPERADO)
-        return ws
-        
-    valores = ws.get_all_values()
-    if not valores or valores[0] != HEADER_PROPOSTAS_ESPERADO:
-        if not valores:
-            ws.append_row(HEADER_PROPOSTAS_ESPERADO)
-        else:
-            ws.update(range_name='A1:J1', values=[HEADER_PROPOSTAS_ESPERADO])
-            
-    return ws
+@st.cache_resource
+def obter_cliente_supabase() -> Client:
+    url = st.secrets["supabase"]["SUPABASE_URL"]
+    key = st.secrets["supabase"]["SUPABASE_KEY"]
+    return create_client(url, key)
 
 @st.cache_data(ttl=60)
 def carregar_dados_cached():
     try:
-        worksheet = obter_aba_servicos()
-        data = worksheet.get_all_records()
-        return pd.DataFrame(data)
-    except Exception:
+        supabase = obter_cliente_supabase()
+        res = supabase.table("servicos").select("*").execute()
+        if res.data:
+            df = pd.DataFrame(res.data)
+            df = df.rename(columns={
+                "codigo": "Código",
+                "descricao": "Descrição",
+                "tarifa": "Tarifa (R$)",
+                "unidade": "Unidade",
+                "categoria": "Categoria",
+                "observacoes": "Observações",
+                "status": "Status"
+            })
+            return df
+        return pd.DataFrame(columns=["Código", "Descrição", "Tarifa (R$)", "Unidade", "Categoria", "Observações", "Status"])
+    except Exception as e:
+        st.error(f"Erro ao carregar dados do Supabase: {e}")
         return pd.DataFrame()
 
 def carregar_dados(apenas_ativos=True):
@@ -167,111 +144,88 @@ def carregar_dados(apenas_ativos=True):
 
 def salvar_dados_completos(df_completo):
     try:
-        worksheet = obter_aba_servicos()
-        header = ["Código", "Descrição", "Tarifa (R$)", "Unidade", "Categoria", "Observações", "Status"]
-        
-        matriz_atual = worksheet.get_all_values()
-        if not matriz_atual or len(matriz_atual) == 0:
-            worksheet.append_row(header)
-            matriz_atual = [header]
-            
-        mapa_linhas = {}
-        for idx, linha in enumerate(matriz_atual[1:], start=2):
-            if len(linha) > 0:
-                codigo_planilha = str(linha[0]).strip()
-                mapa_linhas[codigo_planilha] = idx
-
+        supabase = obter_cliente_supabase()
+        registros = []
         for _, row in df_completo.iterrows():
-            codigo = str(row.get("Código", "")).strip()
-            descricao = str(row.get("Descrição", ""))
-            tarifa = str(row.get("Tarifa (R$)", ""))
-            unidade = str(row.get("Unidade", ""))
-            categoria = str(row.get("Categoria", ""))
-            observacoes = str(row.get("Observações", ""))
-            status = str(row.get("Status", "Ativo"))
-            
-            linha_dados = [codigo, descricao, tarifa, unidade, categoria, observacoes, status]
-            
-            if codigo in mapa_linhas:
-                row_idx = mapa_linhas[codigo]
-                worksheet.update(range_name=f"A{row_idx}:G{row_idx}", values=[linha_dados])
-            else:
-                worksheet.append_row(linha_dados)
-                nova_linha_idx = len(worksheet.get_all_values())
-                mapa_linhas[codigo] = nova_linha_idx
-
+            registros.append({
+                "codigo": str(row.get("Código", "")).strip(),
+                "descricao": str(row.get("Descrição", "")).strip(),
+                "tarifa": float(row.get("Tarifa (R$)", 0.0) if str(row.get("Tarifa (R$)", 0.0)).strip() != "" else 0.0),
+                "unidade": str(row.get("Unidade", "")).strip(),
+                "categoria": str(row.get("Categoria", "")).strip(),
+                "observacoes": str(row.get("Observações", "")).strip(),
+                "status": str(row.get("Status", "Ativo")).strip()
+            })
+        
+        supabase.table("servicos").upsert(registros, on_conflict="codigo").execute()
         carregar_dados_cached.clear()
         return True
     except Exception as e:
-        st.error("Erro ao salvar no Google Sheets por linhas: {}".format(e))
+        st.error(f"Erro ao salvar no Supabase: {e}")
         return False
 
 # ==============================================================================
-# FUNÇÕES DE INTEGRAÇÃO COM A TELA 3 (PROPOSTAS SALVAS) - COM TRAVAS DE SEGURANÇA
+# FUNÇÕES DE INTEGRAÇÃO COM A TELA 3 (PROPOSTAS SALVAS) - SUPABASE
 # ==============================================================================
 def salvar_propostas_na_planilha(linhas_proposta):
     try:
-        ws = obter_aba_propostas()
+        supabase = obter_cliente_supabase()
         num_prop = str(linhas_proposta[0].get("Proposta", "")).strip() if linhas_proposta else ""
         if not num_prop:
             st.error("Número da proposta inválido para salvamento.")
             return False
 
-        todos_valores = ws.get_all_values()
-        if not todos_valores:
-            todos_valores = [HEADER_PROPOSTAS_ESPERADO]
-            
-        header = todos_valores[0]
-        linhas_existentes = todos_valores[1:] if len(todos_valores) > 1 else []
-        
-        # Trava de segurança contra falhas temporárias de rede
-        if len(linhas_existentes) > 0 and len(todos_valores) <= 1:
-            st.error("Erro de segurança: Falha de comunicação temporária com o Google Sheets. Salvamento abortado para proteger seus dados.")
-            return False
+        # Remove registros anteriores dessa proposta para atualizar com os novos dados
+        supabase.table("propostas").delete().eq("proposta", num_prop).execute()
 
-        está_editando = st.session_state.get("proposta_id_em_edicao") is not None
-        
-        linhas_filtradas = []
-        for lin in linhas_existentes:
-            if len(lin) > 0:
-                proposta_linha = str(lin[0]).strip()
-                if está_editando and proposta_linha == num_prop:
-                    continue
-                linhas_filtradas.append(lin)
-                
-        novas_linhas_matriz = []
+        novos_registros = []
         for reg in linhas_proposta:
-            novas_linhas_matriz.append([
-                str(reg.get("Proposta", "")),
-                str(reg.get("Data", "")),
-                str(reg.get("Cliente", "")),
-                str(reg.get("CNPJ", "")),
-                str(reg.get("Código", "")),
-                str(reg.get("Descrição", "")),
-                str(reg.get("Categoria", "")),
-                str(reg.get("Unidade", "")),
-                str(reg.get("Tarifa (R$)", "")),
-                str(reg.get("Observações", ""))
-            ])
-            
-        ws.clear()
-        conteudo_final = [header] + linhas_filtradas + novas_linhas_matriz
-        ws.update(range_name='A1', values=conteudo_final)
+            data_val = reg.get("Data", datetime.now().isoformat())
+            if not data_val or str(data_val).strip() == "":
+                data_val = datetime.now().isoformat()
+
+            novos_registros.append({
+                "proposta": str(reg.get("Proposta", "")).strip(),
+                "data": data_val,
+                "cliente": str(reg.get("Cliente", "")).strip(),
+                "cnpj": str(reg.get("CNPJ", "")).strip(),
+                "codigo": str(reg.get("Código", "")).strip(),
+                "descricao": str(reg.get("Descrição", "")).strip(),
+                "categoria": str(reg.get("Categoria", "")).strip(),
+                "unidade": str(reg.get("Unidade", "")).strip(),
+                "tarifa": float(reg.get("Tarifa (R$)", 0.0) if str(reg.get("Tarifa (R$)", 0.0)).strip() != "" else 0.0),
+                "observacoes": str(reg.get("Observações", "")).strip()
+            })
+
+        supabase.table("propostas").insert(novos_registros).execute()
         return True
     except Exception as e:
-        st.error(f"Erro ao gravar proposta no Google Sheets: {e}")
+        st.error(f"Erro ao gravar proposta no Supabase: {e}")
         return False
 
 def carregar_propostas_da_planilha():
     try:
-        ws = obter_aba_propostas()
-        valores = ws.get_all_values()
-        if not valores or len(valores) < 2:
-            return pd.DataFrame(columns=HEADER_PROPOSTAS_ESPERADO)
-        df = pd.DataFrame(valores[1:], columns=valores[0])
+        supabase = obter_cliente_supabase()
+        res = supabase.table("propostas").select("*").execute()
+        if not res.data:
+            return pd.DataFrame(columns=["Proposta", "Data", "Cliente", "CNPJ", "Código", "Descrição", "Categoria", "Unidade", "Tarifa (R$)", "Observações"])
+        
+        df = pd.DataFrame(res.data)
+        df = df.rename(columns={
+            "proposta": "Proposta",
+            "data": "Data",
+            "cliente": "Cliente",
+            "cnpj": "CNPJ",
+            "codigo": "Código",
+            "descricao": "Descrição",
+            "categoria": "Categoria",
+            "unidade": "Unidade",
+            "tarifa": "Tarifa (R$)",
+            "observacoes": "Observações"
+        })
         return df
-    except Exception:
-        return pd.DataFrame(columns=HEADER_PROPOSTAS_ESPERADO)
+    except Exception as e:
+        return pd.DataFrame(columns=["Proposta", "Data", "Cliente", "CNPJ", "Código", "Descrição", "Categoria", "Unidade", "Tarifa (R$)", "Observações"])
 
 def obter_proximo_numero_proposta_global():
     if st.session_state.get("proposta_id_em_edicao"):
