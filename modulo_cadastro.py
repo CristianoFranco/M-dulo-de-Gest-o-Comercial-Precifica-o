@@ -253,7 +253,7 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
                         is_seguro_edit = str(edit_cat).strip().lower() == "seguro"
                         if is_seguro_edit:
                             edit_tarifa_str = ""
-                            st.info("ℹ️ Para serviços de Seguro, a tarifa é controlada na Proposta Rascunho.")
+                            st.info("ℹ️ Para serviços de Seguro, a tarifa é controlada na Proposta Rascun호.")
                         else:
                             try:
                                 t_val_inicial = str(row_sel["Tarifa (R$)"]).strip()
@@ -279,11 +279,23 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
 
                                 tarifa_val = 0.0 if is_seguro_edit else (formatar_tarifa_fn(edit_tarifa) if formatar_tarifa_fn else edit_tarifa)
 
-                                df_completo.loc[idx_alvo[0], "Descrição"] = edit_desc.strip()
-                                df_completo.loc[idx_alvo[0], "Tarifa (R$)"] = tarifa_val
-                                df_completo.loc[idx_alvo[0], "Unidade"] = edit_un
-                                df_completo.loc[idx_alvo[0], "Categoria"] = edit_cat
-                                df_completo.loc[idx_alvo[0], "Status"] = "Ativo"
+                                # 1. Renomeia o registro antigo para EDIT_<codigo>_<timestamp> e marca como Inativo (preserva histórico para propostas antigas)
+                                timestamp_str = int(datetime.now().timestamp())
+                                df_completo.loc[idx_alvo[0], "Código"] = f"EDIT_{cod_selecionado}_{timestamp_str}"
+                                df_completo.loc[idx_alvo[0], "Status"] = "Inativo"
+
+                                # 2. Insere a nova versão atualizada com o código limpo original e status Ativo
+                                novo_registro_editado = {
+                                    "Código": cod_selecionado,
+                                    "Descrição": edit_desc.strip(),
+                                    "Tarifa (R$)": tarifa_val,
+                                    "Unidade": edit_un,
+                                    "Categoria": edit_cat,
+                                    "Observações": "",
+                                    "Status": "Ativo"
+                                }
+                                df_novo_reg = pd.DataFrame([novo_registro_editado])
+                                df_completo = pd.concat([df_completo, df_novo_reg], ignore_index=True)
                                 
                                 if salvar_dados_completos_fn:
                                     salvar_dados_completos_fn(df_completo)
