@@ -167,7 +167,7 @@ def salvar_dados_completos(df_completo):
 # ==============================================================================
 # FUNÇÕES DE INTEGRAÇÃO COM A TELA 3 (PROPOSTAS SALVAS) - SUPABASE
 # ==============================================================================
-def salvar_propostas_na_planilha(linhas_proposta):
+def salvar_propostas_no_supabase(linhas_proposta):
     try:
         supabase = obter_cliente_supabase()
         num_prop = str(linhas_proposta[0].get("Proposta", "")).strip() if linhas_proposta else ""
@@ -203,7 +203,7 @@ def salvar_propostas_na_planilha(linhas_proposta):
         st.error(f"Erro ao gravar proposta no Supabase: {e}")
         return False
 
-def carregar_propostas_da_planilha():
+def carregar_propostas_do_supabase():
     try:
         supabase = obter_cliente_supabase()
         res = supabase.table("propostas").select("*").execute()
@@ -238,7 +238,7 @@ def obter_proximo_numero_proposta_global():
     sufixo_busca = f"/{ano}"
     
     try:
-        df_hist = carregar_propostas_da_planilha()
+        df_hist = carregar_propostas_do_supabase()
         maior_seq = 0
         if not df_hist.empty and "Proposta" in df_hist.columns:
             for prop in df_hist["Proposta"].dropna().unique():
@@ -352,11 +352,12 @@ elif st.session_state["aba_ativa"] == "propostas":
     )
 elif st.session_state["aba_ativa"] == "cliente":
     renderizar_aba_proposta_cliente(
-        salvar_proposta_sheets_fn=salvar_propostas_na_planilha,
-        carregar_propostas_salvas_fn=carregar_propostas_da_planilha
+        salvar_proposta_supabase_fn=salvar_propostas_no_supabase,
+        carregar_propostas_supabase_fn=carregar_propostas_do_supabase,
+        obter_proximo_numero_fn=obter_proximo_numero_proposta_global
     )
 else:
     renderizar_aba_simulacao(
         carregar_dados_fn=carregar_dados,
-        carregar_propostas_salvas_fn=carregar_propostas_da_planilha
+        carregar_propostas_salvas_fn=carregar_propostas_do_supabase
     )
