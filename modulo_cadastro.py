@@ -154,7 +154,6 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
         
         df_exibir = df_completo[df_completo["Status"].str.upper() != "INATIVO"].copy()
         
-        # Ocultar colunas de controle interno do Supabase (created_at, id, status, observacoes)
         colunas_para_remover = ["Status", "Observações", "created_at", "id"]
         for col in colunas_para_remover:
             if col in df_exibir.columns:
@@ -215,7 +214,7 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
                 if btn_acao_excluir:
                     idx_alvo = df_completo[(df_completo["Código"] == cod_selecionado) & (df_completo["Status"].str.upper() != "INATIVO")].index[0]
                     
-                    df_completo.loc[idx_alvo, "Código"] = f"DEL_{cod_selecionado}_{int(datetime.now().timestamp())}"
+                    # Atualiza o status para Inativo mantendo o código original para o Supabase localizar e atualizar
                     df_completo.loc[idx_alvo, "Status"] = "Inativo"
                     
                     if salvar_dados_completos_fn:
@@ -281,21 +280,12 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
 
                                 tarifa_val = 0.0 if is_seguro_edit else (formatar_tarifa_fn(edit_tarifa) if formatar_tarifa_fn else edit_tarifa)
 
-                                timestamp_str = int(datetime.now().timestamp())
-                                df_completo.loc[idx_alvo[0], "Código"] = f"EDIT_{cod_selecionado}_{timestamp_str}"
-                                df_completo.loc[idx_alvo[0], "Status"] = "Inativo"
-
-                                novo_registro_editado = {
-                                    "Código": cod_selecionado,
-                                    "Descrição": edit_desc.strip(),
-                                    "Tarifa (R$)": tarifa_val,
-                                    "Unidade": edit_un,
-                                    "Categoria": edit_cat,
-                                    "Observações": "",
-                                    "Status": "Ativo"
-                                }
-                                df_novo_reg = pd.DataFrame([novo_registro_editado])
-                                df_completo = pd.concat([df_completo, df_novo_reg], ignore_index=True)
+                                # Atualiza diretamente os campos do registro existente (mantendo o mesmo Código)
+                                df_completo.loc[idx_alvo[0], "Descrição"] = edit_desc.strip()
+                                df_completo.loc[idx_alvo[0], "Tarifa (R$)"] = tarifa_val
+                                df_completo.loc[idx_alvo[0], "Unidade"] = edit_un
+                                df_completo.loc[idx_alvo[0], "Categoria"] = edit_cat
+                                df_completo.loc[idx_alvo[0], "Status"] = "Ativo"
                                 
                                 if salvar_dados_completos_fn:
                                     salvar_dados_completos_fn(df_completo)
