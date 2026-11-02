@@ -492,6 +492,9 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
             })
         df_estatico = pd.DataFrame(dados_estaticos)
         
+        # Limpeza robusta para remover 'nan', 'None' e valores vazios de todas as colunas do DataFrame
+        df_estatico = df_estatico.fillna("").astype(str).replace(["nan", "None", "NAT", "NaT", "<NA>"], "")
+        
         st.dataframe(df_estatico, use_container_width=True, hide_index=True)
         st.markdown("<br>", unsafe_allow_html=True)
         
