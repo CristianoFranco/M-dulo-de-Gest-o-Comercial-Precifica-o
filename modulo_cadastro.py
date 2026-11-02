@@ -219,7 +219,7 @@ def renderizar_aba_cadastro(carregar_dados_fn, salvar_dados_completos_fn=None, n
                     
                     if salvar_dados_completos_fn:
                         salvar_dados_completos_fn(df_completo)
-                    st.success("Item excluído com sucesso e código liberado para uso!")
+                    st.success(f"Serviço '{cod_selecionado}' inativado com sucesso!")
                     st.session_state.pop("modo_acao_servico", None)
                     st.session_state.pop("codigo_em_edicao", None)
                     st.rerun()
