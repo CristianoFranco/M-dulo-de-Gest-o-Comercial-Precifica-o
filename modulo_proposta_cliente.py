@@ -259,7 +259,7 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, rg_ie_v
         leading=18, 
         alignment=TA_LEFT, 
         textColor=colors.HexColor('#222222'), 
-        spaceAfter=12
+        spaceAfter=42
     )
     
     campos_assinatura = [
@@ -279,7 +279,7 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, rg_ie_v
     buffer.seek(0)
     return buffer
 
-def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_propostas_salvas_fn=None, obter_proximo_numero_fn=None):
+def renderizar_aba_proposta_cliente(salvar_proposta_supabase_fn=None, carregar_propostas_supabase_fn=None, obter_proximo_numero_fn=None):
     st.markdown("""
         <style>
             div.stButton > button[kind="secondary"] {
@@ -302,7 +302,7 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
     st.markdown("<br>", unsafe_allow_html=True)
 
     # ==========================================
-    # SEÇÃO DE CONSULTA (MOVIDA PARA O TOPO)
+    # SEÇÃO DE CONSULTA (SUPABASE)
     # ==========================================
     with st.expander("🔍 Filtrar e Consultar Propostas Salvas", expanded=True):
         col_filtro_m, col_filtro_a = st.columns(2)
@@ -317,9 +317,9 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
         with col_filtro_a:
             ano_consulta = st.text_input("Filtrar por Ano (Ex: 2026):", value="", key="input_ano_consulta_cli")
             
-        if carregar_propostas_salvas_fn:
+        if carregar_propostas_supabase_fn:
             try:
-                df_historico = carregar_propostas_salvas_fn()
+                df_historico = carregar_propostas_supabase_fn()
                 if isinstance(df_historico, pd.DataFrame) and not df_historico.empty:
                     df_filtrado = df_historico.copy()
                     if "Proposta" in df_filtrado.columns:
@@ -347,7 +347,7 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                         else:
                             st.info("Nenhuma proposta encontrada com os filtros selecionados.")
             except Exception as e:
-                st.warning(f"Não foi possível carregar as propostas salvas: {e}")
+                st.warning(f"Não foi possível carregar as propostas do Supabase: {e}")
 
     st.markdown("---")
 
@@ -356,13 +356,13 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
 
     ver_form = st.session_state["form_prop_cliente_version"]
 
-    if carregar_propostas_salvas_fn and st.session_state.get("btn_carregar_proposta_clicado"):
+    if carregar_propostas_supabase_fn and st.session_state.get("btn_carregar_proposta_clicado"):
         st.session_state["btn_carregar_proposta_clicado"] = False
         prop_escolhida_raw = str(st.session_state.get("proposta_selecionada_temp", "")).strip()
         if prop_escolhida_raw:
             prop_escolhida = prop_escolhida_raw.split(" - ")[0].strip()
             try:
-                df_historico_tmp = carregar_propostas_salvas_fn()
+                df_historico_tmp = carregar_propostas_supabase_fn()
                 if isinstance(df_historico_tmp, pd.DataFrame) and not df_historico_tmp.empty:
                     df_prop_sel = df_historico_tmp[df_historico_tmp["Proposta"].astype(str).str.strip() == prop_escolhida]
                     if not df_prop_sel.empty:
@@ -425,7 +425,7 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                 st.error(f"Erro ao carregar proposta: {e}")
 
     if st.session_state.get("ultimo_pdf_bytes"):
-        st.success("✅ Proposta salva com sucesso no Google Sheets e documento PDF gerado!")
+        st.success("✅ Proposta salva com sucesso no Supabase e documento PDF gerado!")
         st.markdown("<br>", unsafe_allow_html=True)
         st.download_button(
             label="📥 Baixar / Visualizar Proposta em PDF",
@@ -533,7 +533,7 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
         dados_estaticos = []
         for item in itens_rascunho:
             tarifa_val = item.get("Tarifa (R$)", 0.0)
-            cat_item_str = _limpar_campo(item.get("Categoria", "")).lower()
+            cat_item_str = _limpar_comma = _limpar_campo(item.get("Categoria", "")).lower()
             try:
                 tarifa_float = float(tarifa_val)
                 if "seguro" in cat_item_str:
@@ -625,7 +625,7 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                 st.error("⚠️ O Objeto da proposta é obrigatório!")
             elif not itens_rascunho:
                 st.error("⚠️ Não há itens no rascunho para salvar.")
-            elif salvar_proposta_sheets_fn:
+            elif salvar_proposta_supabase_fn:
                 linhas_para_salvar = []
                 data_hoje = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 for item in itens_rascunho:
@@ -646,7 +646,7 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                         "Tarifa (R$)": t_val,
                         "Observações": str(item.get("Observações", ""))
                     })
-                sucesso = salvar_proposta_sheets_fn(linhas_para_salvar)
+                sucesso = salvar_proposta_supabase_fn(linhas_para_salvar)
                 if sucesso:
                     pdf_bytes = gerar_pdf_proposta_completo(
                         numero_proposta_atual,
@@ -679,4 +679,4 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                             del st.session_state[k]
                     st.rerun()
                 else:
-                    st.error("Falha ao salvar no Google Sheets.")
+                    st.error("Falha ao salvar no Supabase.")
