@@ -259,7 +259,7 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, rg_ie_v
         leading=18, 
         alignment=TA_LEFT, 
         textColor=colors.HexColor('#222222'), 
-        spaceAfter=12
+        spaceAfter=35
     )
     
     campos_assinatura = [
@@ -271,74 +271,4 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, rg_ie_v
         story.append(Paragraph(campo, style_assinatura))
 
     try:
-        doc.build(story, onFirstPage=desenhar_cabecalho_rodape, onLaterPages=desenhar_cabecalho_rodape)
-    except Exception as e:
-        st.error(f"Erro ao compilar o PDF no ReportLab: {e}")
-        return None
-
-    buffer.seek(0)
-    return buffer
-
-def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_propostas_salvas_fn=None, obter_proximo_numero_fn=None):
-    st.markdown("""
-        <style>
-            div.stButton > button[kind="secondary"] {
-                background-color: #0052B4 !important;
-                color: #FFFFFF !important;
-                font-weight: bold !important;
-                border: 1px solid #0052B4 !important;
-                border-radius: 6px !important;
-            }
-            div.stButton > button[kind="secondary"]:hover {
-                background-color: #003B82 !important;
-                color: #FFFFFF !important;
-                border: 1px solid #003B82 !important;
-            }
-        </style>
-    """, unsafe_allow_html=True)
-
-    st.markdown("## Visão Final da Proposta (Cliente)")
-    st.caption("Visualização pronta para conferência, geração de PDF e salvamento.")
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    if "form_prop_cliente_version" not in st.session_state:
-        st.session_state["form_prop_cliente_version"] = 1
-
-    ver_form = st.session_state["form_prop_cliente_version"]
-
-    if carregar_propostas_salvas_fn and st.session_state.get("btn_carregar_proposta_clicado"):
-        st.session_state["btn_carregar_proposta_clicado"] = False
-        prop_escolhida_raw = str(st.session_state.get("proposta_selecionada_temp", "")).strip()
-        if prop_escolhida_raw:
-            prop_escolhida = prop_escolhida_raw.split(" - ")[0].strip()
-            try:
-                df_historico_tmp = carregar_propostas_salvas_fn()
-                if isinstance(df_historico_tmp, pd.DataFrame) and not df_historico_tmp.empty:
-                    df_prop_sel = df_historico_tmp[df_historico_tmp["Proposta"].astype(str).str.strip() == prop_escolhida]
-                    if not df_prop_sel.empty:
-                        st.session_state.pop("ultimo_pdf_bytes", None)
-                        st.session_state.pop("ultimo_pdf_nome", None)
-                        st.session_state["proposta_id_em_edicao"] = prop_escolhida
-                        st.session_state["proposta_id_ativo"] = prop_escolhida
-                        
-                        primeiro_reg = df_prop_sel.iloc[0]
-                        c_nome_carregado = str(primeiro_reg.get("Cliente", ""))
-                        c_cnpj_carregado = str(primeiro_reg.get("CNPJ", "")) if "CNPJ" in primeiro_reg else ""
-                        
-                        st.session_state["_safe_cliente_nome"] = c_nome_carregado
-                        st.session_state["_safe_cnpj_val"] = c_cnpj_carregado
-                        
-                        st.session_state["form_prop_cliente_version"] += 1
-                        ver_form = st.session_state["form_prop_cliente_version"]
-
-                        st.session_state[f"input_popup_razao_social_{ver_form}"] = c_nome_carregado
-                        st.session_state[f"input_popup_cnpj_{ver_form}"] = c_cnpj_carregado
-                        st.session_state[f"input_popup_rg_ie_{ver_form}"] = ""
-                        st.session_state[f"input_popup_email_{ver_form}"] = ""
-                        st.session_state[f"input_popup_contato_{ver_form}"] = ""
-                        st.session_state[f"input_popup_objeto_{ver_form}"] = ""
-                        st.session_state[f"input_popup_iss_{ver_form}"] = "2.5"
-                        st.session_state[f"input_popup_prazo_{ver_form}"] = "30"
-                        st.session_state[f"input_popup_vigencia_{ver_form}"] = "12"
-                        st.session_state[f"input_popup_fat_minimo_{ver_form}"] = ""
-                        st.session_state[f"input_popup_outras_premissas_{ver_form}"] = ""
+        doc.build(story,
