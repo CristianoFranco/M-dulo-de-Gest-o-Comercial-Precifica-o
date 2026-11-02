@@ -259,7 +259,7 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, rg_ie_v
         leading=18, 
         alignment=TA_LEFT, 
         textColor=colors.HexColor('#222222'), 
-        spaceAfter=35
+        spaceAfter=12
     )
     
     campos_assinatura = [
@@ -503,7 +503,6 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
             })
         df_estatico = pd.DataFrame(dados_estaticos)
         
-        # Ocultar explicitamente caso tenham entrado colunas indesejadas
         colunas_para_remover = ["Proposta", "Cliente", "CNPJ"]
         for col in colunas_para_remover:
             if col in df_estatico.columns:
@@ -513,4 +512,23 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
             df_estatico[c] = df_estatico[c].apply(_limpar_campo)
         
         st.dataframe(df_estatico, use_container_width=True, hide_index=True)
-        st.markdown("<br>",
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+    st.markdown("---")
+    st.markdown("### ⚙️ Parâmetros da Proposta Comercial (PDF)")
+    
+    with st.form(f"form_parametros_proposta_pdf_{ver_form}"):
+        col_pop1, col_pop2 = st.columns(2)
+        with col_pop1:
+            input_razao_social = st.text_input("Razão Social da Empresa Contratante:", key=key_rz)
+            input_cnpj = st.text_input("CNPJ / CPF:", placeholder="Ex: 00.000.000/0001-00", key=key_cnpj)
+            input_rg_ie = st.text_input("RG / Inscrição Estadual:", placeholder="Ex: 000.000.000.000", key=key_rg)
+            input_email = st.text_input("E-mail de Contato:", placeholder="Ex: contato@empresa.com", key=key_em)
+        with col_pop2:
+            input_objeto = st.text_input("Objeto da Proposta:", placeholder="Ex: Prestação de serviços logísticos", key=key_obj)
+            input_contato = st.text_input("Contato do Cliente:", placeholder="Ex: Nome do responsável", key=key_ct)
+            input_prazo = st.text_input("Prazo de pagamento em dias:", key=key_pz)
+            input_vigencia = st.text_input("Vigência mínima em meses:", key=key_vg)
+            input_iss = st.text_input("% I.S.S sobre o faturamento:", key=key_is)
+
+        st.
