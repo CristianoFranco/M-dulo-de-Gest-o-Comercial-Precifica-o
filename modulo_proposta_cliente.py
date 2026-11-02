@@ -343,28 +343,20 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                         st.session_state[f"input_popup_fat_minimo_{ver_form}"] = ""
                         st.session_state[f"input_popup_outras_premissas_{ver_form}"] = ""
                         
-                        def _limpar(v):
-                            if pd.isna(v) or v is None:
-                                return ""
-                            s = str(v).strip()
-                            return "" if s.lower() in ["nan", "none", "nat", "<na>"] else s
-
                         novos_itens = []
                         for _, row in df_prop_sel.iterrows():
                             try:
                                 tarifa_val = float(row.get("Tarifa (R$)", 0.0))
-                                if pd.isna(tarifa_val):
-                                    tarifa_val = 0.0
                             except (ValueError, TypeError):
                                 tarifa_val = 0.0
                                 
                             novos_itens.append({
-                                "Código": _limpar(row.get("Código", "")),
-                                "Descrição": _limpar(row.get("Descrição", "")),
+                                "Código": str(row.get("Código", "")),
+                                "Descrição": str(row.get("Descrição", "")),
                                 "Tarifa (R$)": tarifa_val,
-                                "Unidade": _limpar(row.get("Unidade", "")),
-                                "Observações": _limpar(row.get("Observações", "")),
-                                "Categoria": _limpar(row.get("Categoria", "")),
+                                "Unidade": str(row.get("Unidade", "")),
+                                "Observações": str(row.get("Observações", "")),
+                                "Categoria": str(row.get("Categoria", "")),
                                 "Cat_Code": "GEN"
                             })
                             
@@ -474,16 +466,10 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
             st.markdown("Número da Proposta:\n### " + numero_proposta_atual)
         st.markdown("<br>", unsafe_allow_html=True)
         
-        def _limpar_campo(v):
-            if pd.isna(v) or v is None:
-                return ""
-            s = str(v).strip()
-            return "" if s.lower() in ["nan", "none", "nat", "<na>"] else s
-
         dados_estaticos = []
         for item in itens_rascunho:
             tarifa_val = item.get("Tarifa (R$)", 0.0)
-            cat_item_str = _limpar_campo(item.get("Categoria", "")).lower()
+            cat_item_str = str(item.get("Categoria", "")).strip().lower()
             try:
                 tarifa_float = float(tarifa_val)
                 if "seguro" in cat_item_str:
@@ -491,19 +477,23 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                 else:
                     tarifa_fmt = "R$ " + "{:,.2f}".format(tarifa_float).replace(",", "X").replace(".", ",").replace("X", ".")
             except (ValueError, TypeError):
-                tarifa_fmt = _limpar_campo(tarifa_val)
+                tarifa_fmt = str(tarifa_val)
             
             dados_estaticos.append({
-                "Código": _limpar_campo(item.get("Código", "")),
-                "Descrição": _limpar_campo(item.get("Descrição", "")),
-                "Categoria": _limpar_campo(item.get("Categoria", "")),
-                "Unidade": _limpar_campo(item.get("Unidade", "")),
+                "Proposta": numero_proposta_atual,
+                "Cliente": cliente_nome,
+                "CNPJ": cnpj_val,
+                "Código": item.get("Código", ""),
+                "Descrição": item.get("Descrição", ""),
+                "Categoria": item.get("Categoria", ""),
+                "Unidade": item.get("Unidade", ""),
                 "Tarifa": tarifa_fmt,
-                "Observações": _limpar_campo(item.get("Observações", ""))
+                "Observações": item.get("Observações", "")
             })
         df_estatico = pd.DataFrame(dados_estaticos)
-        for c in df_estatico.columns:
-            df_estatico[c] = df_estatico[c].apply(_limpar_campo)
+        
+        # Limpeza robusta para remover 'nan', 'None' e valores vazios de todas as colunas do DataFrame
+        df_estatico = df_estatico.fillna("").astype(str).replace(["nan", "None", "NAT", "NaT", "<NA>"], "")
         
         st.dataframe(df_estatico, use_container_width=True, hide_index=True)
         st.markdown("<br>", unsafe_allow_html=True)
@@ -599,3 +589,74 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                         c_email,
                         c_contato,
                         c_objeto,
+                        c_iss,
+                        c_prazo,
+                        c_vigencia,
+                        c_fat_minimo,
+                        c_outras_premissas,
+                        itens_rascunho
+                    )
+                    nome_arquivo_pdf = "Proposta_" + str(numero_proposta_atual).replace("/", "_") + ".pdf"
+                    
+                    st.session_state["ultimo_pdf_bytes"] = pdf_bytes
+                    st.session_state["ultimo_pdf_nome"] = nome_arquivo_pdf
+                    
+                    st.session_state["proposta_id_em_edicao"] = None
+                    st.session_state["proposta_id_ativo"] = None
+                    st.session_state["rascunho_itens"] = []
+                    st.session_state["_safe_cliente_nome"] = ""
+                    st.session_state["_safe_cnpj_val"] = ""
+                    
+                    for k in list(st.session_state.keys()):
+                        if k.startswith("input_tarifa_"):
+                            del st.session_state[k]
+                    st.rerun()
+                else:
+                    st.error("Falha ao salvar no Google Sheets.")
+
+    st.markdown("---")
+    st.markdown("### Consulta Propostas Finalizadas")
+    with st.expander("Filtrar e Consultar Propostas Salvas", expanded=True):
+        col_filtro_m, col_filtro_a = st.columns(2)
+        with col_filtro_m:
+            mes_consulta = st.selectbox(
+                "Filtrar por Mês:",
+                options=["Todos", "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"],
+                index=0,
+                key="select_mes_consulta_cli"
+            )
+            
+        with col_filtro_a:
+            ano_consulta = st.text_input("Filtrar por Ano (Ex: 2026):", value="", key="input_ano_consulta_cli")
+            
+        if carregar_propostas_salvas_fn:
+            try:
+                df_historico = carregar_propostas_salvas_fn()
+                if isinstance(df_historico, pd.DataFrame) and not df_historico.empty:
+                    df_filtrado = df_historico.copy()
+                    if "Proposta" in df_filtrado.columns:
+                        if mes_consulta != "Todos":
+                            prefixo = str(mes_consulta) + "/"
+                            df_filtrado = df_filtrado[df_filtrado["Proposta"].astype(str).str.startswith(prefixo)]
+                        if ano_consulta.strip():
+                            sufixo = "/" + ano_consulta.strip()
+                            df_filtrado = df_filtrado[df_filtrado["Proposta"].astype(str).str.endswith(sufixo)]
+                        
+                        opcoes_propostas_formatadas = []
+                        for prop_num, grupo in df_filtrado.groupby("Proposta"):
+                            p_str = str(prop_num).strip()
+                            if p_str and p_str != "nan":
+                                cli_val = str(grupo["Cliente"].iloc[0]).strip() if "Cliente" in grupo.columns and not grupo.empty else "Cliente não informado"
+                                rotulo_opcao = f"{p_str} - {cli_val}"
+                                opcoes_propostas_formatadas.append(rotulo_opcao)
+                        
+                        if opcoes_propostas_formatadas:
+                            sel_p = st.selectbox("Selecione a Proposta Salva:", options=[""] + opcoes_propostas_formatadas, key="proposta_selecionada_temp")
+                            if sel_p:
+                                if st.button("📂 Carregar Proposta para Edição / Reimpressão", key="btn_disparar_carga_prop_cli", use_container_width=True):
+                                    st.session_state["btn_carregar_proposta_clicado"] = True
+                                    st.rerun()
+                        else:
+                            st.info("Nenhuma proposta encontrada com os filtros selecionados.")
+            except Exception as e:
+                st.warning(f"Não foi possível carregar as propostas salvas: {e}")
