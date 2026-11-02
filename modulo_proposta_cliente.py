@@ -599,5 +599,3 @@ def renderizar_aba_proposta_cliente(salvar_proposta_sheets_fn=None, carregar_pro
                         c_email,
                         c_contato,
                         c_objeto,
-                        c_iss,
-                        c_prazo
