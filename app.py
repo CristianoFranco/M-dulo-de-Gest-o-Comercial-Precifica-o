@@ -136,6 +136,13 @@ def carregar_dados(apenas_ativos=True):
     
     df["Status"] = df["Status"].astype(str).str.strip().replace("", "Ativo")
     df["Código"] = df["Código"].astype(str).str.strip()
+    
+    # Filtra registros temporários que possam ter sido salvos com DEL_ ou EDIT_ no passado
+    df = df[
+        ~df["Código"].astype(str).str.startswith("DEL_") & 
+        ~df["Código"].astype(str).str.startswith("EDIT_")
+    ].copy()
+
     if apenas_ativos:
         df_ativos = df[df["Status"].str.upper() != "INATIVO"].copy()
         return df_ativos[["Código", "Descrição", "Tarifa (R$)", "Unidade", "Categoria", "Observações"]]
@@ -145,8 +152,15 @@ def carregar_dados(apenas_ativos=True):
 def salvar_dados_completos(df_completo):
     try:
         supabase = obter_cliente_supabase()
+        
+        # Filtra e remove qualquer código temporário com DEL_ ou EDIT_
+        df_validos = df_completo[
+            ~df_completo["Código"].astype(str).str.startswith("DEL_") & 
+            ~df_completo["Código"].astype(str).str.startswith("EDIT_")
+        ].copy()
+
         registros = []
-        for _, row in df_completo.iterrows():
+        for _, row in df_validos.iterrows():
             registros.append({
                 "codigo": str(row.get("Código", "")).strip(),
                 "descricao": str(row.get("Descrição", "")).strip(),
@@ -157,7 +171,9 @@ def salvar_dados_completos(df_completo):
                 "status": str(row.get("Status", "Ativo")).strip()
             })
         
-        supabase.table("servicos").upsert(registros, on_conflict="codigo").execute()
+        if registros:
+            supabase.table("servicos").upsert(registros, on_conflict="codigo").execute()
+            
         carregar_dados_cached.clear()
         return True
     except Exception as e:
