@@ -100,8 +100,8 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, rg_ie_v
     )
     story.append(Paragraph(texto_intro2, body_justify_style))
     story.append(Spacer(1, 15))
-    story.append(Paragraph("<b>Richarlles Nascimento</b> – Executivo de Vendas &nbsp;&nbsp;|&nbsp;&nbsp; Tel.: (19) 99959-9894", body_left_style))
-    story.append(Paragraph("<b>Wilson Santos</b> – Gerente Comercial &nbsp;&nbsp;|&nbsp;&nbsp; Tel.: (19) 99888-2855", body_left_style))
+    story.append(Paragraph("<b>Richarlles Nascimento</b> – Executivo de Vendas   |   Tel.: (19) 99959-9894", body_left_style))
+    story.append(Paragraph("<b>Wilson Santos</b> – Gerente Comercial   |   Tel.: (19) 99888-2855", body_left_style))
     story.append(PageBreak())
 
     story.append(Paragraph("Tabela de Preços e Serviços", titulo_tabelas_style))
@@ -197,7 +197,7 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, rg_ie_v
     story.append(Spacer(1, 10))
     story.append(Paragraph("<b>Premissas:</b>", premissas_style))
     texto_premissas = (
-        f"1. Impostos: {iss_esc}% I.S.S sobre o faturamento não incluso. A incluir nos preços no total da NF de serviços;<br/>"
+        f"1. Impostos: {iss_esc}% I.S.S sobre o faturamento não menos. A incluir nos preços no total da NF de serviços;<br/>"
         f"2. Prazo de pagamento: {prazo_esc} dias corridos após a data de emissão da NF;<br/>"
         "3. Validade da proposta: A presente proposta tem validade de 30 dias;<br/>"
         f"4. Vigência Min: {vigencia_esc} meses;<br/>"
@@ -533,7 +533,7 @@ def renderizar_aba_proposta_cliente(salvar_proposta_supabase_fn=None, carregar_p
         dados_estaticos = []
         for item in itens_rascunho:
             tarifa_val = item.get("Tarifa (R$)", 0.0)
-            cat_item_str = _limpar_comma = _limpar_campo(item.get("Categoria", "")).lower()
+            cat_item_str = _limpar_campo(item.get("Categoria", "")).lower()
             try:
                 tarifa_float = float(tarifa_val)
                 if "seguro" in cat_item_str:
@@ -553,7 +553,6 @@ def renderizar_aba_proposta_cliente(salvar_proposta_supabase_fn=None, carregar_p
             })
         df_estatico = pd.DataFrame(dados_estaticos)
         
-        # Ocultar explicitamente as colunas Proposta, Cliente e CNPJ
         colunas_para_remover = ["Proposta", "Cliente", "CNPJ"]
         for col in colunas_para_remover:
             if col in df_estatico.columns:
@@ -562,7 +561,7 @@ def renderizar_aba_proposta_cliente(salvar_proposta_supabase_fn=None, carregar_p
         for c in df_estatico.columns:
             df_estatico[c] = df_estatico[c].apply(_limpar_campo)
         
-        st.dataframe(df_estatico, use_container_width=True, hide_index=True)
+        st.dataframe(df_estatico, use_container_width=True, height=280, hide_index=True)
         st.markdown("<br>", unsafe_allow_html=True)
         
     st.markdown("---")
@@ -602,8 +601,62 @@ def renderizar_aba_proposta_cliente(salvar_proposta_supabase_fn=None, carregar_p
         st.markdown(f"**Número da Proposta:** `{numero_proposta_atual}`")
 
         st.markdown("<br>", unsafe_allow_html=True)
-        submitted_pdf = st.form_submit_button("💾 Salvar Proposta e Gerar PDF", use_container_width=True, type="primary")
+        
+        # Botões organizados lado a lado dentro do form ou logo abaixo
+        col_btn_pdf, col_btn_banco = st.columns(2)
+        with col_btn_pdf:
+            submitted_pdf = st.form_submit_button("💾 Salvar Proposta e Gerar PDF", use_container_width=True, type="primary")
+        with col_btn_banco:
+            submitted_banco_only = st.form_submit_button("💾 Salvar apenas no Banco de Dados", use_container_width=True)
 
+        # -------------------------------------------------------------
+        # AÇÃO 1: SALVAR APENAS NO BANCO DE DADOS (SEM EXIGIR CAMPOS EXTRAS)
+        # -------------------------------------------------------------
+        if submitted_banco_only:
+            c_nome_banco = str(input_razao_social).strip() or cliente_nome
+            c_cnpj_banco = str(input_cnpj).strip() or cnpj_val
+            
+            if not c_nome_banco:
+                st.error("⚠️ O nome da Razão Social / Cliente é obrigatório para salvar!")
+            elif not itens_rascunho:
+                st.error("⚠️ Não há itens no rascunho para salvar.")
+            elif salvar_proposta_supabase_fn:
+                linhas_para_salvar = []
+                data_hoje = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                for item in itens_rascunho:
+                    try:
+                        t_val = float(item.get("Tarifa (R$)", 0.0))
+                    except (ValueError, TypeError):
+                        t_val = 0.0
+                        
+                    linhas_para_salvar.append({
+                        "Proposta": numero_proposta_atual,
+                        "Data": data_hoje,
+                        "Cliente": c_nome_banco,
+                        "CNPJ": c_cnpj_banco,
+                        "Código": str(item.get("Código", "")),
+                        "Descrição": str(item.get("Descrição", "")),
+                        "Categoria": str(item.get("Categoria", "")),
+                        "Unidade": str(item.get("Unidade", "")),
+                        "Tarifa (R$)": t_val,
+                        "Observações": str(item.get("Observações", ""))
+                    })
+                
+                sucesso = salvar_proposta_supabase_fn(linhas_para_salvar)
+                if sucesso:
+                    st.success("✅ Proposta salva com sucesso no banco de dados Supabase!")
+                    st.session_state["proposta_id_em_edicao"] = None
+                    st.session_state["proposta_id_ativo"] = None
+                    st.session_state["rascunho_itens"] = []
+                    st.session_state["_safe_cliente_nome"] = ""
+                    st.session_state["_safe_cnpj_val"] = ""
+                    st.rerun()
+                else:
+                    st.error("Falha ao salvar no Supabase.")
+
+        # -------------------------------------------------------------
+        # AÇÃO 2: SALVAR E GERAR PDF (FLUXO COMPLETO ORIGINAL)
+        # -------------------------------------------------------------
         if submitted_pdf:
             c_nome = str(input_razao_social).strip()
             c_cnpj = str(input_cnpj).strip()
