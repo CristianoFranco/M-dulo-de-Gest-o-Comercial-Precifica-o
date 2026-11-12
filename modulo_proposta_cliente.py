@@ -156,3 +156,307 @@ def gerar_pdf_proposta_completo(numero_proposta, cliente_nome, cnpj_val, rg_ie_v
             story.append(Paragraph(nome_bloco, titulo_bloco_style))
             story.append(Spacer(1, 4))
             cabecalho = [
+                Paragraph("Código", th_style),
+                Paragraph("Descrição", th_style),
+                Paragraph("Unidade", th_style),
+                Paragraph("Tarifa", th_style_right),
+                Paragraph("Observações", th_style)
+            ]
+            tabela = Table([cabecalho] + linhas, colWidths=[45, 165, 125, 85, 120])
+            tabela.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0052B4')),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#CCCCCC')),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F8FAFC')]),
+                ('TOPPADDING', (0, 0), (-1, -1), 5),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+                ('LEFTPADDING', (0, 0), (-1, -1), 4),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+            ]))
+            story.append(tabela)
+            primeiro_bloco = False
+
+    if fat_minimo_esc:
+        story.append(Spacer(1, 12))
+        conteudo_fat_min = [
+            [Paragraph("<b>Faturamento Mínimo Mensal:</b>", fat_min_title_style)],
+            [Paragraph(fat_minimo_esc, fat_min_text_style)]
+        ]
+        tabela_fat_min = Table(conteudo_fat_min, colWidths=[540])
+        tabela_fat_min.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#F0F4F9')),
+            ('BOX', (0, 0), (-1, -1), 1, colors.HexColor('#0052B4')),
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ('LEFTPADDING', (0, 0), (-1, -1), 8),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+        ]))
+        story.append(tabela_fat_min)
+
+    story.append(Spacer(1, 10))
+    story.append(Paragraph("<b>Premissas:</b>", premissas_style))
+    texto_premissas = (
+        f"1. Impostos: {iss_esc}% I.S.S sobre o faturamento não incluso. A incluir nos preços no total da NF de serviços;<br/>"
+        f"2. Prazo de pagamento: {prazo_esc} dias corridos após a data de emissão da NF;<br/>"
+        "3. Validade da proposta: A presente proposta tem validade de 30 dias;<br/>"
+        f"4. Vigência Min: {vigencia_esc} meses;<br/>"
+        "5. Os serviços não discriminados nesta tabela serão acordados entre as partes;<br/>"
+        "6. O faturamento e cobrança dos serviços serão MENSAIS;<br/>"
+        "7. Mão de obra inclusa para prestação dos serviços: Ajudante, Separador, Conferente, Líder e Operador. <br/>"
+        "8. Cubagem padrão: posição palete: 1,74m³ / posição gaveta: 0,72m³<br/>"
+        "9. Dimensões padrão: posição palete: 1,00 x 1,20 x 1,45 / posição gaveta: 1,00 x 1,20 x 0,60"
+    )
+    if outras_premissas_esc:
+        texto_premissas += f"<br/>10. {outras_premissas_esc}"
+
+    story.append(Paragraph(texto_premissas, premissas_style))
+    story.append(PageBreak())
+    
+    story.append(Paragraph("<b>TERMO DE ACEITE PARA PRESTAÇÃO DE SERVIÇOS</b>", titulo_termo_center))
+    story.append(Spacer(1, 6))
+    
+    termo_p1 = (
+        f"Com a assinatura do presente termo, a empresa cliente, por meio de seu representante, responsável pelo fechamento da venda, "
+        f"declara que aceita todas as condições dispostas na proposta <b>{num_prop_esc}</b> apresentada pela <b>GLOBEX MULTIMODAL</b>, "
+        "ficando ciente que: A prestação dos serviços inicia-se na data expressa no presente termo."
+    )
+    story.append(Paragraph(termo_p1, body_justify_style))
+    
+    termo_p2 = (
+        "A assinatura do presente termo autoriza a GLOBEX MULTIMODAL a iniciar a prestação dos serviços e consequente faturamento, "
+        "seguindo os valores e condições descritas na proposta comercial ora aceita."
+    )
+    story.append(Paragraph(termo_p2, body_justify_style))
+    
+    clausulas = [
+        "1) Caso seja detectado o inadimplemento da empresa cliente em efetuar os pagamentos, fica permitida a cobrança do débito atualizado pelo IPCA/IBGE, acrescido de multa de mora de 2% e juros de 1% ao mês, pro rata tempore.",
+        "2) O presente termo é parte integrante e acessória do contrato de prestação de serviços, prevalecendo como documento principal até a assinatura do mesmo.",
+        "3) Os dados cadastrais abaixo especificados poderão ser utilizados pela GLOBEX MULTIMODAL para emissão dos documentos fiscais correspondentes."
+    ]
+    for c in clausulas:
+        story.append(Paragraph(c, body_justify_style))
+    
+    story.append(Spacer(1, 10))
+    
+    info_cadastrais = [
+        f"<b>Nome/Razão Social:</b> {c_nome_esc}",
+        f"<b>CPF/CNPJ:</b> {c_cnpj_esc}",
+        f"<b>RG / Inscrição Estadual:</b> {rg_ie_esc}",
+        f"<b>Email:</b> {email_esc}"
+    ]
+    for info in info_cadastrais:
+        story.append(Paragraph(info, body_left_style))
+        
+    story.append(Spacer(1, 12))
+    story.append(Paragraph("<b>Assinatura / Representante Legal:</b>", body_left_style))
+    story.append(Spacer(1, 8))
+    
+    style_assinatura = ParagraphStyle(
+        'AssinaturaEstilo', 
+        parent=styles['Normal'], 
+        fontSize=10, 
+        leading=18, 
+        alignment=TA_LEFT, 
+        textColor=colors.HexColor('#222222'), 
+        spaceAfter=42
+    )
+    
+    campos_assinatura = [
+        "<b>Nome:</b>",
+        "<b>Função:</b>",
+        "<b>CPF:</b>"
+    ]
+    for campo in campos_assinatura:
+        story.append(Paragraph(campo, style_assinatura))
+
+    try:
+        doc.build(story, onFirstPage=desenhar_cabecalho_rodape, onLaterPages=desenhar_cabecalho_rodape)
+    except Exception as e:
+        st.error(f"Erro ao compilar o PDF no ReportLab: {e}")
+        return None
+
+    buffer.seek(0)
+    return buffer
+
+def renderizar_aba_proposta_cliente(salvar_proposta_supabase_fn=None, carregar_propostas_supabase_fn=None, obter_proximo_numero_fn=None):
+    st.markdown("""
+        <style>
+            div.stButton > button[kind="secondary"] {
+                background-color: #0052B4 !important;
+                color: #FFFFFF !important;
+                font-weight: bold !important;
+                border: 1px solid #0052B4 !important;
+                border-radius: 6px !important;
+            }
+            div.stButton > button[kind="secondary"]:hover {
+                background-color: #003B82 !important;
+                color: #FFFFFF !important;
+                border: 1px solid #003B82 !important;
+            }
+        </style>
+    """, unsafe_allow_html=True)
+
+    st.markdown("## Visão Final da Proposta (Cliente)")
+    st.caption("Visualização pronta para conferência, geração de PDF e salvamento.")
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # ==========================================
+    # SEÇÃO DE CONSULTA (SUPABASE)
+    # ==========================================
+    with st.expander("🔍 Filtrar e Consultar Propostas Salvas", expanded=True):
+        col_filtro_m, col_filtro_a = st.columns(2)
+        with col_filtro_m:
+            mes_consulta = st.selectbox(
+                "Filtrar por Mês:",
+                options=["Todos", "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"],
+                index=0,
+                key="select_mes_consulta_cli"
+            )
+            
+        with col_filtro_a:
+            ano_consulta = st.text_input("Filtrar por Ano (Ex: 2026):", value="", key="input_ano_consulta_cli")
+            
+        if carregar_propostas_supabase_fn:
+            try:
+                df_historico = carregar_propostas_supabase_fn()
+                if isinstance(df_historico, pd.DataFrame) and not df_historico.empty:
+                    df_filtrado = df_historico.copy()
+                    if "Proposta" in df_filtrado.columns:
+                        if mes_consulta != "Todos":
+                            prefixo = str(mes_consulta) + "/"
+                            df_filtrado = df_filtrado[df_filtrado["Proposta"].astype(str).str.startswith(prefixo)]
+                        if ano_consulta.strip():
+                            sufixo = "/" + ano_consulta.strip()
+                            df_filtrado = df_filtrado[df_filtrado["Proposta"].astype(str).str.endswith(sufixo)]
+                        
+                        opcoes_propostas_formatadas = []
+                        for prop_num, grupo in df_filtrado.groupby("Proposta"):
+                            p_str = str(prop_num).strip()
+                            if p_str and p_str != "nan":
+                                cli_val = str(grupo["Cliente"].iloc[0]).strip() if "Cliente" in grupo.columns and not grupo.empty else "Cliente não informado"
+                                rotulo_opcao = f"{p_str} - {cli_val}"
+                                opcoes_propostas_formatadas.append(rotulo_opcao)
+                        
+                        if opcoes_propostas_formatadas:
+                            sel_p = st.selectbox("Selecione a Proposta Salva:", options=[""] + opcoes_propostas_formatadas, key="proposta_selecionada_temp")
+                            if sel_p:
+                                if st.button("📂 Carregar Proposta para Edição / Reimpressão", key="btn_disparar_carga_prop_cli", use_container_width=True):
+                                    st.session_state["btn_carregar_proposta_clicado"] = True
+                                    st.rerun()
+                        else:
+                            st.info("Nenhuma proposta encontrada com os filtros selecionados.")
+            except Exception as e:
+                st.warning(f"Não foi possível carregar as propostas do Supabase: {e}")
+
+    st.markdown("---")
+
+    if "form_prop_cliente_version" not in st.session_state:
+        st.session_state["form_prop_cliente_version"] = 1
+
+    ver_form = st.session_state["form_prop_cliente_version"]
+
+    if carregar_propostas_supabase_fn and st.session_state.get("btn_carregar_proposta_clicado"):
+        st.session_state["btn_carregar_proposta_clicado"] = False
+        prop_escolhida_raw = str(st.session_state.get("proposta_selecionada_temp", "")).strip()
+        if prop_escolhida_raw:
+            prop_escolhida = prop_escolhida_raw.split(" - ")[0].strip()
+            try:
+                df_historico_tmp = carregar_propostas_supabase_fn()
+                if isinstance(df_historico_tmp, pd.DataFrame) and not df_historico_tmp.empty:
+                    df_prop_sel = df_historico_tmp[df_historico_tmp["Proposta"].astype(str).str.strip() == prop_escolhida]
+                    if not df_prop_sel.empty:
+                        st.session_state.pop("ultimo_pdf_bytes", None)
+                        st.session_state.pop("ultimo_pdf_nome", None)
+                        st.session_state["proposta_id_em_edicao"] = prop_escolhida
+                        st.session_state["proposta_id_ativo"] = prop_escolhida
+                        
+                        primeiro_reg = df_prop_sel.iloc[0]
+                        c_nome_carregado = str(primeiro_reg.get("Cliente", ""))
+                        c_cnpj_carregado = str(primeiro_reg.get("CNPJ", "")) if "CNPJ" in primeiro_reg else ""
+                        
+                        st.session_state["_safe_cliente_nome"] = c_nome_carregado
+                        st.session_state["_safe_cnpj_val"] = c_cnpj_carregado
+                        
+                        st.session_state["form_prop_cliente_version"] += 1
+                        ver_form = st.session_state["form_prop_cliente_version"]
+
+                        st.session_state[f"input_popup_razao_social_{ver_form}"] = c_nome_carregado
+                        st.session_state[f"input_popup_cnpj_{ver_form}"] = c_cnpj_carregado
+                        st.session_state[f"input_popup_rg_ie_{ver_form}"] = ""
+                        st.session_state[f"input_popup_email_{ver_form}"] = ""
+                        st.session_state[f"input_popup_contato_{ver_form}"] = ""
+                        st.session_state[f"input_popup_objeto_{ver_form}"] = ""
+                        st.session_state[f"input_popup_iss_{ver_form}"] = "2.5"
+                        st.session_state[f"input_popup_prazo_{ver_form}"] = "30"
+                        st.session_state[f"input_popup_vigencia_{ver_form}"] = "12"
+                        st.session_state[f"input_popup_fat_minimo_{ver_form}"] = ""
+                        st.session_state[f"input_popup_outras_premissas_{ver_form}"] = ""
+                        
+                        def _limpar(v):
+                            if pd.isna(v) or v is None:
+                                return ""
+                            s = str(v).strip()
+                            return "" if s.lower() in ["nan", "none", "nat", "<na>"] else s
+
+                        novos_itens = []
+                        for _, row in df_prop_sel.iterrows():
+                            try:
+                                tarifa_val = float(row.get("Tarifa (R$)", 0.0))
+                                if pd.isna(tarifa_val):
+                                    tarifa_val = 0.0
+                            except (ValueError, TypeError):
+                                tarifa_val = 0.0
+                                
+                            novos_itens.append({
+                                "Código": _limpar(row.get("Código", "")),
+                                "Descrição": _limpar(row.get("Descrição", "")),
+                                "Tarifa (R$)": tarifa_val,
+                                "Unidade": _limpar(row.get("Unidade", "")),
+                                "Observações": _limpar(row.get("Observações", "")),
+                                "Categoria": _limpar(row.get("Categoria", "")),
+                                "Cat_Code": "GEN"
+                            })
+                            
+                        st.session_state["rascunho_itens"] = novos_itens
+                        st.session_state["mensagem_sucesso_carregar"] = f"Proposta '{prop_escolhida}' carregada com sucesso!"
+                        st.rerun()
+            except Exception as e:
+                st.error(f"Erro ao carregar proposta: {e}")
+
+    if st.session_state.get("ultimo_pdf_bytes"):
+        st.success("✅ Proposta salva com sucesso no Supabase e documento PDF gerado!")
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.download_button(
+            label="📥 Baixar / Visualizar Proposta em PDF",
+            data=st.session_state["ultimo_pdf_bytes"],
+            file_name=st.session_state.get("ultimo_pdf_nome", "Proposta.pdf"),
+            mime="application/pdf",
+            use_container_width=True,
+            type="primary"
+        )
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("🔄 Iniciar Nova Proposta", use_container_width=True):
+            st.session_state.pop("ultimo_pdf_bytes", None)
+            st.session_state.pop("ultimo_pdf_nome", None)
+            st.session_state["proposta_id_em_edicao"] = None
+            st.session_state["proposta_id_ativo"] = None
+            st.session_state["rascunho_itens"] = []
+            st.session_state["_safe_cliente_nome"] = ""
+            st.session_state["_safe_cnpj_val"] = ""
+            st.session_state["form_prop_cliente_version"] += 1
+            st.rerun()
+        
+        st.markdown("---")
+        return
+
+    itens_rascunho = st.session_state.get("rascunho_itens", [])
+    cliente_nome = str(st.session_state.get("_safe_cliente_nome") or st.session_state.get("input_cli_nome_tela2", "")).strip()
+    cnpj_val = str(st.session_state.get("_safe_cnpj_val") or st.session_state.get("proposta_cliente_cnpj", "")).strip()
+    
+    key_rz = f"input_popup_razao_social_{ver_form}"
+    key_cnpj = f"input_popup_cnpj_{ver_form}"
+    key_rg = f"input_popup_rg_ie_{ver_form}"
+    key_em = f"input_popup_email_{ver_form}"
+    key_ct = f"input_popup_contato_{ver_form}"
+    key_is = f"input_popup
